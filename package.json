@@ -1,0 +1,32 @@
+{
+  "name": "playoff-music-voting",
+  "version": "2.0.0",
+  "description": "Music voting application with Spotify integration - Pure JavaScript version (frontend only)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "music",
+    "voting",
+    "spotify",
+    "playlist",
+    "javascript",
+    "html5",
+    "css3",
+    "frontend",
+    "vanilla-js"
+  ],
+  "author": "PlayOff Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/playoff-music-voting.git"
+  },
+  "devDependencies": {},
+  "dependencies": {}
+}
