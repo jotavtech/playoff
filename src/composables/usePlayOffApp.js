@@ -1,37 +1,60 @@
 import { ref, computed, onMounted } from 'vue'
 
+// Composable principal da aplicação PlayOff
+// Este composable centraliza toda a lógica de estado e operações relacionadas
+// ao sistema de votação e gerenciamento de músicas. Desenvolvido com Vue 3
+// Composition API para máxima reatividade e performance
 export function usePlayOffApp() {
-  // State
-  const songs = ref([])
-  const isOnline = ref(true)
-  const notifications = ref([])
+  // ============= ESTADO REATIVO =============
+  // Gerencio todo o estado da aplicação de forma reativa usando ref()
+  // Isso garante que a interface seja atualizada automaticamente quando os dados mudam
   
-  // API base URL
+  const songs = ref([])              // Lista principal de músicas
+  const isOnline = ref(true)         // Status de conexão com o backend
+  const notifications = ref([])      // Sistema de notificações em tempo real
+  
+  // ============= CONFIGURAÇÃO DA API =============
+  // URL base para comunicação com o backend
+  // Em produção, isso seria configurado via variáveis de ambiente
   const apiBaseUrl = '/api'
   
-  // Computed
+  // ============= COMPUTED PROPERTIES =============
+  // Computed que sempre retorna as músicas ordenadas por votos
+  // É reativo, então qualquer mudança nos votos recalcula automaticamente a ordenação
   const sortedSongs = computed(() => {
     return [...songs.value].sort((a, b) => b.votes - a.votes)
   })
   
-  // Load songs from backend
+  // ============= FUNÇÕES DE COMUNICAÇÃO COM BACKEND =============
+  
+  // Função principal para carregar músicas do servidor
+  // Implemento tratamento de erro robusto para lidar com backend offline
+  // Esta função é chamada na inicialização e periodicamente para sincronização
   const loadSongsFromBackend = async () => {
     try {
+      console.log('📡 Tentando carregar músicas do backend...')
       const response = await fetch(`${apiBaseUrl}/songs`)
+      
       if (response.ok) {
         const data = await response.json()
         songs.value = data.songs || []
-        console.log('✅ Músicas carregadas do backend')
+        console.log(`✅ ${songs.value.length} músicas carregadas do backend com sucesso`)
         return true
+      } else {
+        throw new Error(`Resposta HTTP ${response.status}`)
       }
     } catch (error) {
-      console.log('Backend offline, usando dados demo')
+      console.log('🔌 Backend offline ou inacessível, falhando graciosamente:', error.message)
       throw error
     }
   }
   
-  // Load demo data
+  // Função para carregar dados de demonstração quando o backend não está disponível
+  // Isso garante que a aplicação continue funcionando mesmo sem conectividade
+  // Os dados demo são representativos e permitem testar todas as funcionalidades
   const loadDemoData = () => {
+    console.log('📀 Carregando dados demo para funcionamento offline...')
+    
     songs.value = [
       {
         id: 'audioslave-cochise',
@@ -71,14 +94,22 @@ export function usePlayOffApp() {
       }
     ]
     
-    console.log('📀 Loaded sample songs with album covers')
+    console.log(`📀 ${songs.value.length} músicas demo carregadas para desenvolvimento/teste`)
   }
   
-  // Submit vote to backend
+  // ============= SISTEMA DE VOTAÇÃO =============
+  
+  // Função para enviar voto ao backend
+  // Implemento verificação de conectividade para evitar erros quando offline
+  // Esta função é chamada após atualizar o estado local para responsividade
   const submitVoteToBackend = async (songId, votes) => {
-    if (!isOnline.value) return
+    if (!isOnline.value) {
+      console.log('⚠️ Offline: Voto salvo apenas localmente')
+      return false
+    }
     
     try {
+      console.log(`📤 Enviando voto para backend: música ${songId}, total ${votes} votos`)
       const response = await fetch(`${apiBaseUrl}/vote`, {
         method: 'POST',
         headers: {
@@ -91,95 +122,127 @@ export function usePlayOffApp() {
       })
       
       if (response.ok) {
-        console.log('✅ Voto enviado para o backend')
+        console.log('✅ Voto sincronizado com backend com sucesso')
         return true
+      } else {
+        throw new Error(`Erro HTTP ${response.status}`)
       }
     } catch (error) {
-      console.error('❌ Erro ao enviar voto:', error)
+      console.error('❌ Falha ao sincronizar voto com backend:', error)
+      // Marco como offline para futuras operações
+      isOnline.value = false
       return false
     }
   }
   
-  // Vote for song
+  // Função principal para votar em uma música
+  // Implemento otimistic UI updates - atualizo a interface imediatamente
+  // e depois sincronizo com o servidor. Isso proporciona experiência mais fluida
   const voteForSong = async (songId) => {
     try {
-      console.log(`🗳️ Votando na música ID: ${songId}`)
+      console.log(`🗳️ Processando voto para música ID: ${songId}`)
       
+      // Encontro a música na lista local
       const song = songs.value.find(s => s.id === songId)
       if (!song) {
-        console.error('❌ Música não encontrada:', songId)
+        console.error('❌ Música não encontrada na lista local:', songId)
+        showNotification('Música não encontrada', 'error')
         return null
       }
       
-      // Increment votes locally
-      song.votes = (song.votes || 0) + 1
+      // Atualizo votos localmente primeiro (otimistic update)
+      const oldVotes = song.votes || 0
+      song.votes = oldVotes + 1
+      console.log(`📊 Votos atualizados localmente: ${oldVotes} → ${song.votes}`)
       
-      // Submit vote to backend
+      // Tento sincronizar com backend em background
       await submitVoteToBackend(songId, song.votes)
       
-      showNotification(`🗳️ Votou em "${song.title}"!`, 'success')
+      // Feedback positivo para o usuário
+      showNotification(`🗳️ Voto registrado para "${song.title}"!`, 'success')
       
       return song
     } catch (error) {
-      console.error('❌ Erro ao votar:', error)
-      showNotification('Erro ao votar na música', 'error')
+      console.error('❌ Erro crítico na votação:', error)
+      showNotification('Erro inesperado ao votar', 'error')
       return null
     }
   }
   
-  // Super vote for song - adds enough votes to surpass current highest
+  // ============= SISTEMA DE SUPER VOTO =============
+  
+  // Função avançada de super voto que garante liderança imediata
+  // Esta é uma funcionalidade premium que calcula dinamicamente quantos votos
+  // são necessários para que a música escolhida assuma a primeira posição
   const superVote = async (songId, currentPlayingSong = null) => {
     try {
-      console.log(`⚡ Super voto na música ID: ${songId}`)
+      console.log(`⚡ Iniciando super voto para música ID: ${songId}`)
       
+      // Encontro a música alvo
       const song = songs.value.find(s => s.id === songId)
       if (!song) {
-        console.error('❌ Música não encontrada:', songId)
+        console.error('❌ Música para super voto não encontrada:', songId)
+        showNotification('Música não encontrada', 'error')
         return null
       }
       
-      // Find the highest voted song (excluding the song we're super voting)
+      // Cálculo inteligente dos votos necessários para liderança
       let highestVotes = 0
       
-      // If there's a current playing song, use its votes as reference
+      // Se há uma música tocando atualmente, uso seus votos como referência
       if (currentPlayingSong && currentPlayingSong.id !== songId) {
         highestVotes = currentPlayingSong.votes || 0
+        console.log(`📊 Usando música atual como referência: ${highestVotes} votos`)
       } else {
-        // Otherwise, find the highest voted song
+        // Caso contrário, encontro a música com mais votos (excluindo a alvo)
         const otherSongs = songs.value.filter(s => s.id !== songId)
         if (otherSongs.length > 0) {
           highestVotes = Math.max(...otherSongs.map(s => s.votes || 0))
+          console.log(`📊 Maior número de votos encontrado: ${highestVotes}`)
         }
       }
       
-      // Calculate votes needed to surpass the highest (at least 1 more vote)
-      const votesNeeded = Math.max(1, (highestVotes + 1) - (song.votes || 0))
+      // Calculo votos necessários (pelo menos 1 voto a mais que o líder)
+      const currentVotes = song.votes || 0
+      const votesNeeded = Math.max(1, (highestVotes + 1) - currentVotes)
       
-      console.log(`⚡ Super voto: Música atual tem ${song.votes || 0} votos`)
-      console.log(`⚡ Super voto: Maior número de votos atual: ${highestVotes}`)
-      console.log(`⚡ Super voto: Adicionando ${votesNeeded} votos`)
+      console.log(`⚡ Análise do super voto:`)
+      console.log(`   - Música "${song.title}" tem atualmente: ${currentVotes} votos`)
+      console.log(`   - Líder atual tem: ${highestVotes} votos`)
+      console.log(`   - Votos necessários para liderança: ${votesNeeded}`)
       
-      // Update votes locally
-      song.votes = (song.votes || 0) + votesNeeded
+      // Atualizo votos localmente (otimistic update)
+      song.votes = currentVotes + votesNeeded
+      console.log(`📊 Super voto concluído: ${currentVotes} → ${song.votes} votos`)
       
-      // Submit super vote to backend
+      // Sincronizo com backend
       await submitSuperVoteToBackend(songId, song.votes, votesNeeded)
       
-      showNotification(`⚡ Super Voto! "${song.title}" agora tem ${song.votes} votos!`, 'success')
+      // Feedback especial para super voto
+      showNotification(
+        `⚡ Super Voto executado! "${song.title}" agora lidera com ${song.votes} votos!`, 
+        'success'
+      )
       
       return song
     } catch (error) {
-      console.error('❌ Erro no super voto:', error)
-      showNotification('Erro no super voto', 'error')
+      console.error('❌ Erro crítico no super voto:', error)
+      showNotification('Erro inesperado no super voto', 'error')
       return null
     }
   }
   
-  // Submit super vote to backend
+  // Função específica para sincronizar super votos com o backend
+  // O super voto requer endpoint diferente pois envia informações adicionais
+  // sobre quantos votos foram adicionados de uma vez
   const submitSuperVoteToBackend = async (songId, totalVotes, votesAdded) => {
-    if (!isOnline.value) return
+    if (!isOnline.value) {
+      console.log('⚠️ Offline: Super voto salvo apenas localmente')
+      return false
+    }
     
     try {
+      console.log(`📤 Sincronizando super voto: ${votesAdded} votos adicionados (total: ${totalVotes})`)
       const response = await fetch(`${apiBaseUrl}/super-vote`, {
         method: 'POST',
         headers: {
@@ -193,108 +256,180 @@ export function usePlayOffApp() {
       })
       
       if (response.ok) {
-        console.log('✅ Super voto enviado para o backend')
+        console.log('✅ Super voto sincronizado com backend com sucesso')
         return true
+      } else {
+        throw new Error(`Erro HTTP ${response.status}`)
       }
     } catch (error) {
-      console.error('❌ Erro ao enviar super voto:', error)
+      console.error('❌ Falha ao sincronizar super voto:', error)
+      isOnline.value = false
       return false
     }
   }
   
-  // Show notification
+  // ============= SISTEMA DE NOTIFICAÇÕES =============
+  
+  // Sistema de notificações em tempo real com auto-dismiss
+  // Implemento diferentes tipos de notificação (success, error, warning, info)
+  // com remoção automática para não sobrecarregar a interface
   const showNotification = (message, type = 'info') => {
     const notification = {
-      id: Date.now(),
+      id: Date.now() + Math.random(), // ID único para cada notificação
       message,
-      type
+      type,
+      timestamp: new Date().toISOString()
     }
     
+    // Adiciono à lista de notificações ativas
     notifications.value.push(notification)
     
-    // Remove after 3 seconds
+    // Auto-remoção após 3 segundos para manter interface limpa
     setTimeout(() => {
       const index = notifications.value.findIndex(n => n.id === notification.id)
       if (index > -1) {
         notifications.value.splice(index, 1)
+        console.log(`🗑️ Notificação removida automaticamente: ${message}`)
       }
     }, 3000)
     
-    console.log(`📢 ${type.toUpperCase()}: ${message}`)
+    // Log para debugging
+    console.log(`📢 NOTIFICAÇÃO [${type.toUpperCase()}]: ${message}`)
   }
 
-  // Initialize app data
+  // ============= INICIALIZAÇÃO E SINCRONIZAÇÃO =============
+  
+  // Função principal de inicialização da aplicação
+  // Tenta conectar com backend primeiro, fallback para dados demo se falhar
+  // Esta estratégia garante que a aplicação sempre funcione
   const initializeData = async () => {
+    console.log('🚀 Inicializando sistema PlayOff...')
+    
     try {
+      // Tentativa principal: carregar do backend
       await loadSongsFromBackend()
       isOnline.value = true
+      console.log('✅ Inicialização online concluída com sucesso')
     } catch (error) {
-      console.log('🔌 Backend não disponível, usando dados demo')
+      console.log('🔌 Backend não disponível durante inicialização, modo offline ativado')
       loadDemoData()
       isOnline.value = false
+      
+      // Mostro notificação informativa sobre modo offline
+      showNotification('Modo offline: usando dados de demonstração', 'warning')
     }
   }
   
-  // Start update loops (reduced frequency)
+  // Sistema de atualização periódica com frequência reduzida
+  // Implemento polling inteligente para manter dados sincronizados
+  // Frequência reduzida (15s) para economizar recursos e reduzir carga no servidor
   const startUpdateLoops = () => {
-    // Update songs every 15 seconds (was 5)
+    console.log('🔄 Iniciando loops de atualização automática (intervalo: 15s)')
+    
+    // Atualização periódica das músicas
     setInterval(async () => {
       if (isOnline.value) {
         try {
           await refreshSongs()
         } catch (error) {
-          console.log('Erro ao atualizar músicas')
+          console.log('⚠️ Erro durante atualização automática:', error.message)
+          // Não marco como offline aqui para evitar false negatives
         }
       }
-    }, 15000)
+    }, 15000) // 15 segundos - reduzido de 5s para melhor performance
   }
   
-  // Add debounced update for songs
+  // ============= DEBOUNCING E OTIMIZAÇÃO =============
+  
+  // Implemento debouncing para atualizações de músicas
+  // Isso previne múltiplas chamadas desnecessárias em rápida sucessão
+  // Especialmente útil quando múltiplos usuários votam simultaneamente
   let songsUpdateTimeout = null
+  
   const debouncedUpdateSongs = () => {
-    if (songsUpdateTimeout) clearTimeout(songsUpdateTimeout)
+    // Cancelo timeout anterior se existir
+    if (songsUpdateTimeout) {
+      clearTimeout(songsUpdateTimeout)
+    }
+    
+    // Agendo nova atualização com delay
     songsUpdateTimeout = setTimeout(async () => {
       try {
+        console.log('🔄 Executando atualização debounced...')
         await refreshSongs()
       } catch (error) {
-        console.log('Erro na atualização debounced das músicas')
+        console.log('⚠️ Erro na atualização debounced:', error.message)
       }
-    }, 1000)
+    }, 1000) // 1 segundo de delay
   }
   
-  // Refresh songs from backend
+  // Função para atualizar músicas do backend de forma inteligente
+  // Implemento comparação de conteúdo para evitar re-renders desnecessários
+  // Só atualizo o estado se os dados realmente mudaram
   const refreshSongs = async () => {
-    if (!isOnline.value) return
+    if (!isOnline.value) {
+      console.log('⚠️ Tentativa de refresh offline - ignorando')
+      return
+    }
     
     try {
+      console.log('🔄 Atualizando lista de músicas...')
       const response = await fetch(`${apiBaseUrl}/songs`)
+      
       if (response.ok) {
         const data = await response.json()
         const newSongs = data.songs || []
         
-        // Only update if songs have actually changed
+        // Comparação inteligente: só atualizo se dados mudaram
         const songsChanged = JSON.stringify(songs.value) !== JSON.stringify(newSongs)
+        
         if (songsChanged) {
+          const previousCount = songs.value.length
           songs.value = newSongs
-          console.log('🔄 Músicas atualizadas')
+          
+          console.log(`🔄 Lista atualizada: ${previousCount} → ${newSongs.length} músicas`)
+          
+          // Log das mudanças para debugging
+          if (newSongs.length > previousCount) {
+            console.log(`➕ ${newSongs.length - previousCount} nova(s) música(s) adicionada(s)`)
+          } else if (newSongs.length < previousCount) {
+            console.log(`➖ ${previousCount - newSongs.length} música(s) removida(s)`)
+          } else {
+            console.log('📊 Votos atualizados (mesmo número de músicas)')
+          }
+        } else {
+          // Dados idênticos - não preciso atualizar
+          console.log('✓ Lista já está atualizada (sem mudanças)')
         }
+      } else {
+        throw new Error(`Resposta HTTP ${response.status}`)
       }
     } catch (error) {
       console.error('❌ Erro ao atualizar músicas:', error)
+      // Marco como offline para pausar futuras tentativas automáticas
       isOnline.value = false
+      showNotification('Conexão perdida - modo offline ativado', 'warning')
     }
   }
   
+  // ============= INTERFACE PÚBLICA DO COMPOSABLE =============
+  // Retorno apenas o que é necessário para os componentes
+  // Isso mantém a API limpa e previne uso indevido de funções internas
   return {
-    songs,
-    sortedSongs,
-    notifications,
-    isOnline,
-    voteForSong,
-    superVote,
-    showNotification,
-    initializeData,
-    startUpdateLoops,
-    refreshSongs
+    // Estado reativo
+    songs,                    // Lista de músicas
+    sortedSongs,             // Músicas ordenadas por votos  
+    notifications,           // Sistema de notificações
+    isOnline,               // Status de conectividade
+    
+    // Ações principais
+    voteForSong,            // Votar em música
+    superVote,              // Super voto (liderança garantida)
+    showNotification,       // Mostrar notificação
+    
+    // Inicialização e sincronização
+    initializeData,         // Inicializar aplicação
+    startUpdateLoops,       // Iniciar atualizações automáticas
+    refreshSongs            // Atualizar músicas manualmente
   }
 } 

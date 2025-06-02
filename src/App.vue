@@ -1,16 +1,16 @@
 <template>
   <div class="app">
-    <!-- Background Elements -->
+    <!-- Elementos de Fundo -->
     <div class="background-overlay"></div>
     <div class="dynamic-background" :class="{ active: currentTrack }"></div>
     
-    <!-- Notifications -->
+    <!-- Sistema de Notificações -->
     <NotificationContainer :notifications="notifications" />
     
     <div class="container">
-      <!-- Main Content -->
+      <!-- Conteúdo Principal -->
       <div class="main-content">
-        <!-- Hero Section -->
+        <!-- Seção Hero com Player de Música -->
         <HeroSection 
           :current-track="currentTrack"
           :is-playing="isPlaying"
@@ -22,7 +22,7 @@
           @next-track="handleNextTrack"
         />
 
-        <!-- Music Carousel -->
+        <!-- Carrossel de Músicas para Votação -->
         <MusicCarousel 
           :songs="sortedSongs"
           :current-track="currentTrack"
@@ -44,199 +44,271 @@ import HeroSection from './components/HeroSection.vue'
 import MusicCarousel from './components/MusicCarousel.vue'
 import NotificationContainer from './components/NotificationContainer.vue'
 
-// Composables
+// ============= COMPOSABLES E ESTADO =============
+// Utilizo composables para separar responsabilidades e manter código organizado
+// useCloudinaryAudio: gerencia reprodução de áudio e integração com APIs de música
+// usePlayOffApp: gerencia estado da aplicação, votação e sincronização com backend
+
 const {
-  currentTrack,
-  isPlaying,
-  position,
-  duration,
-  initializePlayer,
-  playSong,
-  togglePlayback,
-  previousTrack,
-  nextTrack,
-  formatTime,
-  updateSongsList
+  currentTrack,        // Música sendo reproduzida atualmente
+  isPlaying,          // Status de reprodução (true/false)
+  position,           // Posição atual da música em ms
+  duration,           // Duração total da música em ms
+  initializePlayer,   // Inicializar sistema de áudio
+  playSong,          // Reproduzir uma música específica
+  togglePlayback,    // Alternar play/pause
+  previousTrack,     // Ir para música anterior
+  nextTrack,         // Ir para próxima música
+  formatTime,        // Formatar tempo (ms para mm:ss)
+  updateSongsList    // Atualizar lista para navegação
 } = useCloudinaryAudio()
 
 const {
-  songs,
-  sortedSongs,
-  notifications,
-  voteForSong,
-  superVote,
-  showNotification,
-  initializeData,
-  startUpdateLoops,
-  refreshSongs
+  songs,              // Lista de músicas (estado bruto)
+  sortedSongs,        // Músicas ordenadas por votos (computed)
+  notifications,      // Lista de notificações ativas
+  voteForSong,       // Função para votar em música
+  superVote,         // Função para super voto
+  showNotification,  // Mostrar notificação ao usuário
+  initializeData,    // Carregar dados iniciais
+  startUpdateLoops,  // Iniciar sincronização automática
+  refreshSongs       // Atualizar músicas manualmente
 } = usePlayOffApp()
 
-// Check and auto-play highest voted song
+// ============= LÓGICA DE AUTO-REPRODUÇÃO =============
+// Sistema inteligente que automaticamente reproduz a música mais votada
+// quando há mudanças na liderança. Isso torna a experiência mais dinâmica
+// e recompensa imediatamente a música que está ganhando mais votos
+
 const checkAndPlayHighestVoted = async () => {
-  if (sortedSongs.value.length === 0) return
+  // Verifico se há músicas disponíveis
+  if (sortedSongs.value.length === 0) {
+    console.log('📭 Nenhuma música disponível para auto-reprodução')
+    return
+  }
   
+  // Obtenho a música mais votada (primeira na lista ordenada)
   const highestVoted = sortedSongs.value[0]
   
-  // Only auto-play if it's different from current track and has votes
-  if (highestVoted.votes > 0 && (!currentTrack.value || currentTrack.value.id !== highestVoted.id)) {
-    console.log(`🏆 Auto-playing highest voted song: ${highestVoted.title} (${highestVoted.votes} votes)`)
+  // Só reproduzo automaticamente se:
+  // 1. A música tem pelo menos 1 voto (evita tocar músicas sem engajamento)
+  // 2. É diferente da música atual (evita reiniciar a mesma música)
+  const shouldAutoPlay = highestVoted.votes > 0 && 
+                         (!currentTrack.value || currentTrack.value.id !== highestVoted.id)
+  
+  if (shouldAutoPlay) {
+    console.log(`🏆 Auto-reproduzindo música líder: "${highestVoted.title}" (${highestVoted.votes} votos)`)
     await handlePlaySong(highestVoted)
+  } else {
+    console.log(`⏸️ Auto-reprodução não necessária - música já é a atual ou sem votos`)
   }
 }
 
-// Handle vote and play
+// ============= HANDLERS DE EVENTOS =============
+// Funções que lidam com interações do usuário e coordenam ações entre composables
+
+// Handler para voto simples + verificação de auto-reprodução
+// Esta função demonstra como coordeno diferentes sistemas: votação e reprodução
 const handleVoteAndPlay = async (songId) => {
+  console.log(`🗳️ App.vue: Processando voto para música ID: ${songId}`)
+  
+  // Executo o voto através do composable
   const votedSong = await voteForSong(songId)
+  
   if (votedSong) {
-    // Check if this song should now auto-play as highest voted
-    setTimeout(() => checkAndPlayHighestVoted(), 500) // Small delay to ensure vote is processed
+    console.log(`✅ Voto registrado para "${votedSong.title}" - nova contagem: ${votedSong.votes}`)
+    
+    // Aguardo um momento para que o voto seja processado e a lista reordenada
+    // Então verifico se esta música agora deve ser auto-reproduzida
+    setTimeout(() => {
+      console.log('🔄 Verificando se nova música deve ser auto-reproduzida...')
+      checkAndPlayHighestVoted()
+    }, 500) // Delay de 500ms para garantir processamento do voto
+  } else {
+    console.log('❌ Falha no voto - não verificando auto-reprodução')
   }
 }
 
-// Handle super vote (vote + immediate play)
+// Handler para super voto (voto + reprodução imediata garantida)
+// O super voto é uma funcionalidade premium que garante reprodução imediata
 const handleSuperVote = async (song) => {
   try {
-    console.log('⚡ Super voto para:', song.title)
+    console.log(`⚡ App.vue: Processando super voto para "${song.title}"`)
     
-    // Super vote for the song (pass current track for reference)
-    await superVote(song.id, currentTrack.value)
+    // Executo o super voto passando a música atual como referência
+    // Isso permite calcular quantos votos são necessários para assumir liderança
+    const superVotedSong = await superVote(song.id, currentTrack.value)
     
-    // Then play immediately
-    await handlePlaySong(song)
-    
-    showNotification(`⚡ Super Voto! Tocando: ${song.title}`, 'success')
+    if (superVotedSong) {
+      console.log(`⚡ Super voto executado: "${superVotedSong.title}" agora tem ${superVotedSong.votes} votos`)
+      
+      // Reproduzo imediatamente (característica do super voto)
+      await handlePlaySong(song)
+      
+      // Feedback específico para super voto
+      showNotification(`⚡ Super Voto! Tocando imediatamente: ${song.title}`, 'success')
+    }
   } catch (error) {
-    console.error('❌ Erro no super voto:', error)
-    showNotification('Erro no super voto', 'error')
+    console.error('❌ App.vue: Erro crítico no super voto:', error)
+    showNotification('Erro no super voto - tente novamente', 'error')
   }
 }
 
-// Handle play song
+// Handler principal para reprodução de músicas
+// Centraliza toda a lógica de reprodução e logging detalhado para debugging
 const handlePlaySong = async (song) => {
   try {
-    console.log('🎵 App.vue: handlePlaySong chamado para:', song.title, 'por', song.artist)
-    console.log('🎨 App.vue: Capa antes do playSong:', song.albumCover)
+    console.log(`🎵 App.vue: Iniciando reprodução de "${song.title}" por ${song.artist}`)
+    console.log(`🎨 App.vue: Capa do álbum: ${song.albumCover}`)
+    console.log(`📊 App.vue: Votos atuais: ${song.votes}`)
     
+    // Chamo a função de reprodução do composable de áudio
     await playSong(song)
     
-    console.log('🎵 App.vue: playSong concluído')
-    console.log('🎨 App.vue: Capa depois do playSong:', song.albumCover)
-    console.log('📊 App.vue: currentTrack atual:', currentTrack.value)
+    console.log(`✅ App.vue: Reprodução iniciada com sucesso`)
+    console.log(`📊 App.vue: Estado atual do player:`, {
+      currentTrack: currentTrack.value?.title,
+      isPlaying: isPlaying.value,
+      albumCover: currentTrack.value?.albumCover
+    })
     
-    showNotification(`🎵 Tocando: ${song.title}`, 'success')
+    // Feedback para o usuário
+    showNotification(`🎵 Reproduzindo: ${song.title}`, 'success')
   } catch (error) {
-    console.error('❌ Erro ao tocar música:', error)
-    showNotification('Erro ao reproduzir música', 'error')
+    console.error('❌ App.vue: Erro ao reproduzir música:', error)
+    showNotification('Erro ao reproduzir música - verifique conexão', 'error')
   }
 }
 
-// Listen for album color extraction events
+// ============= GERENCIAMENTO DE CORES DINÂMICAS =============
+// Sistema que extrai cores das capas dos álbuns e aplica temas dinâmicos
+// Isso cria uma experiência visual mais imersiva e personalizada
+
 const handleAlbumColorExtracted = (event) => {
-  const colorInfo = event.detail
-  console.log('🎨 Cores do álbum detectadas:', colorInfo)
-  
-  // You can add additional color-based UI changes here
-  // For example, updating player card theme
-  const playerCard = document.querySelector('.player-card')
-  if (playerCard && colorInfo.theme) {
-    const themes = ['theme-warm', 'theme-cool', 'theme-vibrant', 'theme-neutral']
-    themes.forEach(t => playerCard.classList.remove(t))
-    playerCard.classList.add(`theme-${colorInfo.theme}`)
+  try {
+    console.log('🎨 App.vue: Evento de extração de cor recebido:', event.detail)
+    
+    // Extraio informações do evento personalizado
+    const { 
+      dominant,        // Cor dominante [r, g, b]
+      palette,         // Paleta de cores [[r,g,b], ...]
+      theme,          // Tema determinado (warm, cool, vibrant, neutral)
+      brightness,     // Brilho da imagem (0-1)
+      albumCover     // URL da capa analisada
+    } = event.detail
+    
+    // Aplico o tema extraído ao documento
+    // Isso muda as cores de fundo, gradientes e elementos da interface
+    if (theme) {
+      const body = document.body
+      const themes = ['theme-warm', 'theme-cool', 'theme-vibrant', 'theme-neutral', 'theme-black']
+      
+      // Removo temas anteriores
+      themes.forEach(t => body.classList.remove(t))
+      
+      // Aplico novo tema
+      body.classList.add(`theme-${theme}`)
+      
+      console.log(`🎨 Tema aplicado: ${theme}`)
+      console.log(`🌈 Cor dominante: rgb(${dominant.join(', ')})`)
+      console.log(`💡 Brilho detectado: ${brightness.toFixed(2)}`)
+    }
+  } catch (error) {
+    console.error('❌ Erro ao processar cores do álbum:', error)
+    // Em caso de erro, mantenho tema padrão
+    document.body.classList.add('theme-black')
   }
 }
 
-// Watch for track changes to update background and theme
-watch(currentTrack, async (newTrack, oldTrack) => {
-  console.log('🎵 APP: Track mudou!')
-  console.log('📊 APP: Track anterior:', oldTrack?.title || 'nenhuma')
-  console.log('📊 APP: Track atual:', newTrack?.title || 'nenhuma')
-  
-  if (newTrack && newTrack.albumCover) {
-    console.log('🎨 APP: Aplicando background dinâmico...')
-    await updateDynamicBackground(newTrack.albumCover)
-    
-    // Extract colors and apply theme
-    try {
-      const dominantColor = await extractDominantColor(newTrack.albumCover)
-      if (dominantColor) {
-        const theme = getThemeFromRGB(dominantColor.r, dominantColor.g, dominantColor.b)
-        applyDynamicTheme(theme)
-      }
-    } catch (error) {
-      console.error('❌ Erro ao extrair cor dominante:', error)
-    }
-  } else {
-    console.log('🎨 APP: Nenhuma música tocando - aplicando tema preto')
-    // Apply black theme when no music is playing
-    applyDynamicTheme()
-  }
-}, { deep: true, immediate: true })
+// ============= WATCHERS REATIVOS =============
+// Observadores que reagem a mudanças de estado e mantêm sincronização
 
-// Watch for vote changes to trigger auto-play
-watch(sortedSongs, (newSongs, oldSongs) => {
-  // Only trigger auto-play if songs list has changed and we have songs
-  if (newSongs.length > 0 && newSongs !== oldSongs) {
-    // Small delay to ensure the vote counting is complete
-    setTimeout(() => checkAndPlayHighestVoted(), 1000)
-  }
-}, { deep: true })
-
-// Watch for sorted songs changes to update player navigation
+// Observo mudanças na lista de músicas ordenadas para atualizar navegação do player
+// Isso garante que as funções "próxima/anterior" funcionem com a lista atual
 watch(sortedSongs, (newSongs) => {
   if (newSongs && newSongs.length > 0) {
+    console.log(`🔄 App.vue: Atualizando lista de navegação com ${newSongs.length} músicas`)
     updateSongsList(newSongs)
+  } else {
+    console.log('📭 Lista de músicas vazia - navegação desabilitada')
   }
-}, { deep: true, immediate: true })
+}, { deep: true, immediate: true }) // deep: true para mudanças internas, immediate: true para execução inicial
 
-// Handle previous track with songs list
+// ============= HANDLERS DE NAVEGAÇÃO =============
+// Funções que permitem navegar entre músicas com tratamento de erro
+
 const handlePreviousTrack = async () => {
   try {
+    console.log('⏮️ App.vue: Navegando para música anterior...')
     await previousTrack(sortedSongs.value)
+    console.log('✅ Navegação para anterior concluída')
   } catch (error) {
-    console.error('❌ Erro ao ir para música anterior:', error)
+    console.error('❌ Erro ao navegar para música anterior:', error)
     showNotification('Erro ao navegar para música anterior', 'error')
   }
 }
 
-// Handle next track with songs list
 const handleNextTrack = async () => {
   try {
+    console.log('⏭️ App.vue: Navegando para próxima música...')
     await nextTrack(sortedSongs.value)
+    console.log('✅ Navegação para próxima concluída')
   } catch (error) {
-    console.error('❌ Erro ao ir para próxima música:', error)
+    console.error('❌ Erro ao navegar para próxima música:', error)
     showNotification('Erro ao navegar para próxima música', 'error')
   }
 }
 
+// ============= CICLO DE VIDA DO COMPONENTE =============
+
+// Inicialização quando o componente é montado
 onMounted(async () => {
-  console.log('🚀 Initializing PlayOff Vue Application...')
+  console.log('🚀 App.vue: Iniciando aplicação PlayOff Vue...')
   
   try {
+    // Sequência de inicialização ordenada
+    console.log('🔧 1/4: Inicializando player de áudio...')
     await initializePlayer()
+    
+    console.log('📦 2/4: Carregando dados da aplicação...')
     await initializeData()
+    
+    console.log('🔄 3/4: Iniciando loops de atualização...')
     startUpdateLoops()
     
-    // Listen for color extraction events
+    console.log('🎨 4/4: Configurando listeners de eventos...')
+    // Escuto eventos de extração de cor das capas de álbum
     window.addEventListener('albumColorExtracted', handleAlbumColorExtracted)
     
     console.log('✅ PlayOff Vue App inicializado com sucesso!')
+    showNotification('🎵 PlayOff carregado! Comece a votar!', 'success')
     
-    // Check for initial auto-play
-    setTimeout(() => checkAndPlayHighestVoted(), 2000)
+    // Verifico se devo reproduzir alguma música automaticamente
+    // Aguardo 2 segundos para garantir que tudo esteja carregado
+    setTimeout(() => {
+      console.log('🎯 Verificando auto-reprodução inicial...')
+      checkAndPlayHighestVoted()
+    }, 2000)
     
   } catch (error) {
-    console.error('❌ Erro ao inicializar app:', error)
-    showNotification('Erro ao inicializar aplicação', 'error')
+    console.error('❌ Erro crítico durante inicialização:', error)
+    showNotification('Erro ao inicializar - algumas funcionalidades podem não funcionar', 'error')
   }
 })
 
+// Limpeza quando o componente é desmontado
 onUnmounted(() => {
-  // Clean up event listeners
+  console.log('🧹 App.vue: Limpando recursos...')
+  
+  // Removo event listeners para evitar memory leaks
   window.removeEventListener('albumColorExtracted', handleAlbumColorExtracted)
+  
+  console.log('✅ Limpeza concluída')
 })
 </script>
 
 <style scoped>
+/* Estilos do componente principal */
 .app {
   width: 100%;
   min-height: 100vh;

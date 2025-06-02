@@ -1,44 +1,70 @@
 import { ref, reactive } from 'vue'
 
+// Composable avançado para integração com APIs de música e reprodução de áudio
+// Este composable é o coração do sistema de reprodução, integrando:
+// - Cloudinary para streaming de áudio de alta qualidade  
+// - Spotify API para metadados e capas de álbum em alta resolução
+// - Last.fm como API de fallback para informações musicais
+// - ColorThief para extração dinâmica de cores das capas
+// - Sistema de temas dinâmicos baseado nas cores extraídas
 export function useCloudinaryAudio() {
-  // Configuration
+  // ============= CONFIGURAÇÕES DAS APIS =============
+  // Credenciais e endpoints para integração com serviços externos
+  // Em produção, essas informações seriam armazenadas em variáveis de ambiente
+  
+  // Configuração Cloudinary - Plataforma de mídia para streaming de áudio
   const cloudName = 'dzwfuzxxw'
   const apiKey = '888348989441951'
   const apiSecret = 'SoIbMkMvEBoth_Xbt0I8Ew96JuY'
+  
+  // Configuração Last.fm - API de fallback para metadados musicais
   const lastFmApiKey = 'b25b959554ed76058ac220b7b2e0a026'
   const lastFmBaseUrl = 'https://ws.audioscrobbler.com/2.0/'
   
-  // Spotify API Configuration
+  // Configuração Spotify Web API - Fonte principal para metadados e capas
   const spotifyClientId = '1fd9e79e2e074a33b258c30747f74e6b'
   const spotifyClientSecret = '3bc40e26370c43818ec3612d25fcbf96'
   const spotifyBaseUrl = 'https://api.spotify.com/v1'
   
-  // Reactive state
-  const currentTrack = ref(null)
-  const isPlaying = ref(false)
-  const position = ref(0)
-  const duration = ref(0)
-  const playlist = ref([])
-  const audioPlayer = ref(null)
-  const spotifyToken = ref(null)
-  const spotifyTokenExpiry = ref(null)
-  const currentSongsList = ref([]) // Lista de músicas para navegação
+  // ============= ESTADO REATIVO DO PLAYER =============
+  // Todo o estado do player é reativo para sincronização automática com a UI
   
-  // Initialize ColorThief for better color extraction
+  const currentTrack = ref(null)         // Música sendo reproduzida atualmente
+  const isPlaying = ref(false)           // Estado de reprodução (true/false)
+  const position = ref(0)                // Posição atual em millisegundos
+  const duration = ref(0)                // Duração total em millisegundos
+  const playlist = ref([])               // Lista de reprodução
+  const audioPlayer = ref(null)          // Referência do elemento de áudio HTML5
+  const spotifyToken = ref(null)         // Token de autenticação Spotify
+  const spotifyTokenExpiry = ref(null)   // Timestamp de expiração do token
+  const currentSongsList = ref([])       // Lista atual de músicas para navegação
+  
+  // ============= INICIALIZAÇÃO DE BIBLIOTECAS EXTERNAS =============
+  
+  // Inicializo ColorThief para extração avançada de cores
+  // Esta biblioteca analisa pixels das imagens para determinar paletas de cores
   let colorThief = null
   
-  // Spotify Authentication - Client Credentials Flow
+  // ============= AUTENTICAÇÃO SPOTIFY =============
+  
+  // Sistema de autenticação OAuth com Spotify usando Client Credentials Flow
+  // Este método permite acesso a dados públicos sem necessidade de login do usuário
+  // Implemento cache de token e renovação automática para eficiência
   const authenticateSpotify = async () => {
     try {
-      // Check if token is still valid
+      // Verifico se já tenho um token válido em cache
       if (spotifyToken.value && spotifyTokenExpiry.value > Date.now()) {
+        console.log('✅ Token Spotify em cache ainda válido')
         return spotifyToken.value
       }
       
-      console.log('🎵 Autenticando com Spotify...')
+      console.log('🎵 Iniciando autenticação com Spotify API...')
+      console.log('🔐 Usando Client Credentials Flow para acesso a dados públicos')
       
+      // Codifico credenciais em Base64 conforme especificação OAuth
       const credentials = btoa(`${spotifyClientId}:${spotifyClientSecret}`)
       
+      // Requisição de token seguindo padrão OAuth 2.0
       const response = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
@@ -50,80 +76,117 @@ export function useCloudinaryAudio() {
       
       if (!response.ok) {
         const errorText = await response.text()
-        throw new Error(`Spotify auth failed: ${response.status} - ${errorText}`)
+        throw new Error(`Falha na autenticação Spotify: ${response.status} - ${errorText}`)
       }
       
       const data = await response.json()
+      
+      // Armazeno token com margem de segurança para renovação
       spotifyToken.value = data.access_token
-      spotifyTokenExpiry.value = Date.now() + (data.expires_in * 1000) - 60000 // 1 minute buffer
+      spotifyTokenExpiry.value = Date.now() + (data.expires_in * 1000) - 60000 // 1 minuto de buffer
       
       console.log('✅ Spotify autenticado com sucesso!')
-      console.log(`⏰ Token expira em: ${new Date(spotifyTokenExpiry.value).toLocaleTimeString()}`)
+      console.log(`⏰ Token válido até: ${new Date(spotifyTokenExpiry.value).toLocaleTimeString()}`)
+      console.log(`🔑 Tipo de acesso: ${data.token_type}`)
+      
       return spotifyToken.value
       
     } catch (error) {
-      console.error('❌ Erro na autenticação Spotify:', error)
-      console.warn('⚠️ Continuando com APIs de fallback (Last.fm, MusicBrainz)')
+      console.error('❌ Erro crítico na autenticação Spotify:', error)
+      console.warn('⚠️ Fallback ativado: usando Last.fm e MusicBrainz como alternativas')
       return null
     }
   }
   
-  // Search for track on Spotify
+  // ============= BUSCA DE METADADOS MUSICAIS =============
+  
+  // Função principal para buscar informações de músicas via Spotify
+  // Implemento busca inteligente com matching de similaridade para melhor precisão
+  // Esta função é prioritária devido à qualidade superior dos dados do Spotify
   const searchSpotifyTrack = async (artist, track) => {
     try {
+      // Obtenho token de autenticação (renovado automaticamente se necessário)
       const token = await authenticateSpotify()
       if (!token) {
-        console.log('⚠️ Token Spotify não disponível, usando fallback')
+        console.log('⚠️ Token Spotify indisponível, ativando APIs de fallback')
         return null
       }
       
-      // Clean and encode search query
+      // Limpo e sanitizo a query de busca para melhor precisão
+      // Removo caracteres especiais que podem interferir na busca
       const cleanArtist = artist.replace(/[^\w\s]/gi, '').trim()
       const cleanTrack = track.replace(/[^\w\s]/gi, '').trim()
-      const query = encodeURIComponent(`track:"${cleanTrack}" artist:"${cleanArtist}"`)
-      const url = `${spotifyBaseUrl}/search?q=${query}&type=track&limit=3`
       
-      console.log(`🔍 Buscando no Spotify: ${cleanArtist} - ${cleanTrack}`)
+      // Construo query otimizada usando campos específicos do Spotify
+      const query = encodeURIComponent(`track:"${cleanTrack}" artist:"${cleanArtist}"`)
+      const url = `${spotifyBaseUrl}/search?q=${query}&type=track&limit=5&market=BR`
+      
+      console.log(`🔍 Buscando via Spotify API: "${cleanArtist}" - "${cleanTrack}"`)
+      console.log(`🌐 URL da busca: ${url}`)
       
       const response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       })
       
       if (!response.ok) {
         const errorText = await response.text()
-        console.warn(`⚠️ Spotify search failed: ${response.status} - ${errorText}`)
+        console.warn(`⚠️ Falha na busca Spotify: ${response.status} - ${errorText}`)
         return null
       }
       
       const data = await response.json()
       
       if (data.tracks && data.tracks.items && data.tracks.items.length > 0) {
-        // Try to find the best match
-        let bestMatch = data.tracks.items[0]
+        console.log(`📊 Encontrados ${data.tracks.items.length} resultados no Spotify`)
         
-        // Look for exact or close match
+        // Implemento algoritmo de matching inteligente para encontrar melhor resultado
+        let bestMatch = data.tracks.items[0] // Fallback para primeiro resultado
+        let bestScore = 0
+        
+        // Analiso cada resultado para encontrar o melhor match
         for (const spotifyTrack of data.tracks.items) {
+          let score = 0
+          
+          // Scoring baseado em similaridade de nomes
           const trackNameMatch = spotifyTrack.name.toLowerCase().includes(cleanTrack.toLowerCase())
           const artistNameMatch = spotifyTrack.artists.some(a => 
             a.name.toLowerCase().includes(cleanArtist.toLowerCase())
           )
           
-          if (trackNameMatch && artistNameMatch) {
+          if (trackNameMatch) score += 50
+          if (artistNameMatch) score += 50
+          
+          // Bonus para matches exatos
+          if (spotifyTrack.name.toLowerCase() === cleanTrack.toLowerCase()) score += 30
+          if (spotifyTrack.artists.some(a => a.name.toLowerCase() === cleanArtist.toLowerCase())) score += 30
+          
+          // Bonus para popularidade (spotify ranking)
+          score += spotifyTrack.popularity * 0.1
+          
+          console.log(`🎯 Candidato: "${spotifyTrack.name}" por ${spotifyTrack.artists[0]?.name} - Score: ${score}`)
+          
+          if (score > bestScore) {
+            bestScore = score
             bestMatch = spotifyTrack
-            break
           }
         }
         
         const album = bestMatch.album
         
+        // Verifico se o álbum tem capas disponíveis
         if (album.images && album.images.length > 0) {
-          // Get the highest quality image (first in array is typically 640x640)
+          // Obtenho a maior resolução disponível (primeira imagem é tipicamente 640x640)
           const albumCover = album.images[0].url
-          console.log(`✅ Capa encontrada via Spotify: ${albumCover}`)
-          console.log(`🎯 Match encontrado: "${bestMatch.name}" por ${bestMatch.artists[0]?.name}`)
           
+          console.log(`✅ Match final selecionado: "${bestMatch.name}" por ${bestMatch.artists[0]?.name} (Score: ${bestScore})`)
+          console.log(`🎨 Capa encontrada em alta resolução: ${albumCover}`)
+          console.log(`📀 Álbum: "${album.name}" (${album.release_date})`)
+          console.log(`📊 Popularidade Spotify: ${bestMatch.popularity}/100`)
+          
+          // Retorno objeto completo com todos os metadados disponíveis
           return {
             albumCover: albumCover,
             albumName: album.name,
@@ -133,188 +196,304 @@ export function useCloudinaryAudio() {
             releaseDate: album.release_date,
             popularity: bestMatch.popularity,
             albumType: album.album_type,
-            totalTracks: album.total_tracks
+            totalTracks: album.total_tracks,
+            explicit: bestMatch.explicit,
+            durationMs: bestMatch.duration_ms,
+            previewUrl: bestMatch.preview_url
           }
         }
       }
       
-      console.log('❌ Nenhuma capa encontrada no Spotify para esta busca')
+      console.log('❌ Nenhum resultado válido encontrado no Spotify para esta busca')
       return null
       
     } catch (error) {
-      console.error('❌ Erro na busca Spotify:', error)
-      console.warn('⚠️ Continuando com APIs de fallback')
+      console.error('❌ Erro crítico na busca Spotify:', error)
+      console.warn('⚠️ Ativando sistema de fallback (Last.fm + MusicBrainz)')
       return null
     }
   }
   
-  // Initialize audio player
+  // ============= INICIALIZAÇÃO DO SISTEMA DE ÁUDIO =============
+  
+  // Função principal para inicializar todos os componentes do sistema de áudio
+  // Configura player HTML5, eventos, bibliotecas externas e autenticação
   const initializePlayer = () => {
-    console.log('🎵 Inicializando Cloudinary Audio Player...')
+    console.log('🎵 Inicializando sistema avançado de reprodução de áudio...')
     
+    // Crio e configuro elemento de áudio HTML5 com settings otimizados
     audioPlayer.value = new Audio()
-    audioPlayer.value.preload = 'auto'
-    audioPlayer.value.volume = 0
-    audioPlayer.value.crossOrigin = 'anonymous'
+    audioPlayer.value.preload = 'auto'        // Pré-carrega metadados automaticamente
+    audioPlayer.value.volume = 0              // Início silencioso para fade-in suave
+    audioPlayer.value.crossOrigin = 'anonymous' // Permite análise de pixels para cores
     
+    // Configuro listeners de eventos para monitoramento do playback
     setupAudioEvents()
+    
+    // Inicializo biblioteca de extração de cores
     initializeColorThief()
     
-    // Initialize Spotify authentication
-    authenticateSpotify()
+    // Inicio autenticação em background com Spotify
+    authenticateSpotify().then(() => {
+      console.log('🔐 Sistema de autenticação Spotify inicializado')
+    })
     
-    // Apply black theme by default (no music playing)
+    // Aplico tema padrão (preto) quando nenhuma música está tocando
     initializeTheme()
     
-    console.log('✅ Cloudinary Audio Player inicializado!')
+    console.log('✅ Sistema de áudio inicializado com sucesso!')
+    console.log('🎯 Recursos disponíveis:')
+    console.log('   - Player HTML5 com cross-origin habilitado')
+    console.log('   - Autenticação automática com Spotify')
+    console.log('   - Extração dinâmica de cores de capas')
+    console.log('   - Sistema de temas baseado em cores')
+    console.log('   - Fade-in suave e controles avançados')
+    
     return Promise.resolve(true)
   }
   
-  // Initialize ColorThief library
+  // Inicialização da biblioteca ColorThief para análise de cores
+  // Esta biblioteca permite extrair paletas de cores de imagens para criar temas dinâmicos
   const initializeColorThief = () => {
     try {
-      // Load ColorThief from CDN if not already loaded
+      // Verifico se ColorThief já está disponível globalmente
       if (typeof ColorThief === 'undefined') {
+        console.log('🎨 Carregando biblioteca ColorThief via CDN...')
+        
+        // Carrego dinamicamente via CDN para não aumentar bundle size
         const script = document.createElement('script')
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js'
         script.onload = () => {
           colorThief = new ColorThief()
-          console.log('🎨 ColorThief carregado!')
+          console.log('✅ ColorThief carregado e inicializado!')
+          console.log('🎨 Capacidades disponíveis: extração de cor dominante e paletas completas')
+        }
+        script.onerror = () => {
+          console.warn('⚠️ Falha ao carregar ColorThief, usando fallback manual de detecção')
         }
         document.head.appendChild(script)
       } else {
         colorThief = new ColorThief()
-        console.log('🎨 ColorThief já disponível!')
+        console.log('✅ ColorThief já disponível - inicializado!')
       }
     } catch (error) {
-      console.warn('⚠️ ColorThief não disponível, usando detecção manual de cor')
+      console.warn('⚠️ ColorThief não disponível, sistema de cores funcionará com capacidades limitadas:', error)
     }
   }
   
-  // Setup audio event listeners with gradual volume increase
+  // ============= CONFIGURAÇÃO DE EVENTOS DE ÁUDIO =============
+  
+  // Configura todos os event listeners para o elemento de áudio HTML5
+  // Estes eventos permitem monitorar estado, progresso e responder a mudanças de playback
   const setupAudioEvents = () => {
-    if (!audioPlayer.value) return
+    if (!audioPlayer.value) {
+      console.error('❌ Player de áudio não inicializado - não é possível configurar eventos')
+      return
+    }
     
+    console.log('🔧 Configurando event listeners do player de áudio...')
+    
+    // Evento quando metadados da música são carregados (duração, etc.)
     audioPlayer.value.addEventListener('loadedmetadata', () => {
-      duration.value = audioPlayer.value.duration * 1000
-      console.log(`📊 Duração da música: ${formatTime(duration.value)}`)
+      duration.value = audioPlayer.value.duration * 1000 // Converto para ms
+      console.log(`📊 Metadados carregados - Duração: ${formatTime(duration.value)}`)
+      console.log(`🎵 Título: ${currentTrack.value?.title || 'Desconhecido'}`)
+      console.log(`👤 Artista: ${currentTrack.value?.artist || 'Desconhecido'}`)
     })
     
+    // Evento de atualização de tempo durante reprodução
     audioPlayer.value.addEventListener('timeupdate', () => {
-      position.value = audioPlayer.value.currentTime * 1000
+      position.value = audioPlayer.value.currentTime * 1000 // Converto para ms
+      // Log apenas a cada 10 segundos para não spam do console
+      if (Math.floor(audioPlayer.value.currentTime) % 10 === 0) {
+        //console.log(`⏱️ Progresso: ${formatTime(position.value)} / ${formatTime(duration.value)}`)
+      }
     })
     
+    // Evento quando reprodução inicia
     audioPlayer.value.addEventListener('play', () => {
       isPlaying.value = true
-      console.log('▶️ Música iniciada')
-      // Gradual volume increase
+      console.log(`▶️ Reprodução iniciada: "${currentTrack.value?.title || 'Música desconhecida'}"`)
+      
+      // Inicia fade-in suave do volume para melhor experiência
       gradualVolumeIncrease()
     })
     
+    // Evento quando reprodução é pausada
     audioPlayer.value.addEventListener('pause', () => {
       isPlaying.value = false
-      console.log('⏸️ Música pausada')
+      console.log(`⏸️ Reprodução pausada: "${currentTrack.value?.title || 'Música desconhecida'}"`)
     })
     
+    // Evento quando música termina
     audioPlayer.value.addEventListener('ended', () => {
       isPlaying.value = false
-      console.log('⏹️ Música finalizada')
-      // Automaticamente ir para a próxima música
+      console.log(`⏹️ Música finalizada: "${currentTrack.value?.title || 'Música desconhecida'}"`)
+      
+      // Automaticamente avança para próxima música se houver lista disponível
       if (currentSongsList.value && currentSongsList.value.length > 0) {
-        console.log('🔄 Tentando ir para próxima música automaticamente...')
-        nextTrack(currentSongsList.value)
+        console.log('🔄 Auto-avançando para próxima música da lista...')
+        nextTrack(currentSongsList.value).catch(error => {
+          console.error('❌ Erro no auto-avanço:', error)
+        })
+      } else {
+        console.log('📭 Fim da reprodução - nenhuma lista de continuação disponível')
       }
     })
     
+    // Evento de erro no carregamento/reprodução
     audioPlayer.value.addEventListener('error', (e) => {
-      console.error('❌ Erro no player de áudio:', e)
-      console.error('❌ URL que causou erro:', audioPlayer.value.src)
       isPlaying.value = false
+      console.error('❌ Erro crítico no player de áudio:', e)
+      console.error('🔗 URL que causou problema:', audioPlayer.value.src)
+      console.error('📋 Detalhes do erro:', {
+        code: audioPlayer.value.error?.code,
+        message: audioPlayer.value.error?.message,
+        networkState: audioPlayer.value.networkState,
+        readyState: audioPlayer.value.readyState
+      })
     })
     
+    // Eventos informativos para debugging
     audioPlayer.value.addEventListener('loadstart', () => {
-      console.log('📡 Carregando música...')
+      console.log('📡 Iniciando carregamento da música...')
     })
     
     audioPlayer.value.addEventListener('canplay', () => {
-      console.log('✅ Música pronta para tocar')
+      console.log('✅ Música carregada e pronta para reprodução')
     })
+    
+    audioPlayer.value.addEventListener('waiting', () => {
+      console.log('⏳ Aguardando dados (buffering)...')
+    })
+    
+    audioPlayer.value.addEventListener('canplaythrough', () => {
+      console.log('🚀 Música totalmente carregada (pode reproduzir sem interrupções)')
+    })
+    
+    console.log('✅ Event listeners configurados com sucesso!')
   }
   
-  // Gradual volume increase for smooth audio experience
+  // Sistema de fade-in gradual do volume para experiência suave
+  // Implemento transição suave de 0% para 70% de volume em 2 segundos
+  // Isso evita o susto do volume alto repentino e melhora a experiência do usuário
   const gradualVolumeIncrease = () => {
-    const targetVolume = 0.7
-    const fadeTime = 2000 // 2 seconds
-    const steps = 50
-    const stepTime = fadeTime / steps
-    const volumeStep = targetVolume / steps
+    const targetVolume = 0.7      // Volume alvo (70% - confortável para ouvir)
+    const fadeTime = 2000         // Duração do fade-in (2 segundos)
+    const steps = 50              // Número de passos para transição suave
+    const stepTime = fadeTime / steps      // Tempo entre cada passo
+    const volumeStep = targetVolume / steps // Incremento de volume por passo
     
     let currentStep = 0
     
+    console.log(`🔊 Iniciando fade-in suave: 0% → ${targetVolume * 100}% em ${fadeTime}ms`)
+    
     const fadeInterval = setInterval(() => {
+      // Paro o fade se a música parou ou chegou no final
       if (currentStep >= steps || !isPlaying.value) {
         clearInterval(fadeInterval)
         audioPlayer.value.volume = targetVolume
+        console.log(`✅ Fade-in concluído - volume final: ${Math.round(targetVolume * 100)}%`)
         return
       }
       
+      // Incremento gradual do volume
       audioPlayer.value.volume = volumeStep * currentStep
       currentStep++
     }, stepTime)
   }
   
-  // Enhanced album cover search with Spotify as primary source
+  // ============= BUSCA AVANÇADA DE CAPAS DE ÁLBUM =============
+  
+  // Sistema em cascata para buscar capas com múltiplas APIs como fallback
+  // Prioridade: Spotify > Last.fm > MusicBrainz + Cover Art Archive
+  // Esta estratégia garante que sempre encontremos uma capa, mesmo que básica
   const searchAlbumCover = async (artist, track) => {
     try {
-      console.log(`🔍 Buscando capa para: ${artist} - ${track}`)
+      console.log(`🔍 Iniciando busca em cascata de capa para: "${artist}" - "${track}"`)
       
-      // Try Spotify first (highest quality and most reliable)
+      // Tentativa 1: Spotify (melhor qualidade e confiabilidade)
+      console.log('1️⃣ Tentando Spotify API (fonte principal)...')
       const spotifyInfo = await searchSpotifyTrack(artist, track)
-      if (spotifyInfo) return spotifyInfo
+      if (spotifyInfo && spotifyInfo.albumCover) {
+        console.log('✅ Sucesso via Spotify - usando resultado de alta qualidade')
+        return spotifyInfo
+      }
       
-      // Try Last.fm track info as fallback
+      // Tentativa 2: Last.fm informações de track específico
+      console.log('2️⃣ Tentando Last.fm track info (fallback 1)...')
       const trackInfo = await fetchLastFmTrackInfo(artist, track)
-      if (trackInfo) return trackInfo
+      if (trackInfo && trackInfo.albumCover) {
+        console.log('✅ Sucesso via Last.fm track info')
+        return trackInfo
+      }
       
-      // Try Last.fm artist top albums as fallback
+      // Tentativa 3: Last.fm álbuns mais populares do artista
+      console.log('3️⃣ Tentando Last.fm artist top albums (fallback 2)...')
       const artistInfo = await fetchLastFmArtistTopAlbum(artist)
-      if (artistInfo) return artistInfo
+      if (artistInfo && artistInfo.albumCover) {
+        console.log('✅ Sucesso via Last.fm artist albums')
+        return artistInfo
+      }
       
-      // Try MusicBrainz + Cover Art Archive as last resort
+      // Tentativa 4: MusicBrainz + Cover Art Archive (último recurso)
+      console.log('4️⃣ Tentando MusicBrainz + Cover Art Archive (último recurso)...')
       const musicBrainzInfo = await fetchMusicBrainzCover(artist, track)
-      if (musicBrainzInfo) return musicBrainzInfo
+      if (musicBrainzInfo && musicBrainzInfo.albumCover) {
+        console.log('✅ Sucesso via MusicBrainz')
+        return musicBrainzInfo
+      }
       
+      console.log('❌ Todas as tentativas falharam - nenhuma capa encontrada')
       return null
     } catch (error) {
-      console.error('❌ Erro ao buscar capa:', error)
+      console.error('❌ Erro crítico durante busca de capa:', error)
       return null
     }
   }
   
-  // Fetch track info from Last.fm
+  // API Last.fm - Busca informações específicas de uma música
+  // Fallback confiável quando Spotify falha, com boa cobertura de metadados
   const fetchLastFmTrackInfo = async (artist, track) => {
     try {
+      console.log(`🎵 Consultando Last.fm para track: "${artist}" - "${track}"`)
+      
       const url = `${lastFmBaseUrl}?method=track.getinfo&api_key=${lastFmApiKey}&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(track)}&format=json`
       
       const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`Last.fm track API retornou ${response.status}`)
+      }
+      
       const data = await response.json()
       
+      // Verifico se temos dados válidos de álbum com imagens
       if (data.track && data.track.album && data.track.album.image) {
         const images = data.track.album.image
+        
+        // Last.fm retorna array de tamanhos: small, medium, large, extralarge
+        // Escolho a maior disponível
         const largestImage = images[images.length - 1]
         
-        if (largestImage && largestImage['#text']) {
-          console.log(`✅ Capa encontrada via Last.fm track para ${artist} - ${track}`)
+        if (largestImage && largestImage['#text'] && largestImage['#text'].trim() !== '') {
+          console.log(`✅ Capa encontrada via Last.fm track API`)
+          console.log(`📸 URL: ${largestImage['#text']}`)
+          console.log(`📀 Álbum: ${data.track.album.title || 'Álbum Desconhecido'}`)
+          
           return {
             albumCover: largestImage['#text'],
-            albumName: data.track.album.title || 'Unknown Album'
+            albumName: data.track.album.title || 'Álbum Desconhecido',
+            artist: data.track.artist.name || artist,
+            trackName: data.track.name || track,
+            lastFmUrl: data.track.url
           }
         }
       }
       
+      console.log('⚠️ Last.fm track não retornou imagens válidas')
       return null
     } catch (error) {
-      console.error('❌ Erro Last.fm track:', error)
+      console.error('❌ Erro na consulta Last.fm track:', error)
       return null
     }
   }
@@ -382,38 +561,169 @@ export function useCloudinaryAudio() {
     }
   }
   
-  // Extract dominant color from album cover using ColorThief
+  // ============= EXTRAÇÃO E ANÁLISE DE CORES =============
+  
+  // Sistema avançado de extração de cores com análise de brilho e determinação de tema
+  // Esta função é fundamental para o sistema de temas dinâmicos da aplicação
   const extractDominantColor = async (imageUrl) => {
     return new Promise((resolve) => {
-      if (!colorThief) {
-        resolve(null)
-        return
-      }
+      console.log(`🎨 Iniciando análise de cores para: ${imageUrl}`)
       
+      // Crio elemento de imagem temporário para análise
       const img = new Image()
-      img.crossOrigin = 'anonymous'
+      img.crossOrigin = 'anonymous' // Necessário para análise de pixels
       
       img.onload = () => {
         try {
-          const dominantColor = colorThief.getColor(img)
-          const palette = colorThief.getPalette(img, 5)
+          let dominantColor = null
+          let palette = []
+          let brightness = 0.5 // Default médio
           
-          console.log(`🎨 Cor dominante extraída: rgb(${dominantColor.join(', ')})`)
+          // Tentativa 1: Usar ColorThief se disponível (mais preciso)
+          if (colorThief) {
+            console.log('🎨 Usando ColorThief para análise avançada...')
+            
+            try {
+              // Extraio cor dominante
+              const dominantRGB = colorThief.getColor(img)
+              dominantColor = {
+                r: dominantRGB[0],
+                g: dominantRGB[1], 
+                b: dominantRGB[2]
+              }
+              
+              // Extraio paleta completa (5 cores principais)
+              const paletteRGB = colorThief.getPalette(img, 5)
+              palette = paletteRGB.map(color => ({
+                r: color[0],
+                g: color[1],
+                b: color[2]
+              }))
+              
+              console.log(`🎯 Cor dominante via ColorThief: rgb(${dominantColor.r}, ${dominantColor.g}, ${dominantColor.b})`)
+              console.log(`🌈 Paleta extraída: ${palette.length} cores`)
+              
+            } catch (colorThiefError) {
+              console.warn('⚠️ ColorThief falhou, usando análise manual:', colorThiefError)
+              dominantColor = manualColorExtraction(img)
+            }
+          } else {
+            // Fallback: análise manual quando ColorThief não está disponível
+            console.log('🎨 Usando análise manual de cores (fallback)...')
+            dominantColor = manualColorExtraction(img)
+          }
           
-          resolve({
-            dominant: dominantColor,
-            palette: palette,
-            theme: getThemeFromRGB(dominantColor[0], dominantColor[1], dominantColor[2])
-          })
+          if (dominantColor) {
+            // Calculo brilho da cor dominante usando fórmula de luminância
+            brightness = calculateBrightness(dominantColor.r, dominantColor.g, dominantColor.b)
+            
+            // Determino tema baseado nas características da cor
+            const theme = getThemeFromRGB(dominantColor.r, dominantColor.g, dominantColor.b)
+            
+            console.log(`💡 Brilho calculado: ${brightness.toFixed(2)} (0=escuro, 1=claro)`)
+            console.log(`🎨 Tema determinado: ${theme}`)
+            
+            // Disparo evento customizado para outros componentes reagirem
+            const colorEvent = new CustomEvent('albumColorExtracted', {
+              detail: {
+                dominant: [dominantColor.r, dominantColor.g, dominantColor.b],
+                palette: palette.map(c => [c.r, c.g, c.b]),
+                theme: theme,
+                brightness: brightness,
+                albumCover: imageUrl
+              }
+            })
+            window.dispatchEvent(colorEvent)
+            
+            resolve({
+              dominantColor,
+              palette,
+              theme,
+              brightness
+            })
+          } else {
+            console.log('❌ Não foi possível extrair cores - usando tema padrão')
+            resolve(null)
+          }
+          
         } catch (error) {
-          console.error('❌ Erro ao extrair cor:', error)
+          console.error('❌ Erro durante análise de cores:', error)
           resolve(null)
         }
       }
       
-      img.onerror = () => resolve(null)
+      img.onerror = () => {
+        console.error('❌ Erro ao carregar imagem para análise de cores:', imageUrl)
+        resolve(null)
+      }
+      
+      // Inicio carregamento da imagem
       img.src = imageUrl
     })
+  }
+  
+  // Análise manual de cores quando ColorThief não está disponível
+  // Uso amostragem de canvas para extrair cor média da imagem
+  const manualColorExtraction = (img) => {
+    try {
+      // Crio canvas temporário para análise de pixels
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      
+      // Redimensiono para análise mais rápida (mantém proporção)
+      const size = 50
+      canvas.width = size
+      canvas.height = size
+      
+      // Desenho imagem redimensionada no canvas
+      ctx.drawImage(img, 0, 0, size, size)
+      
+      // Extraio dados de pixels
+      const imageData = ctx.getImageData(0, 0, size, size)
+      const data = imageData.data
+      
+      let r = 0, g = 0, b = 0
+      let totalPixels = 0
+      
+      // Calculo média de todas as cores (ignorando pixels muito escuros/claros)
+      for (let i = 0; i < data.length; i += 4) {
+        const pixelR = data[i]
+        const pixelG = data[i + 1]
+        const pixelB = data[i + 2]
+        const alpha = data[i + 3]
+        
+        // Ignoro pixels transparentes e muito extremos
+        if (alpha > 128) {
+          const brightness = (pixelR + pixelG + pixelB) / 3
+          if (brightness > 20 && brightness < 235) { // Filtro extremos
+            r += pixelR
+            g += pixelG
+            b += pixelB
+            totalPixels++
+          }
+        }
+      }
+      
+      if (totalPixels > 0) {
+        return {
+          r: Math.round(r / totalPixels),
+          g: Math.round(g / totalPixels),
+          b: Math.round(b / totalPixels)
+        }
+      }
+      
+      return null
+    } catch (error) {
+      console.error('❌ Erro na análise manual de cores:', error)
+      return null
+    }
+  }
+  
+  // Calcula brilho usando fórmula de luminância perceptual
+  // Esta fórmula considera que o olho humano é mais sensível ao verde
+  const calculateBrightness = (r, g, b) => {
+    // Fórmula padrão de luminância: 0.299*R + 0.587*G + 0.114*B
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255
   }
   
   // Determine theme from RGB values
