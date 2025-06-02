@@ -2,145 +2,22 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PlayOff - Music Voting App</title>
+  <title>PlayOff - Sistema de Votação Musical</title>
+  
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:wght@400;700&family=Pattaya&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-  <script src="https://sdk.scdn.co/spotify-player.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Pattaya&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
 </head>
 <body>
-  <div id="app">
-    <!-- Hero Section -->
-    <div class="hero-section" id="heroSection">
-      <!-- Left Side - Music Info -->
-      <div class="left-side">
-        <div class="song-info">
-          <h1 id="songTitle">Carregando...</h1>
-          <h2 id="artistName">Artist</h2>
-        </div>
-        
-        <!-- Music Controls -->
-        <div class="music-controls">
-          <button class="control-btn" id="backwardBtn">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M11 7L6 12L11 17V14.5C15 14.5 18.5 16 20 19.5C19 15.5 16 12 11 12V7Z" fill="currentColor"/>
-            </svg>
-          </button>
-          
-          <button class="control-btn play-pause-btn" id="playPauseBtn">
-            <svg id="playIcon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8 5V19L19 12L8 5Z" fill="currentColor"/>
-            </svg>
-            <svg id="pauseIcon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: none;">
-              <path d="M6 4H10V20H6V4ZM14 4H18V20H14V4Z" fill="currentColor"/>
-            </svg>
-          </button>
-          
-          <button class="control-btn" id="forwardBtn">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M13 7L18 12L13 17V14.5C9 14.5 5.5 16 4 19.5C5 15.5 8 12 13 12V7Z" fill="currentColor"/>
-            </svg>
-          </button>
-        </div>
-        
-        <!-- Progress Bar -->
-        <div class="progress-container">
-          <span id="currentTime">0:00</span>
-          <div class="progress-bar">
-            <div class="progress-fill" id="progressFill"></div>
-          </div>
-          <span id="totalTime">0:00</span>
-        </div>
-      </div>
-      
-      <!-- Center - Vinyl Disc -->
-      <div class="center-disc">
-        <div class="vinyl-container">
-          <div class="vinyl-disc" id="vinylDisc">
-            <div class="vinyl-center">
-              <img id="albumImage" src="https://via.placeholder.com/300x300/333/fff?text=♪" alt="Album Cover">
-            </div>
-            <div class="vinyl-grooves"></div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Right Side - Voting -->
-      <div class="right-side">
-        <!-- Spotify Connection -->
-        <div class="spotify-section">
-          <div id="spotifyAuth" class="spotify-auth">
-            <button id="connectSpotifyBtn" class="spotify-btn">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.062 14.455c-.163.264-.5.347-.764.184-2.093-1.278-4.728-1.568-7.833-.861-.302.069-.604-.114-.673-.416-.069-.302.114-.604.416-.673 3.4-.774 6.347-.443 8.67.995.264.163.347.5.184.764zm1.09-2.427c-.204.33-.637.434-.967.23-2.395-1.473-6.046-1.902-8.88-.104-.347.22-.808.115-1.028-.232-.22-.347-.115-.808.232-1.028 3.248-2.063 7.468-1.68 10.413.236.33.204.434.637.23.967zm.094-2.525C14.626 9.878 9.569 9.63 6.818 10.75c-.413.168-.883-.03-1.051-.443-.168-.413.03-.883.443-1.051 3.153-1.284 8.722-.994 12.034.571.381.18.543.64.363 1.021-.18.381-.64.543-1.021.363z" fill="currentColor"/>
-              </svg>
-              Conectar ao Seu Spotify
-            </button>
-          </div>
-          
-          <div id="spotifyStatus" class="spotify-status" style="display: none;">
-            <div class="spotify-connected">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              Spotify Conectado
-            </div>
-            <button id="playoffBtn" class="playoff-btn">
-              🎵 Tocar PlayOff
-            </button>
-          </div>
-        </div>
-        
-        <!-- Search -->
-        <div class="search-section">
-          <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Buscar música..." class="search-input">
-            <button id="searchBtn" class="search-btn">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 21L16.514 16.506L21 21ZM19 10.5C19 15.194 15.194 19 10.5 19C5.806 19 2 15.194 2 10.5C2 5.806 5.806 2 10.5 2C15.194 2 19 5.806 19 10.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-        
-        <!-- Voting Songs -->
-        <div class="voting-section">
-          <h3>🗳️ Vote nas Músicas</h3>
-          <div class="voting-songs" id="votingSongs">
-            <!-- Songs will be loaded here -->
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Chat Section -->
-    <div class="chat-section">
-      <div class="chat-container">
-        <div class="chat-header">
-          <h3>💬 Chat ao Vivo</h3>
-        </div>
-        <div class="chat-messages" id="chatMessages">
-          <!-- Messages will be loaded here -->
-        </div>
-        <div class="chat-input-container">
-          <input type="text" id="chatInput" placeholder="Digite sua mensagem..." class="chat-input">
-          <button id="sendChatBtn" class="send-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M22 2L11 13L15 17L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Scripts -->
-  <script src="js/colorThief.min.js"></script>
-  <script src="js/spotify.js"></script>
-  <script src="js/app.js"></script>
+  <div id="app"></div>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html> 

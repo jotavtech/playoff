@@ -1,22 +1,26 @@
 {
-  "name": "playoff-music-voting",
-  "version": "2.0.0",
-  "description": "Music voting application with Spotify integration - Pure JavaScript version (frontend only)",
+  "name": "playoff-music-voting-vue",
+  "version": "3.0.0",
+  "description": "Music voting application with enhanced UI, color detection, and API integration - Vue.js version",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node server.js",
+    "start": "concurrently \"npm run server\" \"npm run dev\""
   },
   "keywords": [
     "music",
     "voting",
-    "spotify",
+    "cloudinary",
     "playlist",
+    "vue",
     "javascript",
-    "html5",
-    "css3",
+    "vite",
     "frontend",
-    "vanilla-js"
+    "color-extraction",
+    "audio-player"
   ],
   "author": "PlayOff Team",
   "license": "MIT",
@@ -27,6 +31,14 @@
     "type": "git",
     "url": "https://github.com/your-username/playoff-music-voting.git"
   },
-  "devDependencies": {},
-  "dependencies": {}
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.0.0",
+    "vite": "^5.0.0",
+    "concurrently": "^7.6.0"
+  },
+  "dependencies": {
+    "vue": "^3.3.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
 }

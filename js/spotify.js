@@ -1,165 +1,218 @@
-// Spotify Helper Functions with Web Playback SDK
-class SpotifyHelper {
+// Cloudinary Audio Player Integration
+class CloudinaryAudioHelper {
     constructor() {
-        this.clientId = '1fd9e79e2e074a33b258c30747f74e6b';
-        this.redirectUri = window.location.origin + '/callback';
-        this.scopes = [
-            'streaming',
-            'user-read-email',
-            'user-read-private',
-            'user-read-playback-state',
-            'user-modify-playback-state',
-            'user-read-currently-playing',
-            'user-library-read',
-            'playlist-read-private',
-            'playlist-read-collaborative',
-            'user-top-read'
-        ];
-        this.player = null;
-        this.deviceId = null;
+        this.cloudName = 'dzwfuzxxw';
+        this.apiKey = '888348989441951';
+        this.apiSecret = 'SoIbMkMvEBoth_Xbt0I8Ew96JuY';
+        this.audioPlayer = null;
         this.currentTrack = null;
         this.isPlaying = false;
         this.position = 0;
         this.duration = 0;
+        this.playlist = [];
+        // Last.fm API for album covers
+        this.lastFmApiKey = 'b25b959554ed76058ac220b7b2e0a026';
+        this.lastFmBaseUrl = 'https://ws.audioscrobbler.com/2.0/';
     }
 
-    generateAuthUrl() {
-        const params = new URLSearchParams({
-            response_type: 'code',
-            client_id: this.clientId,
-            scope: this.scopes.join(' '),
-            redirect_uri: this.redirectUri,
-            state: this.generateRandomString(16),
-            show_dialog: 'true'
-        });
-
-        return `https://accounts.spotify.com/authorize?${params.toString()}`;
+    // Initialize audio player
+    initializePlayer() {
+        console.log('🎵 Inicializando Cloudinary Audio Player...');
+        
+        // Create audio element
+        this.audioPlayer = document.createElement('audio');
+        this.audioPlayer.preload = 'auto';
+        this.audioPlayer.volume = 0.8;
+        this.audioPlayer.crossOrigin = 'anonymous';
+        
+        // Add event listeners
+        this.setupAudioEvents();
+        
+        console.log('✅ Cloudinary Audio Player inicializado!');
+        return Promise.resolve(true);
     }
 
-    generateRandomString(length) {
-        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        let text = '';
-        for (let i = 0; i < length; i++) {
-            text += possible.charAt(Math.floor(Math.random() * possible.length));
-        }
-        return text;
-    }
-
-    async initializePlayer() {
-        const token = this.getToken();
-        if (!token) {
-            console.error('No Spotify token available');
-            return false;
-        }
-
-        return new Promise((resolve) => {
-            if (window.Spotify) {
-                this.setupPlayer(token, resolve);
-            } else {
-                window.onSpotifyWebPlaybackSDKReady = () => {
-                    this.setupPlayer(token, resolve);
-                };
-            }
-        });
-    }
-
-    setupPlayer(token, resolve) {
-        this.player = new Spotify.Player({
-            name: 'PlayOff Music Voting',
-            getOAuthToken: cb => { cb(token); },
-            volume: 0.8
+    setupAudioEvents() {
+        this.audioPlayer.addEventListener('loadedmetadata', () => {
+            this.duration = this.audioPlayer.duration * 1000; // Convert to ms
+            this.updateUI();
+            console.log(`📊 Duração da música: ${this.formatTime(this.duration)}`);
         });
 
-        // Error handling
-        this.player.addListener('initialization_error', ({ message }) => {
-            console.error('Failed to initialize:', message);
-            resolve(false);
+        this.audioPlayer.addEventListener('timeupdate', () => {
+            this.position = this.audioPlayer.currentTime * 1000; // Convert to ms
+            this.updateProgress();
         });
 
-        this.player.addListener('authentication_error', ({ message }) => {
-            console.error('Failed to authenticate:', message);
-            resolve(false);
+        this.audioPlayer.addEventListener('play', () => {
+            this.isPlaying = true;
+            this.updateUI();
+            console.log('▶️ Música iniciada');
         });
 
-        this.player.addListener('account_error', ({ message }) => {
-            console.error('Failed to validate Spotify account:', message);
-            resolve(false);
+        this.audioPlayer.addEventListener('pause', () => {
+            this.isPlaying = false;
+            this.updateUI();
+            console.log('⏸️ Música pausada');
         });
 
-        this.player.addListener('playback_error', ({ message }) => {
-            console.error('Failed to perform playback:', message);
+        this.audioPlayer.addEventListener('ended', () => {
+            this.isPlaying = false;
+            this.updateUI();
+            console.log('⏹️ Música finalizada');
+            this.nextTrack();
         });
 
-        // Playback status updates
-        this.player.addListener('player_state_changed', (state) => {
-            if (!state) return;
-
-            this.currentTrack = state.track_window.current_track;
-            this.isPlaying = !state.paused;
-            this.position = state.position;
-            this.duration = state.duration;
-
-            // Update UI
+        this.audioPlayer.addEventListener('error', (e) => {
+            console.error('❌ Erro no player de áudio:', e);
+            console.error('❌ URL que causou erro:', this.audioPlayer.src);
+            this.isPlaying = false;
             this.updateUI();
         });
 
-        // Ready
-        this.player.addListener('ready', ({ device_id }) => {
-            console.log('Ready with Device ID', device_id);
-            this.deviceId = device_id;
-            resolve(true);
+        this.audioPlayer.addEventListener('loadstart', () => {
+            console.log('📡 Carregando música...');
         });
 
-        // Not Ready
-        this.player.addListener('not_ready', ({ device_id }) => {
-            console.log('Device ID has gone offline', device_id);
+        this.audioPlayer.addEventListener('canplay', () => {
+            console.log('✅ Música pronta para tocar');
         });
-
-        // Connect to the player!
-        this.player.connect();
     }
 
+    // Main function called by app.js - Play song
+    async playSong(songData) {
+        try {
+            console.log(`🎵 playSong chamado para: ${songData.title} - ${songData.artist}`);
+            console.log(`📡 URL da música: ${songData.audioUrl}`);
+            
+            this.currentTrack = songData;
+            
+            // Try to fetch album cover if not available or is placeholder
+            if (!songData.albumCover || songData.albumCover.includes('placeholder') || songData.albumCover.includes('via.placeholder')) {
+                console.log('🔍 Buscando capa do álbum via API...');
+                const albumInfo = await this.searchAlbumCover(songData.artist, songData.title);
+                if (albumInfo) {
+                    songData.albumCover = albumInfo.albumCover;
+                    if (albumInfo.albumName) {
+                        songData.album = albumInfo.albumName;
+                    }
+                    console.log(`✅ Capa atualizada: ${songData.albumCover}`);
+                }
+            }
+            
+            // Set the audio source to the Cloudinary URL
+            this.audioPlayer.src = songData.audioUrl;
+            
+            // Load and play
+            await this.audioPlayer.load();
+            await this.audioPlayer.play();
+            
+            this.updateUI();
+            
+            // Update background with album cover
+            this.updateDynamicBackground(songData.albumCover);
+            
+            return true;
+        } catch (error) {
+            console.error('❌ Erro ao tocar música:', error);
+            throw error;
+        }
+    }
+
+    // Play track from Cloudinary URL (legacy support)
+    async playTrack(trackUrl, trackData) {
+        return this.playSong({
+            ...trackData,
+            audioUrl: trackUrl
+        });
+    }
+
+    // Toggle play/pause
+    async togglePlayback() {
+        try {
+            if (this.audioPlayer.paused) {
+                await this.audioPlayer.play();
+                console.log('▶️ Reprodução retomada');
+            } else {
+                this.audioPlayer.pause();
+                console.log('⏸️ Reprodução pausada');
+            }
+            return true;
+        } catch (error) {
+            console.error('❌ Erro ao alternar playback:', error);
+            return false;
+        }
+    }
+
+    // Previous track
+    async previousTrack() {
+        console.log('⏮️ Voltando ao início da música');
+        this.audioPlayer.currentTime = 0;
+        return true;
+    }
+
+    // Next track
+    async nextTrack() {
+        console.log('⏭️ Parando música atual');
+        this.audioPlayer.pause();
+        this.audioPlayer.currentTime = 0;
+        return true;
+    }
+
+    // Update UI elements
     updateUI() {
         if (this.currentTrack) {
             // Update song info
-            const titleElement = document.getElementById('current-song-title');
-            const artistElement = document.getElementById('current-song-artist');
-            const albumCoverElement = document.getElementById('album-cover');
+            const titleElement = document.getElementById('songTitle');
+            const artistElement = document.getElementById('artistName');
+            const albumCoverElement = document.getElementById('albumImage');
 
-            if (titleElement) titleElement.textContent = this.currentTrack.name;
-            if (artistElement) artistElement.textContent = this.currentTrack.artists[0]?.name || 'Unknown Artist';
-            if (albumCoverElement && this.currentTrack.album?.images?.[0]) {
-                albumCoverElement.src = this.currentTrack.album.images[0].url;
+            if (titleElement) titleElement.textContent = this.currentTrack.title;
+            if (artistElement) artistElement.textContent = this.currentTrack.artist;
+            if (albumCoverElement && this.currentTrack.albumCover) {
+                albumCoverElement.src = this.currentTrack.albumCover;
             }
 
-            // Update progress
-            this.updateProgress();
-            
             // Update play/pause button
-            const playPauseBtn = document.getElementById('play-pause-btn');
-            if (playPauseBtn) {
-                const icon = playPauseBtn.querySelector('i');
-                if (icon) {
-                    icon.className = this.isPlaying ? 'fas fa-pause' : 'fas fa-play';
-                }
-            }
-
+            this.updatePlayPauseButton();
+            
             // Update vinyl animation
-            const vinylDisc = document.getElementById('vinyl-disc');
-            if (vinylDisc) {
-                if (this.isPlaying) {
-                    vinylDisc.style.animationPlayState = 'running';
-                } else {
-                    vinylDisc.style.animationPlayState = 'paused';
-                }
+            this.updateVinylAnimation();
+        }
+    }
+
+    updatePlayPauseButton() {
+        const playIcon = document.getElementById('playIcon');
+        const pauseIcon = document.getElementById('pauseIcon');
+        
+        if (playIcon && pauseIcon) {
+            if (this.isPlaying) {
+                playIcon.style.display = 'none';
+                pauseIcon.style.display = 'block';
+            } else {
+                playIcon.style.display = 'block';
+                pauseIcon.style.display = 'none';
+            }
+        }
+    }
+
+    updateVinylAnimation() {
+        const vinylDisc = document.getElementById('vinylDisc');
+        if (vinylDisc) {
+            if (this.isPlaying) {
+                vinylDisc.style.animationPlayState = 'running';
+                vinylDisc.classList.add('playing');
+            } else {
+                vinylDisc.style.animationPlayState = 'paused';
+                vinylDisc.classList.remove('playing');
             }
         }
     }
 
     updateProgress() {
-        const currentTimeElement = document.getElementById('current-time');
-        const totalTimeElement = document.getElementById('total-time');
-        const progressFillElement = document.getElementById('progress-fill');
+        const currentTimeElement = document.getElementById('currentTime');
+        const totalTimeElement = document.getElementById('totalTime');
+        const progressFillElement = document.getElementById('progressFill');
 
         if (currentTimeElement) {
             currentTimeElement.textContent = this.formatTime(this.position);
@@ -176,257 +229,226 @@ class SpotifyHelper {
     }
 
     formatTime(ms) {
-        const minutes = Math.floor(ms / 60000);
-        const seconds = Math.floor((ms % 60000) / 1000);
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
 
-    handleCallback() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-        const state = urlParams.get('state');
-        const error = urlParams.get('error');
-
-        if (error) {
-            console.error('Spotify auth error:', error);
-            return null;
-        }
-
-        if (code && state) {
-            return { code, state };
-        }
-
-        return null;
+    // Generate Cloudinary audio URL
+    generateAudioUrl(publicId, options = {}) {
+        const baseUrl = `https://res.cloudinary.com/${this.cloudName}`;
+        const resourceType = options.resourceType || 'video'; // For audio files
+        const format = options.format || 'mp3';
+        
+        return `${baseUrl}/${resourceType}/upload/${publicId}.${format}`;
     }
 
-    async exchangeCodeForToken(code) {
-        try {
-            // Exchange code for token using client credentials flow
-            const response = await fetch('https://accounts.spotify.com/api/token', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    grant_type: 'authorization_code',
-                    code: code,
-                    redirect_uri: this.redirectUri,
-                    client_id: this.clientId,
-                    client_secret: 'your_client_secret_here' // You need to add your client secret
-                })
-            });
+    // Add track to playlist
+    addTrack(trackData) {
+        const track = {
+            id: trackData.id || Date.now(),
+            title: trackData.title || 'Música Sem Nome',
+            artist: trackData.artist || 'Artista Desconhecido',
+            albumCover: trackData.albumCover || 'https://via.placeholder.com/300x300/333/fff?text=♪',
+            audioUrl: trackData.audioUrl || trackData.cloudinaryUrl,
+            cloudinaryId: trackData.cloudinaryId || null,
+            votes: trackData.votes || 0
+        };
 
-            const data = await response.json();
-            
-            if (data.access_token) {
-                return data.access_token;
+        this.playlist.push(track);
+        console.log(`📀 Música adicionada à playlist: ${track.title}`);
+        return track;
+    }
+
+    // Get demo playlist with placeholder data
+    getPlayoffPlaylist() {
+        return [
+            {
+                id: 'demo_1',
+                title: 'Rock Anthem',
+                artist: 'Demo Band',
+                albumCover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400',
+                audioUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav', // Demo audio
+                cloudinaryId: 'sample_audio_1',
+                votes: Math.floor(Math.random() * 15) + 1
+            },
+            {
+                id: 'demo_2',
+                title: 'Electronic Vibes',
+                artist: 'Synth Master',
+                albumCover: 'https://images.unsplash.com/photo-1571974599782-87624638275c?w=400',
+                audioUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav', // Demo audio
+                cloudinaryId: 'sample_audio_2',
+                votes: Math.floor(Math.random() * 15) + 1
+            },
+            {
+                id: 'demo_3',
+                title: 'Jazz Fusion',
+                artist: 'Cool Cats',
+                albumCover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400',
+                audioUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav', // Demo audio
+                cloudinaryId: 'sample_audio_3',
+                votes: Math.floor(Math.random() * 15) + 1
             }
-        } catch (error) {
-            console.error('Error exchanging code for token:', error);
-        }
-
-        return null;
+        ];
     }
 
-    saveToken(token) {
-        localStorage.setItem('spotify_access_token', token);
-        localStorage.setItem('spotify_token_timestamp', Date.now().toString());
+    // Search tracks (placeholder - can be enhanced with Cloudinary API)
+    async searchTracks(query, limit = 10) {
+        console.log(`🔍 Buscando por: ${query}`);
+        // For now, return empty results since we're using predefined songs
+        return [];
     }
 
-    getToken() {
-        const token = localStorage.getItem('spotify_access_token');
-        const timestamp = localStorage.getItem('spotify_token_timestamp');
-        
-        if (!token || !timestamp) {
-            return null;
-        }
-
-        // Check if token is older than 1 hour (3600000 ms)
-        const now = Date.now();
-        const tokenAge = now - parseInt(timestamp);
-        
-        if (tokenAge > 3600000) {
-            this.clearToken();
-            return null;
-        }
-
-        return token;
-    }
-
-    clearToken() {
-        localStorage.removeItem('spotify_access_token');
-        localStorage.removeItem('spotify_token_timestamp');
-    }
-
-    async searchTracks(query, limit = 20) {
-        const token = this.getToken();
-        if (!token) {
-            throw new Error('No valid Spotify token');
-        }
-
-        try {
-            const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${limit}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            const data = await response.json();
-            return data.tracks.items;
-        } catch (error) {
-            console.error('Error searching tracks:', error);
-            throw error;
-        }
-    }
-
-    async playTrack(trackUri) {
-        if (!this.player || !this.deviceId) {
-            console.error('Player not initialized');
-            return false;
-        }
-
-        const token = this.getToken();
-        if (!token) {
-            throw new Error('No valid Spotify token');
-        }
-
-        try {
-            const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${this.deviceId}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    uris: [trackUri]
-                })
-            });
-
-            return response.ok;
-        } catch (error) {
-            console.error('Error playing track:', error);
-            throw error;
-        }
-    }
-
-    async togglePlayback() {
-        if (!this.player) {
-            console.error('Player not initialized');
-            return false;
-        }
-
-        try {
-            await this.player.togglePlay();
-            return true;
-        } catch (error) {
-            console.error('Error toggling playback:', error);
-            return false;
-        }
-    }
-
-    async previousTrack() {
-        if (!this.player) {
-            console.error('Player not initialized');
-            return false;
-        }
-
-        try {
-            await this.player.previousTrack();
-            return true;
-        } catch (error) {
-            console.error('Error going to previous track:', error);
-            return false;
-        }
-    }
-
-    async nextTrack() {
-        if (!this.player) {
-            console.error('Player not initialized');
-            return false;
-        }
-
-        try {
-            await this.player.nextTrack();
-            return true;
-        } catch (error) {
-            console.error('Error going to next track:', error);
-            return false;
-        }
-    }
-
-    async getCurrentPlayback() {
-        if (!this.player) {
-            console.error('Player not initialized');
-            return null;
-        }
-
-        try {
-            const state = await this.player.getCurrentState();
-            return state;
-        } catch (error) {
-            console.error('Error getting current playback:', error);
-            return null;
-        }
-    }
-
+    // Format track for consistency
     formatTrack(track) {
         return {
             id: track.id,
-            title: track.name,
-            artist: track.artists[0]?.name || 'Unknown Artist',
-            albumCover: track.album?.images[0]?.url || '',
-            duration: Math.floor(track.duration_ms / 1000),
-            preview_url: track.preview_url,
-            spotify_url: track.external_urls?.spotify,
-            uri: track.uri
+            title: track.title,
+            artist: track.artist,
+            albumCover: track.albumCover,
+            audioUrl: track.audioUrl,
+            cloudinaryId: track.cloudinaryId,
+            duration: track.duration || 0,
+            votes: track.votes || 0
         };
     }
 
-    // Get popular playlists for demo
-    async getPlayoffPlaylist() {
-        const playoffTracks = [
-            'spotify:track:4uLU6hMCjMI75M1A2tKUQC', // Deftones - Change (In the House of Flies)
-            'spotify:track:3HfB5mBU0dBOHrU8oDashP', // Audioslave - Cochise
-            'spotify:track:1OmcAT5Y8eg5bUPv9qJT4R', // Queens of the Stone Age - No One Knows
-            'spotify:track:52K4Nl7eVNqUpUeJeWJlwT'  // Soundgarden - Black Hole Sun
-        ];
+    // Get current playback state
+    getCurrentPlayback() {
+        return {
+            track: this.currentTrack,
+            isPlaying: this.isPlaying,
+            position: this.position,
+            duration: this.duration
+        };
+    }
 
-        return playoffTracks.map((uri, index) => ({
-            id: `playoff_${index}`,
-            title: ['Change (In the House of Flies)', 'Cochise', 'No One Knows', 'Black Hole Sun'][index],
-            artist: ['Deftones', 'Audioslave', 'Queens of the Stone Age', 'Soundgarden'][index],
-            albumCover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400',
-            uri: uri,
-            votes: Math.floor(Math.random() * 15) + 1
-        }));
+    // Clean up
+    destroy() {
+        if (this.audioPlayer) {
+            this.audioPlayer.pause();
+            this.audioPlayer.src = '';
+            this.audioPlayer = null;
+        }
+    }
+
+    // Fetch album cover from Last.fm API
+    async fetchAlbumCover(artist, album) {
+        try {
+            const url = `${this.lastFmBaseUrl}?method=album.getinfo&api_key=${this.lastFmApiKey}&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&format=json`;
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data.album && data.album.image && data.album.image.length > 0) {
+                // Get the largest image (last in array)
+                const largestImage = data.album.image[data.album.image.length - 1];
+                if (largestImage['#text']) {
+                    console.log(`🎨 Capa encontrada via Last.fm para ${artist} - ${album}`);
+                    return largestImage['#text'];
+                }
+            }
+            
+            console.log(`❌ Capa não encontrada para ${artist} - ${album}`);
+            return null;
+        } catch (error) {
+            console.error('❌ Erro ao buscar capa do álbum:', error);
+            return null;
+        }
+    }
+
+    // Search for album cover using artist and track name
+    async searchAlbumCover(artist, track) {
+        try {
+            // First try to get track info which includes album
+            const trackUrl = `${this.lastFmBaseUrl}?method=track.getinfo&api_key=${this.lastFmApiKey}&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(track)}&format=json`;
+            
+            const trackResponse = await fetch(trackUrl);
+            const trackData = await trackResponse.json();
+            
+            if (trackData.track && trackData.track.album) {
+                const albumName = trackData.track.album.title;
+                const albumCover = await this.fetchAlbumCover(artist, albumName);
+                if (albumCover) {
+                    return {
+                        albumCover: albumCover,
+                        albumName: albumName
+                    };
+                }
+            }
+            
+            // If no album found, try searching by artist
+            const artistUrl = `${this.lastFmBaseUrl}?method=artist.gettopalbums&api_key=${this.lastFmApiKey}&artist=${encodeURIComponent(artist)}&format=json&limit=1`;
+            
+            const artistResponse = await fetch(artistUrl);
+            const artistData = await artistResponse.json();
+            
+            if (artistData.topalbums && artistData.topalbums.album && artistData.topalbums.album.length > 0) {
+                const firstAlbum = artistData.topalbums.album[0];
+                if (firstAlbum.image && firstAlbum.image.length > 0) {
+                    const largestImage = firstAlbum.image[firstAlbum.image.length - 1];
+                    if (largestImage['#text']) {
+                        console.log(`🎨 Capa do top álbum encontrada para ${artist}`);
+                        return {
+                            albumCover: largestImage['#text'],
+                            albumName: firstAlbum.name
+                        };
+                    }
+                }
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('❌ Erro ao buscar capa:', error);
+            return null;
+        }
+    }
+
+    // Update dynamic background based on album cover
+    updateDynamicBackground(albumCoverUrl) {
+        if (!albumCoverUrl) return;
+        
+        console.log(`🎨 Atualizando fundo dinâmico com: ${albumCoverUrl}`);
+        
+        // Create or update dynamic background
+        let dynamicBackground = document.querySelector('.dynamic-background');
+        if (!dynamicBackground) {
+            dynamicBackground = document.createElement('div');
+            dynamicBackground.className = 'dynamic-background';
+            document.body.insertBefore(dynamicBackground, document.body.firstChild);
+        }
+        
+        // Set background image with transition effect
+        dynamicBackground.style.backgroundImage = `url(${albumCoverUrl})`;
+        dynamicBackground.style.opacity = '0.5';
+        dynamicBackground.classList.add('active');
+        
+        // Also update vinyl center
+        const vinylCenter = document.querySelector('.vinyl-center');
+        if (vinylCenter) {
+            vinylCenter.style.backgroundImage = `url('${albumCoverUrl}')`;
+            vinylCenter.style.backgroundSize = 'cover';
+            vinylCenter.style.backgroundPosition = 'center';
+            vinylCenter.style.backgroundRepeat = 'no-repeat';
+        }
     }
 }
 
-// Initialize Spotify Helper
-window.spotifyHelper = new SpotifyHelper();
+// Initialize Cloudinary Helper
+window.spotifyHelper = new CloudinaryAudioHelper(); // Keep same name for compatibility
 
-// Handle Spotify callback on page load
+// Auto-initialize player when DOM loads
 document.addEventListener('DOMContentLoaded', () => {
-    const callbackData = window.spotifyHelper.handleCallback();
-    if (callbackData) {
-        window.spotifyHelper.exchangeCodeForToken(callbackData.code)
-            .then(token => {
-                if (token) {
-                    window.spotifyHelper.saveToken(token);
-                    // Redirect to main page
-                    window.location.href = window.location.origin;
-                }
-            });
-    }
-});
-
-// Auto-initialize player if token exists
-document.addEventListener('DOMContentLoaded', () => {
-    const token = window.spotifyHelper.getToken();
-    if (token) {
-        // Wait for Spotify SDK to load
-        setTimeout(() => {
-            window.spotifyHelper.initializePlayer();
-        }, 1000);
-    }
+    console.log('🎵 Inicializando Cloudinary Audio Helper...');
+    
+    // Initialize player
+    window.spotifyHelper.initializePlayer()
+        .then(() => {
+            console.log('✅ Cloudinary Audio Helper pronto!');
+        })
+        .catch(error => {
+            console.error('❌ Erro ao inicializar player:', error);
+        });
 }); 
