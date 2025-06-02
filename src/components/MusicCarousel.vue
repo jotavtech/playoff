@@ -321,26 +321,40 @@ onUnmounted(() => {
 .music-carousel {
   width: 100%;
   max-width: 1400px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
+  margin: 4rem auto 0;
+  padding: 1.5rem 1rem 2rem;
   background: rgba(255, 255, 255, 0.02);
   border-radius: 20px;
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+/* Linha divisória sutil acima do carrossel */
+.music-carousel::before {
+  content: '';
+  position: absolute;
+  top: -3rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 107, 107, 0.5), transparent);
+  border-radius: 1px;
 }
 
 .carousel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   padding: 0 1rem;
 }
 
 .carousel-title {
   color: #fff;
-  font-size: 2rem;
+  font-size: 1.7rem;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -702,17 +716,18 @@ onUnmounted(() => {
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
   .music-carousel {
-    padding: 1rem 0.5rem;
+    margin-top: 1rem; /* Reduzindo de 6rem para 3rem */
+    padding: 1rem 0.5rem 1rem; /* Reduzindo padding superior */
   }
   
   .carousel-header {
     flex-direction: column;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    gap: 0.8rem; /* Reduzindo de 1rem para 0.8rem */
+    margin-bottom: 1rem; /* Reduzindo de 1rem para 1rem */
   }
   
   .carousel-title {
-    font-size: 1.5rem;
+    font-size: 1.3rem; /* Reduzindo de 1.5rem para 1.3rem */
   }
   
   .music-card {
@@ -731,6 +746,19 @@ onUnmounted(() => {
 }
 
 @media (max-width: 480px) {
+  .music-carousel {
+    margin-top: 2rem; /* Reduzindo de 4rem para 2rem */
+    padding: 1rem 0.5rem 1rem; /* Reduzindo padding */
+  }
+  
+  .carousel-header {
+    margin-bottom: 0.8rem; /* Reduzindo margin-bottom */
+  }
+  
+  .carousel-title {
+    font-size: 1.2rem; /* Reduzindo ainda mais em mobile */
+  }
+  
   .action-buttons {
     flex-direction: column;
     gap: 0.5rem;

@@ -98,9 +98,8 @@ body::before {
   justify-content: space-between;
   align-items: center;
   padding: 2rem;
-  min-height: 100vh;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   backdrop-filter: blur(1px);
 }
 
@@ -149,7 +148,7 @@ body::before {
 .vinyl-container {
   position: relative;
   width: 600px; /* Half of 1200px */
-  height: 1200px;
+  height: 600px; /* Reduzindo de 1200px para 600px */
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -716,7 +715,7 @@ body::before {
 
   .vinyl-container {
     width: 400px; /* Smaller width for mobile */
-    height: 800px;
+    height: 400px; /* Reduzindo de 800px para 400px */
     justify-content: center;
   }
 
@@ -758,7 +757,7 @@ body::before {
 
   .vinyl-container {
     width: 300px;
-    height: 600px;
+    height: 300px; /* Reduzindo de 600px para 300px */
   }
 
   .vinyl-disc {
@@ -848,7 +847,7 @@ body::before {
 
   .vinyl-container {
     width: 200px;
-    height: 400px;
+    height: 200px; /* Reduzindo de 400px para 200px */
   }
 
   .vinyl-disc {
@@ -880,7 +879,7 @@ body::before {
 
   .voting-section {
     margin: 0.5rem;
-    padding: 1.5rem;
+    padding: 2rem;
   }
 
   .progress-container {

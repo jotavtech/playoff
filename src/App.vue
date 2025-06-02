@@ -308,10 +308,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* ============= ESTILOS PRINCIPAIS DA APLICAÇÃO ============= */
 /* Estilos do componente principal */
 .app {
   width: 100%;
-  min-height: 100vh;
   position: relative;
 }
 
@@ -326,5 +326,32 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  gap: 8rem; /* Aumentando ainda mais o espaçamento entre as seções */
+}
+
+/* Espaçamento específico entre as seções */
+.main-content > *:not(:last-child) {
+  margin-bottom: 6rem; /* Margem muito maior entre seções */
+}
+
+/* Media queries para responsividade */
+@media (max-width: 768px) {
+  .main-content {
+    gap: 4rem;
+  }
+  
+  .main-content > *:not(:last-child) {
+    margin-bottom: 3rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    gap: 3rem;
+  }
+  
+  .main-content > *:not(:last-child) {
+    margin-bottom: 2rem;
+  }
 }
 </style> 
