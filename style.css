@@ -147,8 +147,8 @@ body::before {
 /* Vinyl Container (Right Side) - Left half of disc only */
 .vinyl-container {
   position: relative;
-  width: 600px; /* Half of 1200px */
-  height: 600px; /* Reduzindo de 1200px para 600px */
+  width: clamp(300px, 40vw, 600px); /* Responsive width */
+  height: clamp(300px, 40vw, 600px); /* Responsive height */
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -158,8 +158,8 @@ body::before {
 
 .vinyl-disc {
   position: relative;
-  width: 1200px; /* Full size disc */
-  height: 1200px;
+  width: calc(clamp(300px, 40vw, 600px) * 2); /* Double the container width */
+  height: calc(clamp(300px, 40vw, 600px) * 2); /* Double the container height */
   background-image: url('https://res.cloudinary.com/dzwfuzxxw/image/upload/v1748612705/ab777b27-c9fa-488d-9331-a062fb084ad2_vbdmdg.png');
   background-size: cover;
   background-position: center;
@@ -168,22 +168,22 @@ body::before {
   animation: vinylRotate 8s linear infinite;
   transform-origin: center center;
   box-shadow: 
-    0 0 120px rgba(0, 0, 0, 0.8),
-    inset 0 0 150px rgba(255, 255, 255, 0.1),
-    0 0 0 30px rgba(0, 0, 0, 0.9),
-    0 0 0 32px rgba(255, 255, 255, 0.1);
+    0 0 clamp(60px, 8vw, 120px) rgba(0, 0, 0, 0.8),
+    inset 0 0 clamp(75px, 10vw, 150px) rgba(255, 255, 255, 0.1),
+    0 0 0 clamp(15px, 2vw, 30px) rgba(0, 0, 0, 0.9),
+    0 0 0 clamp(16px, 2.1vw, 32px) rgba(255, 255, 255, 0.1);
   transition: all 1.5s ease-in-out;
   /* Position the disc so only left half is visible */
-  transform: translateX(-600px); /* Move left by half the width */
+  transform: translateX(calc(clamp(300px, 40vw, 600px) * -1)); /* Move left by container width */
 }
 
 .vinyl-disc.playing {
   animation: vinylRotatePlaying 8s linear infinite;
   box-shadow: 
-    0 0 180px rgba(255, 107, 107, 0.6),
-    inset 0 0 150px rgba(255, 255, 255, 0.2),
-    0 0 0 30px rgba(0, 0, 0, 0.9),
-    0 0 0 32px rgba(255, 107, 107, 0.4);
+    0 0 clamp(90px, 12vw, 180px) rgba(255, 107, 107, 0.6),
+    inset 0 0 clamp(75px, 10vw, 150px) rgba(255, 255, 255, 0.2),
+    0 0 0 clamp(15px, 2vw, 30px) rgba(0, 0, 0, 0.9),
+    0 0 0 clamp(16px, 2.1vw, 32px) rgba(255, 107, 107, 0.4);
 }
 
 .vinyl-center {
@@ -191,16 +191,16 @@ body::before {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 240px;
-  height: 240px;
+  width: clamp(120px, 16vw, 240px); /* Responsive center size */
+  height: clamp(120px, 16vw, 240px);
   border-radius: 50%;
   overflow: hidden;
-  border: 8px solid rgba(255, 255, 255, 0.9);
+  border: clamp(4px, 0.5vw, 8px) solid rgba(255, 255, 255, 0.9);
   z-index: 10;
   background: #000;
   box-shadow: 
-    0 0 40px rgba(0, 0, 0, 0.9),
-    inset 0 0 30px rgba(255, 255, 255, 0.1);
+    0 0 clamp(20px, 3vw, 40px) rgba(0, 0, 0, 0.9),
+    inset 0 0 clamp(15px, 2vw, 30px) rgba(255, 255, 255, 0.1);
   transition: all 0.7s ease;
 }
 
@@ -208,8 +208,8 @@ body::before {
   transform: translate(-50%, -50%) scale(1.1);
   border-color: #ff6b6b;
   box-shadow: 
-    0 0 60px rgba(255, 107, 107, 0.8),
-    inset 0 0 30px rgba(255, 255, 255, 0.2);
+    0 0 clamp(30px, 4vw, 60px) rgba(255, 107, 107, 0.8),
+    inset 0 0 clamp(15px, 2vw, 30px) rgba(255, 255, 255, 0.2);
 }
 
 .vinyl-center img {
@@ -229,20 +229,20 @@ body::before {
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 
-    inset 0 0 0 20px rgba(255, 255, 255, 0.05),
-    inset 0 0 0 40px rgba(255, 255, 255, 0.05),
-    inset 0 0 0 60px rgba(255, 255, 255, 0.05),
-    inset 0 0 0 80px rgba(255, 255, 255, 0.05);
+    inset 0 0 0 clamp(10px, 1.5vw, 20px) rgba(255, 255, 255, 0.05),
+    inset 0 0 0 clamp(20px, 3vw, 40px) rgba(255, 255, 255, 0.05),
+    inset 0 0 0 clamp(30px, 4.5vw, 60px) rgba(255, 255, 255, 0.05),
+    inset 0 0 0 clamp(40px, 6vw, 80px) rgba(255, 255, 255, 0.05);
 }
 
 @keyframes vinylRotate {
-  from { transform: translateX(-600px) rotate(0deg); }
-  to { transform: translateX(-600px) rotate(360deg); }
+  from { transform: translateX(calc(clamp(300px, 40vw, 600px) * -1)) rotate(0deg); }
+  to { transform: translateX(calc(clamp(300px, 40vw, 600px) * -1)) rotate(360deg); }
 }
 
 @keyframes vinylRotatePlaying {
-  from { transform: translateX(-600px) rotate(0deg); }
-  to { transform: translateX(-600px) rotate(360deg); }
+  from { transform: translateX(calc(clamp(300px, 40vw, 600px) * -1)) rotate(0deg); }
+  to { transform: translateX(calc(clamp(300px, 40vw, 600px) * -1)) rotate(360deg); }
 }
 
 /* Spotify Section */
@@ -713,35 +713,9 @@ body::before {
     max-width: 500px;
   }
 
-  .vinyl-container {
-    width: 400px; /* Smaller width for mobile */
-    height: 400px; /* Reduzindo de 800px para 400px */
-    justify-content: center;
-  }
-
-  .vinyl-disc {
-    width: 800px;
-    height: 800px;
-    transform: translateX(-400px); /* Adjust for smaller disc */
-  }
-
-  .vinyl-center {
-    width: 160px;
-    height: 160px;
-  }
-
+  /* Vinyl is now automatically responsive with clamp() */
   .player-info h2 {
     font-size: 2rem;
-  }
-
-  @keyframes vinylRotate {
-    from { transform: translateX(-400px) rotate(0deg); }
-    to { transform: translateX(-400px) rotate(360deg); }
-  }
-
-  @keyframes vinylRotatePlaying {
-    from { transform: translateX(-400px) rotate(0deg); }
-    to { transform: translateX(-400px) rotate(360deg); }
   }
 }
 
@@ -755,22 +729,8 @@ body::before {
     padding: 2rem;
   }
 
-  .vinyl-container {
-    width: 300px;
-    height: 300px; /* Reduzindo de 600px para 300px */
-  }
-
-  .vinyl-disc {
-    width: 600px;
-    height: 600px;
-    transform: translateX(-300px);
-  }
-
-  .vinyl-center {
-    width: 120px;
-    height: 120px;
-  }
-
+  /* Vinyl responsiveness handled by clamp() in base styles */
+  
   .player-info h2 {
     font-size: 1.8rem;
   }
@@ -824,16 +784,6 @@ body::before {
   .song-actions {
     justify-content: center;
   }
-
-  @keyframes vinylRotate {
-    from { transform: translateX(-300px) rotate(0deg); }
-    to { transform: translateX(-300px) rotate(360deg); }
-  }
-
-  @keyframes vinylRotatePlaying {
-    from { transform: translateX(-300px) rotate(0deg); }
-    to { transform: translateX(-300px) rotate(360deg); }
-  }
 }
 
 @media (max-width: 480px) {
@@ -845,21 +795,7 @@ body::before {
     padding: 1.5rem;
   }
 
-  .vinyl-container {
-    width: 200px;
-    height: 200px; /* Reduzindo de 400px para 200px */
-  }
-
-  .vinyl-disc {
-    width: 400px;
-    height: 400px;
-    transform: translateX(-200px);
-  }
-
-  .vinyl-center {
-    width: 80px;
-    height: 80px;
-  }
+  /* Vinyl automatically scales with clamp() - no overrides needed */
 
   .player-info h2 {
     font-size: 1.5rem;
@@ -891,15 +827,42 @@ body::before {
     font-size: 0.8rem;
     min-width: 40px;
   }
+}
 
+/* Extra small screens */
+@media (max-width: 320px) {
+  .vinyl-container {
+    width: clamp(250px, 35vw, 300px);
+    height: clamp(250px, 35vw, 300px);
+  }
+  
+  .vinyl-disc {
+    width: calc(clamp(250px, 35vw, 300px) * 2);
+    height: calc(clamp(250px, 35vw, 300px) * 2);
+    transform: translateX(calc(clamp(250px, 35vw, 300px) * -1));
+  }
+  
+  .vinyl-center {
+    width: clamp(100px, 14vw, 120px);
+    height: clamp(100px, 14vw, 120px);
+  }
+  
   @keyframes vinylRotate {
-    from { transform: translateX(-200px) rotate(0deg); }
-    to { transform: translateX(-200px) rotate(360deg); }
+    from { transform: translateX(calc(clamp(250px, 35vw, 300px) * -1)) rotate(0deg); }
+    to { transform: translateX(calc(clamp(250px, 35vw, 300px) * -1)) rotate(360deg); }
   }
 
   @keyframes vinylRotatePlaying {
-    from { transform: translateX(-200px) rotate(0deg); }
-    to { transform: translateX(-200px) rotate(360deg); }
+    from { transform: translateX(calc(clamp(250px, 35vw, 300px) * -1)) rotate(0deg); }
+    to { transform: translateX(calc(clamp(250px, 35vw, 300px) * -1)) rotate(360deg); }
+  }
+  
+  .player-info h2 {
+    font-size: 1.3rem;
+  }
+  
+  .player-card {
+    padding: 1rem;
   }
 }
 
