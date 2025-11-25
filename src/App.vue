@@ -57,6 +57,9 @@
           @super-vote="handleSuperVote"
           @play-song="handlePlaySong"
         />
+
+        <!-- Footer Punk -->
+        <TheFooter />
       </div>
     </div>
   </div>
@@ -74,6 +77,7 @@ import NotificationContainer from './components/NotificationContainer.vue'
 import SpotifySearch from './components/SpotifySearch.vue'
 import LoginModal from './components/LoginModal.vue'
 import UserProfile from './components/UserProfile.vue'
+import TheFooter from './components/TheFooter.vue'
 
 // ============= CONFIGURAÇÃO DA API =============
 // Usando URL relativa para aproveitar o proxy do Vite

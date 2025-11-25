@@ -26,6 +26,7 @@
           'panel-first': index === 0,
           'panel-last': index === displayedSongs.length - 1
         }"
+        :style="getPanelStyle(song.id)"
         @click="handleSuperVote(song)"
       >
         <img 
@@ -34,7 +35,9 @@
           class="cover-image"
           loading="lazy"
           decoding="async"
+          @load="onImageLoad($event, song)"
           @error="handleImageError($event, song)"
+          crossorigin="anonymous"
         />
         
         <!-- Overlay with info -->
@@ -74,6 +77,9 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useCloudinaryAudio } from '../composables/useCloudinaryAudio'
+
+const { extractDominantColor } = useCloudinaryAudio()
 
 // Props
 const props = defineProps({
@@ -98,6 +104,7 @@ const emit = defineEmits(['vote-for-song', 'super-vote', 'play-song'])
 const coversContainer = ref(null)
 const currentPage = ref(0)
 const votedSongs = ref(new Set())
+const coverColors = ref({}) // Armazena cores extraídas por ID da música
 
 // Computed - Pagination: 4 songs per page for better display
 const songsPerPage = 4
@@ -117,6 +124,27 @@ const getAlbumCover = (song) => {
     return '/default-album.jpg'
   }
   return song.albumCover
+}
+
+// Color Extraction
+const onImageLoad = async (event, song) => {
+  try {
+    // Extrai cor dominante da imagem carregada
+    const result = await extractDominantColor(event.target.src)
+    if (result && result.dominantColor) {
+      const { r, g, b } = result.dominantColor
+      coverColors.value[song.id] = `rgb(${r}, ${g}, ${b})`
+    }
+  } catch (e) {
+    console.warn('Falha ao extrair cor:', e)
+  }
+}
+
+const getPanelStyle = (songId) => {
+  const color = coverColors.value[songId] || 'rgba(255, 255, 255, 0.5)'
+  return {
+    '--panel-color': color
+  }
 }
 
 // Navigation methods
@@ -255,12 +283,32 @@ watch(() => props.songs, () => {
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  transition: flex 0.4s ease;
+  transition: all 0.4s ease;
   transform: skewX(-5deg);
   margin: 0 -10px;
   min-width: 0;
   will-change: flex;
   contain: layout style;
+  
+  /* Borda Punk Animada */
+  border: 4px solid var(--panel-color);
+  box-shadow: 0 0 15px var(--panel-color);
+  animation: borderPulse 3s infinite alternate;
+}
+
+@keyframes borderPulse {
+  0% { 
+    box-shadow: 0 0 10px var(--panel-color); 
+    border-color: var(--panel-color);
+  }
+  50% { 
+    box-shadow: 0 0 30px var(--panel-color), inset 0 0 20px var(--panel-color); 
+    border-color: #fff; 
+  }
+  100% { 
+    box-shadow: 0 0 10px var(--panel-color); 
+    border-color: var(--panel-color);
+  }
 }
 
 .cover-panel.panel-first {
