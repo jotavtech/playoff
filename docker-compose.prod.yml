@@ -1,0 +1,22 @@
+# ========================================
+# PlayOff - Production Docker Compose Override
+# ========================================
+#
+# Usage:
+#   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# ========================================
+
+services:
+  playoff:
+    build:
+      target: production
+    container_name: playoff-app-prod
+    restart: always
+    ports:
+      - "3000:3000"  # Only expose production port
+    volumes: []  # No volume mounts in production
+    environment:
+      - NODE_ENV=production
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}

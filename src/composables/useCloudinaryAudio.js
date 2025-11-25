@@ -747,9 +747,15 @@ export function useCloudinaryAudio() {
       
       currentTrack.value = songData
       
-      // Always search for Spotify album cover for better quality
-      console.log('🔍 Sempre buscando capa do álbum via Spotify para melhor qualidade...')
+      // Always search for Spotify album cover and preview URL for better quality
+      console.log('🔍 Buscando informações do Spotify...')
       const albumInfo = await searchAlbumCover(songData.artist, songData.title)
+      
+      // Se não tem audioUrl mas o Spotify retornou previewUrl, usa ele
+      if ((!songData.audioUrl || songData.audioUrl === '') && albumInfo?.previewUrl) {
+        console.log(`🎵 Usando preview URL do Spotify: ${albumInfo.previewUrl}`)
+        songData.audioUrl = albumInfo.previewUrl
+      }
       
       if (albumInfo) {
         // Update track data with Spotify information
@@ -791,7 +797,18 @@ export function useCloudinaryAudio() {
         currentTrack.value = { ...songData }
       }
       
-      // Set the audio source to the Cloudinary URL
+      // Verifica se há URL de áudio disponível
+      if (!songData.audioUrl || songData.audioUrl === '') {
+        console.warn('⚠️ Nenhuma URL de áudio disponível para esta música')
+        console.log('ℹ️ A música foi adicionada mas não pode ser reproduzida sem áudio')
+        // Ainda atualiza o currentTrack para mostrar a capa
+        currentTrack.value = { ...songData }
+        isPlaying.value = false
+        return false
+      }
+      
+      // Set the audio source
+      console.log(`📡 Carregando áudio: ${songData.audioUrl}`)
       audioPlayer.value.src = songData.audioUrl
       
       // Load and play
@@ -866,6 +883,19 @@ export function useCloudinaryAudio() {
   // Toggle play/pause
   const togglePlayback = async () => {
     try {
+      // Verifica se há uma música carregada com URL válida
+      if (!audioPlayer.value.src || audioPlayer.value.src === '' || audioPlayer.value.src === window.location.href) {
+        console.warn('⚠️ Nenhuma música carregada para reproduzir')
+        
+        // Tenta tocar a primeira música da lista se disponível
+        if (currentSongsList.value && currentSongsList.value.length > 0) {
+          console.log('🎵 Tentando reproduzir primeira música da lista...')
+          await playSong(currentSongsList.value[0])
+          return true
+        }
+        return false
+      }
+      
       if (audioPlayer.value.paused) {
         await audioPlayer.value.play()
         console.log('▶️ Reprodução retomada')
@@ -876,6 +906,11 @@ export function useCloudinaryAudio() {
       return true
     } catch (error) {
       console.error('❌ Erro ao alternar playback:', error)
+      // Se o erro é de fonte não suportada, limpa o estado
+      if (error.name === 'NotSupportedError') {
+        console.warn('⚠️ Fonte de áudio não suportada ou indisponível')
+        isPlaying.value = false
+      }
       return false
     }
   }
@@ -1065,6 +1100,40 @@ export function useCloudinaryAudio() {
     currentSongsList.value = songsList
     console.log(`📋 Lista de músicas atualizada: ${songsList.length} músicas`)
   }
+
+  const setTrack = async (songData) => {
+    try {
+      console.log(`🎵 setTrack chamado para: ${songData.title}`)
+      currentTrack.value = songData
+      
+      const albumInfo = await searchAlbumCover(songData.artist, songData.title)
+      if (albumInfo) {
+        songData.albumCover = albumInfo.albumCover
+        currentTrack.value = { ...songData }
+      }
+      
+      await updateDynamicBackground(currentTrack.value.albumCover)
+      
+      if (audioPlayer.value) {
+        audioPlayer.value.pause()
+        audioPlayer.value.currentTime = 0
+      }
+      
+      isPlaying.value = true
+      return true
+    } catch (error) {
+      console.error('Erro ao definir faixa:', error)
+      return false
+    }
+  }
+
+  // Seek para posição específica (ms)
+  const seek = (positionMs) => {
+    if (audioPlayer.value) {
+      audioPlayer.value.currentTime = positionMs / 1000
+      position.value = positionMs
+    }
+  }
   
   return {
     // State
@@ -1073,6 +1142,7 @@ export function useCloudinaryAudio() {
     position,
     duration,
     playlist,
+    audioPlayer,
     
     // Methods
     initializePlayer,
@@ -1086,8 +1156,26 @@ export function useCloudinaryAudio() {
     searchAlbumCover,
     extractDominantColor,
     applyDynamicTheme,
-    detectImageBrightness,
-    initializeTheme,
-    updateSongsList
+    updateSongsList,
+    setTrack,
+    seek,
+    detectImageBrightness: async (src) => { // Wrapper para compatibilidade
+      return new Promise((resolve) => {
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          canvas.width = 1
+          canvas.height = 1
+          ctx.drawImage(img, 0, 0, 1, 1)
+          const data = ctx.getImageData(0, 0, 1, 1).data
+          const brightness = (0.299 * data[0] + 0.587 * data[1] + 0.114 * data[2]) / 255
+          resolve(brightness)
+        }
+        img.onerror = () => resolve(0)
+        img.src = src
+      })
+    }
   }
 } 

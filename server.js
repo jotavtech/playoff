@@ -2,9 +2,24 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
+// Importação dos novos módulos de autenticação e banco de dados
+const db = require('./database/db');
+const authRoutes = require('./routes/auth-routes');
+
 // Importação do fetch para versões do Node.js que não possuem suporte nativo
 // Isso garante compatibilidade com APIs externas independente da versão do Node
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+let fetch;
+(async () => {
+  if (typeof globalThis.fetch === 'undefined') {
+    const { default: nodeFetch } = await import('node-fetch');
+    fetch = nodeFetch;
+  } else {
+    fetch = globalThis.fetch;
+  }
+})();
+
+// Banco de dados já é inicializado automaticamente ao importar o módulo
+console.log('✅ Banco de dados carregado!');
 
 // ============= IMPLEMENTAÇÃO DO PADRÃO OBSERVER =============
 // O padrão Observer é uma solução elegante que desenvolvi para este projeto
@@ -324,6 +339,19 @@ class UIObserver extends Observer {
   }
 }
 
+// Função para buscar capa de álbum (implementação simples para o mock)
+const searchAlbumCover = async (artist, album, title) => {
+  // Simula busca de capa - retorna null para usar placeholder
+  console.log(`🎨 Simulando busca de capa para: ${artist} - ${title}`);
+  return null;
+};
+
+// Função para gerar placeholder de capa
+const generatePlaceholderCover = (artist, title) => {
+  // Retorna uma imagem placeholder
+  return `https://via.placeholder.com/300x300/1a1a1a/ffffff?text=${encodeURIComponent(artist)}`;
+};
+
 // ============= INICIALIZAÇÃO DO PADRÃO OBSERVER =============
 
 // Cria instâncias
@@ -345,8 +373,27 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('dist'));
 
-// Número máximo de músicas permitidas na votação
-const MAX_SONGS = 12;
+// ============= ROTAS DE AUTENTICAÇÃO E API =============
+// Registra as novas rotas de autenticação OAuth e API de usuários
+console.log('🔐 Registrando rotas de autenticação e API...');
+app.use('/auth', authRoutes.router);
+app.use('/api/user', authRoutes.router);
+
+// Endpoint de Health Check para diagnóstico
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    service: 'PlayOff API', 
+    port: PORT,
+    timestamp: new Date().toISOString(),
+    auth_routes: true
+  });
+});
+
+console.log('✅ Rotas registradas com sucesso!');
+
+// Número máximo de músicas permitidas na votação (REMOVIDO a pedido do usuário)
+// const MAX_SONGS = 12;
 
 // Armazenamento de dados em memória (substituir por banco de dados em produção)
 let songs = [
@@ -359,7 +406,9 @@ let songs = [
     album: 'Audioslave',
     year: 2002,
     votes: 5,
-    addedAt: new Date('2024-01-01').toISOString()
+    addedAt: new Date('2024-01-01').toISOString(),
+    spotifyUrl: 'https://open.spotify.com/track/1ng36571Iyov4HBxUClySn',
+    duration_ms: 222000
   },
   {
     id: 'deftones-change',
@@ -370,7 +419,9 @@ let songs = [
     album: 'White Pony',
     year: 2000,
     votes: 8,
-    addedAt: new Date('2024-01-02').toISOString()
+    addedAt: new Date('2024-01-02').toISOString(),
+    spotifyUrl: 'https://open.spotify.com/track/51c94ac31swyDQj9B3Lzs3',
+    duration_ms: 300000
   },
   {
     id: 'qotsa-bronze',
@@ -381,7 +432,9 @@ let songs = [
     album: 'Queens of the Stone Age',
     year: 1998,
     votes: 3,
-    addedAt: new Date('2024-01-03').toISOString()
+    addedAt: new Date('2024-01-03').toISOString(),
+    spotifyUrl: 'https://open.spotify.com/track/6y20BV5L33R8YQMtzdCWy6',
+    duration_ms: 278000
   },
   {
     id: 'deftones-my-own-summer',
@@ -392,7 +445,9 @@ let songs = [
     album: 'Around the Fur',
     year: 1997,
     votes: 6,
-    addedAt: new Date('2024-01-04').toISOString()
+    addedAt: new Date('2024-01-04').toISOString(),
+    spotifyUrl: 'https://open.spotify.com/track/1158ugMadMHjyQU6G1j4F',
+    duration_ms: 215000
   },
   {
     id: 'soundgarden-outshined',
@@ -403,7 +458,9 @@ let songs = [
     album: 'Badmotorfinger',
     year: 1991,
     votes: 2,
-    addedAt: new Date('2024-01-05').toISOString()
+    addedAt: new Date('2024-01-05').toISOString(),
+    spotifyUrl: 'https://open.spotify.com/track/5sICkBXVmaCQk5aISGR3x1',
+    duration_ms: 311000
   },
   {
     id: 'qotsa-avon',
@@ -436,7 +493,9 @@ let songs = [
     album: 'Demon Days',
     year: 2005,
     votes: 7,
-    addedAt: new Date('2024-01-08').toISOString()
+    addedAt: new Date('2024-01-08').toISOString(),
+    spotifyUrl: 'https://open.spotify.com/track/0d28khcov6AiegSCpG5TuT',
+    duration_ms: 223000
   },
   {
     id: 'rhcp-around-the-world',
@@ -447,7 +506,9 @@ let songs = [
     album: 'Californication',
     year: 1999,
     votes: 9,
-    addedAt: new Date('2024-01-09').toISOString()
+    addedAt: new Date('2024-01-09').toISOString(),
+    spotifyUrl: 'https://open.spotify.com/track/1ic15NF7Dk7AAq79B92gY9',
+    duration_ms: 238000
   },
   {
     id: 'gorillaz-dare',
@@ -458,7 +519,9 @@ let songs = [
     album: 'Demon Days',
     year: 2005,
     votes: 3,
-    addedAt: new Date('2024-01-10').toISOString()
+    addedAt: new Date('2024-01-10').toISOString(),
+    spotifyUrl: 'https://open.spotify.com/track/4Hff1IjqlLimT2KCxu05TS',
+    duration_ms: 244000
   },
   {
     id: 'soundgarden-black-hole-sun',
@@ -469,7 +532,9 @@ let songs = [
     album: 'Superunknown',
     year: 1994,
     votes: 6,
-    addedAt: new Date('2024-01-11').toISOString()
+    addedAt: new Date('2024-01-11').toISOString(),
+    spotifyUrl: 'https://open.spotify.com/track/2EoOZnxNgtmZaD8uUmzXyo',
+    duration_ms: 318000
   }
 ];
 
@@ -531,7 +596,6 @@ app.get('/api/songs', (req, res) => {
       songs: sortedSongs,              // Lista ordenada por votos
       highestVoted: highestVoted,      // Música líder atual
       totalSongs: songs.length,        // Total de músicas no sistema
-      maxSongs: MAX_SONGS,             // Limite máximo permitido
       currentPlaying: playerState,     // Estado do player de música
       uiState: uiState,                // Estado da interface
       success: true                    // Flag de sucesso
@@ -663,7 +727,7 @@ app.post('/api/super-vote', (req, res) => {
 // Inclui validações e integração com APIs externas para obter metadados
 app.post('/api/songs', async (req, res) => {
   try {
-    const { title, artist, audioUrl, albumCover, album, year } = req.body;
+    const { title, artist, audioUrl, albumCover, album, year, spotifyUrl, duration_ms } = req.body;
     
     // Validações obrigatórias
     if (!title || !artist) {
@@ -688,14 +752,8 @@ app.post('/api/songs', async (req, res) => {
       });
     }
     
-    // Verifico o limite de músicas antes de adicionar
-    if (songs.length >= MAX_SONGS) {
-      console.log(`❌ Limite de ${MAX_SONGS} músicas atingido`);
-      return res.status(400).json({ 
-        error: `Limite máximo de ${MAX_SONGS} músicas atingido`, 
-        success: false 
-      });
-    }
+    // REMOVIDO: Limite de músicas
+    // if (songs.length >= MAX_SONGS) { ... }
     
     console.log(`🎵 Adicionando nova música: "${title}" por ${artist}`);
     
@@ -712,25 +770,61 @@ app.post('/api/songs', async (req, res) => {
       }
     }
     
+    // Tenta identificar usuário pelo token (opcional)
+    let userId = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const user = db.getUserBySpotifyId(token); // Assume que token é spotify_id ou access_token
+      // O requireAuth usa getUserBySpotifyId(token) onde token é passado no header
+      // No frontend, precisamos enviar o token correto
+      if (user) userId = user.id;
+    }
+
     // Crio nova música com dados completos
     const newSong = {
       id: `song-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // ID único
       title: title.trim(),
       artist: artist.trim(),
       album: album || 'Álbum Desconhecido',
-      audioUrl: audioUrl || 'https://res.cloudinary.com/dzwfuzxxw/video/upload/v1748879303/sample_audio_preview.mp3',
+      audioUrl: audioUrl || '',  // Deixa vazio se não tiver (Spotify SDK vai tocar)
       albumCover: finalAlbumCover,
+      spotifyUrl: spotifyUrl || '', // URL do Spotify para reprodução via SDK
+      duration_ms: duration_ms || 0,
       year: year || new Date().getFullYear(),
       votes: 0,                                    // Começa com zero votos
       addedAt: new Date().toISOString(),          // Timestamp de adição
-      addedBy: 'API'                              // Fonte da adição
+      addedBy: userId ? 'User' : 'API',           // Fonte da adição
+      added_by_user_id: userId
     };
     
     // Uso o VoteManager para adicionar (padrão Observer)
     voteManager.addSong(newSong);
     
+    // Persiste no banco de dados
+    try {
+      db.upsertSong({
+        spotify_id: newSong.id,
+        title: newSong.title,
+        artist: newSong.artist,
+        album: newSong.album,
+        album_cover: newSong.albumCover,
+        audio_url: newSong.audioUrl,
+        preview_url: null,
+        spotify_url: newSong.spotifyUrl,
+        duration_ms: duration_ms || 0,
+        release_date: `${newSong.year}-01-01`,
+        popularity: 0,
+        added_by_user_id: userId
+      });
+      console.log('💾 Música persistida no banco de dados');
+    } catch (dbError) {
+      console.error('❌ Erro ao persistir no banco:', dbError);
+      // Não falha a requisição, pois a música está em memória
+    }
+    
     // Mantenho o limite de músicas
-    maintainSongsLimit();
+    // maintainSongsLimit(); // REMOVIDO
     
     console.log(`✅ Música adicionada com sucesso: "${newSong.title}" (ID: ${newSong.id})`);
     
@@ -779,6 +873,30 @@ app.get('/api/health', (req, res) => {
 // o estado inicial da aplicação. É aqui que toda a arquitetura se junta
 const server = app.listen(PORT, () => {
   console.log(`📀 Carregadas ${songs.length} músicas com URLs do Cloudinary`);
+  
+  // Persiste músicas iniciais no banco de dados
+  console.log('📥 Sincronizando banco de dados com lista de músicas...');
+  songs.forEach(song => {
+    try {
+      db.upsertSong({
+        spotify_id: song.id, // Usa ID interno como spotify_id para as demos
+        title: song.title,
+        artist: song.artist,
+        album: song.album,
+        album_cover: song.albumCover,
+        audio_url: song.audioUrl,
+        preview_url: null,
+        spotify_url: song.spotifyUrl || null,
+        duration_ms: song.duration_ms || 0,
+        release_date: `${song.year}-01-01`,
+        popularity: 50,
+        added_by_user_id: null // Sistema
+      });
+    } catch (err) {
+      console.error(`❌ Erro ao persistir música inicial ${song.title}:`, err);
+    }
+  });
+
   console.log(`🎵 PlayOff Music Voting App - Sistema de Votação Musical`);
   console.log(`📱 Frontend: http://localhost:${PORT}/`);
   console.log(`🎧 Backend com Padrão Observer ativo!`);

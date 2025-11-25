@@ -7,6 +7,28 @@
     <!-- Sistema de Notificações -->
     <NotificationContainer :notifications="notifications" />
     
+    <!-- Botão de Login/Perfil -->
+    <div class="user-section">
+      <button v-if="!isAuthenticated" @click="showLoginModal = true" class="login-btn">
+        <i class="fab fa-spotify"></i>
+        <span>Entrar</span>
+      </button>
+      <button v-else @click="showProfileModal = true" class="profile-btn">
+        <img :src="user?.profile_image || '/default-avatar.png'" :alt="user?.display_name" class="user-avatar" />
+        <span class="user-name">{{ user?.display_name }}</span>
+      </button>
+    </div>
+
+    <!-- Modais -->
+    <LoginModal :showModal="showLoginModal" @close="showLoginModal = false" />
+    <UserProfile 
+      v-if="showProfileModal" 
+      :user="user" 
+      @close="showProfileModal = false" 
+      @logout="handleLogout"
+      @play-song="handlePlaySong"
+    />
+    
     <div class="container">
       <!-- Conteúdo Principal -->
       <div class="main-content">
@@ -14,13 +36,17 @@
         <HeroSection 
           :current-track="currentTrack"
           :is-playing="isPlaying"
-          :position="position"
-          :duration="duration"
+          :position="currentTime"
+          :duration="totalDuration"
+          :dominant-color="logoAccentColor"
           :format-time="formatTime"
-          @toggle-playback="togglePlayback"
+          @toggle-playback="handleTogglePlayback"
           @previous-track="handlePreviousTrack"
           @next-track="handleNextTrack"
         />
+
+        <!-- Busca de Músicas via Spotify -->
+        <SpotifySearch @add-song="handleAddSpotifySong" />
 
         <!-- Carrossel de Músicas para Votação -->
         <MusicCarousel 
@@ -37,12 +63,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { useCloudinaryAudio } from './composables/useCloudinaryAudio'
 import { usePlayOffApp } from './composables/usePlayOffApp'
+import { useAuth } from './composables/useAuth'
+import { useSpotifyPlayer } from './composables/useSpotifyPlayer'
 import HeroSection from './components/HeroSection.vue'
 import MusicCarousel from './components/MusicCarousel.vue'
 import NotificationContainer from './components/NotificationContainer.vue'
+import SpotifySearch from './components/SpotifySearch.vue'
+import LoginModal from './components/LoginModal.vue'
+import UserProfile from './components/UserProfile.vue'
+
+// ============= CONFIGURAÇÃO DA API =============
+// Usando URL relativa para aproveitar o proxy do Vite
+// Isso evita problemas de CORS e portas
+const API_URL = ''
 
 // ============= COMPOSABLES E ESTADO =============
 // Utilizo composables para separar responsabilidades e manter código organizado
@@ -51,16 +87,17 @@ import NotificationContainer from './components/NotificationContainer.vue'
 
 const {
   currentTrack,        // Música sendo reproduzida atualmente
-  isPlaying,          // Status de reprodução (true/false)
-  position,           // Posição atual da música em ms
-  duration,           // Duração total da música em ms
+  isPlaying: isAudioPlaying, // Status de reprodução HTML5
+  position: audioPosition,   // Posição HTML5
+  duration: audioDuration,   // Duração HTML5
   initializePlayer,   // Inicializar sistema de áudio
   playSong,          // Reproduzir uma música específica
-  togglePlayback,    // Alternar play/pause
+  togglePlayback: toggleAudioPlayback,    // Alternar play/pause HTML5
   previousTrack,     // Ir para música anterior
   nextTrack,         // Ir para próxima música
   formatTime,        // Formatar tempo (ms para mm:ss)
-  updateSongsList    // Atualizar lista para navegação
+  updateSongsList,   // Atualizar lista para navegação
+  setTrack           // Definir track sem tocar (para Spotify SDK)
 } = useCloudinaryAudio()
 
 const {
@@ -74,6 +111,71 @@ const {
   startUpdateLoops,  // Iniciar sincronização automática
   refreshSongs       // Atualizar músicas manualmente
 } = usePlayOffApp()
+
+// ============= AUTENTICAÇÃO SPOTIFY =============
+const {
+  user,               // Usuário autenticado
+  isAuthenticated,    // Se está logado
+  spotifyAccessToken, // Token de acesso do Spotify
+  logout,             // Função de logout
+  registerPlay        // Registrar reprodução
+} = useAuth()
+
+// ============= SPOTIFY WEB PLAYER =============
+const {
+  deviceId,           // ID do dispositivo Spotify Web Player
+  isReady: spotifyPlayerReady, // Se o player está pronto
+  playTrack: playSpotifyTrack, // Tocar música no Spotify
+  initializePlayer: initSpotifyPlayer, // Inicializar player
+  position: spotifyPosition,
+  duration: spotifyDuration,
+  isPaused: isSpotifyPaused,
+  togglePlay: toggleSpotifyPlayback,
+  pause: pauseSpotify,
+  resume: resumeSpotify
+} = useSpotifyPlayer()
+
+// ============= COMPUTED TIME & STATE =============
+// Unifica estado dos dois players (HTML5 e Spotify)
+
+const isSpotifyActive = computed(() => {
+  return currentTrack.value?.spotifyUrl && isAuthenticated.value && spotifyPlayerReady.value
+})
+
+const currentTime = computed(() => {
+  return isSpotifyActive.value ? spotifyPosition.value : audioPosition.value
+})
+
+const totalDuration = computed(() => {
+  return isSpotifyActive.value ? spotifyDuration.value : audioDuration.value
+})
+
+const isPlaying = computed(() => {
+  return isSpotifyActive.value ? !isSpotifyPaused.value : isAudioPlaying.value
+})
+
+const handleTogglePlayback = () => {
+  if (isSpotifyActive.value) {
+    toggleSpotifyPlayback()
+  } else {
+    toggleAudioPlayback()
+  }
+}
+
+// ============= ESTADO DA UI =============
+const showLoginModal = ref(false)
+const showProfileModal = ref(false)
+
+// Cor atual utilizada para acentuar a logo (dinâmica conforme música)
+const logoAccentColor = ref([255, 107, 107])
+
+// Inicializa Spotify Player quando usuário está autenticado
+watch(spotifyAccessToken, (token) => {
+  if (token) {
+    console.log('🎵 Inicializando Spotify Web Player...')
+    initSpotifyPlayer(token)
+  }
+})
 
 // ============= LÓGICA DE AUTO-REPRODUÇÃO =============
 // Sistema inteligente que automaticamente reproduz a música mais votada
@@ -154,29 +256,129 @@ const handleSuperVote = async (song) => {
   }
 }
 
-// Handler principal para reprodução de músicas
-// Centraliza toda a lógica de reprodução e logging detalhado para debugging
-const handlePlaySong = async (song) => {
+  // Handler principal para reprodução de músicas
+  // Centraliza toda a lógica de reprodução e logging detalhado para debugging
+  const handlePlaySong = async (song) => {
+    try {
+      console.log(`🎵 App.vue: Iniciando reprodução de "${song.title}" por ${song.artist}`)
+      console.log(`📋 Dados:`, JSON.stringify(song, null, 2))
+      console.log(`🔐 Auth: ${isAuthenticated.value}, Player Ready: ${spotifyPlayerReady.value}`)
+      
+      // OPÇÃO 1: Tocar via Spotify SDK (se logado e player pronto)
+      if (song.spotifyUrl && isAuthenticated.value && spotifyPlayerReady.value) {
+        console.log('🟢 Tentando tocar via Spotify Web Playback SDK')
+        
+        const spotifyId = song.spotifyUrl.split('/').pop()
+        const spotifyUri = `spotify:track:${spotifyId}`
+        console.log(`🔗 URI: ${spotifyUri}`)
+        
+        const success = await playSpotifyTrack(spotifyUri)
+        
+        if (success) {
+          await setTrack(song)
+          
+          if (song.id) {
+            // Tenta usar a duração da música se disponível, senão usa 0
+            // Isso corrige o problema de não contar tempo no histórico
+            const trackDuration = song.duration_ms || song.duration || 0
+            
+            await registerPlay({
+              spotifyId: spotifyId,
+              duration: trackDuration,
+              completed: false
+            })
+          }
+          
+          showNotification(`Spotify: ${song.title}`, 'success')
+          return
+        } else {
+          console.error('❌ Falha ao tocar no Spotify SDK')
+          showNotification('Falha ao tocar no Spotify', 'error')
+        }
+      }
+      
+      // OPÇÃO 2: Tocar via HTML5 (se tiver audioUrl válida)
+      if (song.audioUrl && song.audioUrl.trim() !== '') {
+        console.log(`🔵 Tocando via Player HTML5: ${song.audioUrl}`)
+        await playSong(song)
+        showNotification(`Preview: ${song.title}`, 'success')
+        return
+      }
+      
+      // OPÇÃO 3: Música do Spotify sem login - pedir para logar
+      if (song.spotifyUrl && !isAuthenticated.value) {
+        console.log('⚠️ Música do Spotify requer login')
+        showNotification(`Faça login para ouvir "${song.title}"`, 'warning')
+        await setTrack(song)
+        return
+      }
+      
+      // Nenhuma opção disponível
+      console.log('❌ Nenhuma fonte de áudio disponível')
+      showNotification(`Sem áudio disponível para "${song.title}"`, 'error')
+      
+    } catch (error) {
+      console.error('❌ App.vue: Erro ao reproduzir música:', error)
+      
+      // Tratamento específico para erro de autoplay policy
+      if (error.name === 'NotAllowedError' || error.message.includes('interact')) {
+        showNotification('⚠️ Clique em Play para iniciar o áudio', 'warning')
+        // Poderíamos mostrar um botão de play overlay aqui se quiséssemos
+      } else {
+        showNotification(`Erro: ${error.message}`, 'error')
+      }
+    }
+  }
+
+// Handler para adicionar música do Spotify
+const handleAddSpotifySong = async (track) => {
   try {
-    console.log(`🎵 App.vue: Iniciando reprodução de "${song.title}" por ${song.artist}`)
-    console.log(`🎨 App.vue: Capa do álbum: ${song.albumCover}`)
-    console.log(`📊 App.vue: Votos atuais: ${song.votes}`)
+    console.log(`🎵 Adicionando música do Spotify: ${track.name} - ${track.artist}`)
     
-    // Chamo a função de reprodução do composable de áudio
-    await playSong(song)
-    
-    console.log(`✅ App.vue: Reprodução iniciada com sucesso`)
-    console.log(`📊 App.vue: Estado atual do player:`, {
-      currentTrack: currentTrack.value?.title,
-      isPlaying: isPlaying.value,
-      albumCover: currentTrack.value?.albumCover
+    // Prepara headers com autenticação opcional
+    const headers = { 'Content-Type': 'application/json' }
+    const spotifyId = localStorage.getItem('spotify_id')
+    if (spotifyId) {
+      headers['Authorization'] = `Bearer ${spotifyId}`
+    }
+
+    // Adiciona a música via API
+    const response = await fetch(`${API_URL}/api/songs`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        title: track.name,
+        artist: track.artist,
+        album: track.album,
+        albumCover: track.albumCover,
+        audioUrl: track.previewUrl || '',
+        spotifyUrl: track.spotifyUrl || '',
+        duration_ms: track.duration,
+        year: new Date().getFullYear()
+      })
     })
     
-    // Feedback para o usuário
-    showNotification(`🎵 Reproduzindo: ${song.title}`, 'success')
+    if (response.ok) {
+      const result = await response.json()
+      showNotification(`✅ "${track.name}" adicionada à votação!`, 'success')
+      await refreshSongs()
+      
+      // Auto-reproduz a música adicionada
+      // Busca a música na lista atualizada
+      const addedSong = sortedSongs.value.find(s => 
+        s.title === track.name && s.artist === track.artist
+      )
+      if (addedSong) {
+        console.log(`▶️ Auto-reproduzindo música adicionada: ${addedSong.title}`)
+        await handlePlaySong(addedSong)
+      }
+    } else {
+      const error = await response.json()
+      showNotification(error.error || 'Erro ao adicionar música', 'error')
+    }
   } catch (error) {
-    console.error('❌ App.vue: Erro ao reproduzir música:', error)
-    showNotification('Erro ao reproduzir música - verifique conexão', 'error')
+    console.error('❌ Erro ao adicionar música:', error)
+    showNotification('Erro ao adicionar música', 'error')
   }
 }
 
@@ -213,10 +415,17 @@ const handleAlbumColorExtracted = (event) => {
       console.log(`🌈 Cor dominante: rgb(${dominant.join(', ')})`)
       console.log(`💡 Brilho detectado: ${brightness.toFixed(2)}`)
     }
+
+    if (Array.isArray(dominant) && dominant.length === 3) {
+      logoAccentColor.value = dominant
+    } else {
+      logoAccentColor.value = [255, 107, 107]
+    }
   } catch (error) {
     console.error('❌ Erro ao processar cores do álbum:', error)
     // Em caso de erro, mantenho tema padrão
     document.body.classList.add('theme-black')
+    logoAccentColor.value = [255, 107, 107]
   }
 }
 
@@ -240,8 +449,20 @@ watch(sortedSongs, (newSongs) => {
 const handlePreviousTrack = async () => {
   try {
     console.log('⏮️ App.vue: Navegando para música anterior...')
-    await previousTrack(sortedSongs.value)
-    console.log('✅ Navegação para anterior concluída')
+    
+    const list = sortedSongs.value
+    if (!list || list.length === 0) return
+
+    const currentIndex = list.findIndex(s => s.id === currentTrack.value?.id)
+    let prevIndex = currentIndex - 1
+    
+    if (prevIndex < 0) prevIndex = list.length - 1 // Loop
+    
+    const prevSong = list[prevIndex]
+    if (prevSong) {
+      await handlePlaySong(prevSong)
+      console.log(`✅ Navegação para anterior concluída: ${prevSong.title}`)
+    }
   } catch (error) {
     console.error('❌ Erro ao navegar para música anterior:', error)
     showNotification('Erro ao navegar para música anterior', 'error')
@@ -251,12 +472,31 @@ const handlePreviousTrack = async () => {
 const handleNextTrack = async () => {
   try {
     console.log('⏭️ App.vue: Navegando para próxima música...')
-    await nextTrack(sortedSongs.value)
-    console.log('✅ Navegação para próxima concluída')
+    
+    const list = sortedSongs.value
+    if (!list || list.length === 0) return
+
+    const currentIndex = list.findIndex(s => s.id === currentTrack.value?.id)
+    let nextIndex = currentIndex + 1
+    
+    if (nextIndex >= list.length) nextIndex = 0 // Loop
+    
+    const nextSong = list[nextIndex]
+    if (nextSong) {
+      await handlePlaySong(nextSong)
+      console.log(`✅ Navegação para próxima concluída: ${nextSong.title}`)
+    }
   } catch (error) {
     console.error('❌ Erro ao navegar para próxima música:', error)
     showNotification('Erro ao navegar para próxima música', 'error')
   }
+}
+
+// ============= HANDLER DE LOGOUT =============
+const handleLogout = () => {
+  logout()
+  showProfileModal.value = false
+  showNotification('👋 Até logo! Você foi desconectado.', 'info')
 }
 
 // ============= CICLO DE VIDA DO COMPONENTE =============
@@ -326,12 +566,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  gap: 8rem; /* Aumentando ainda mais o espaçamento entre as seções */
-}
-
-/* Espaçamento específico entre as seções */
-.main-content > *:not(:last-child) {
-  margin-bottom: 6rem; /* Margem muito maior entre seções */
+  gap: 0;
 }
 
 /* Media queries para responsividade */
@@ -352,6 +587,109 @@ onUnmounted(() => {
   
   .main-content > *:not(:last-child) {
     margin-bottom: 2rem;
+  }
+}
+
+/* ============= BOTÕES DE LOGIN/PERFIL ============= */
+.user-section {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+}
+
+.login-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.2rem;
+  background: #1DB954;
+  border: 2px solid #1DB954;
+  color: #fff;
+  font-family: 'Cingire', sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  transform: skewX(-5deg);
+}
+
+.login-btn:hover {
+  background: #fff;
+  color: #1DB954;
+  transform: skewX(-5deg) translate(-2px, -2px);
+  box-shadow: 2px 2px 0 #1DB954;
+}
+
+.login-btn i {
+  font-size: 1.2rem;
+}
+
+.profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1rem 0.5rem 0.5rem;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-family: 'Cingire', sans-serif;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s;
+  transform: skewX(-3deg);
+}
+
+.profile-btn:hover {
+  background: rgba(255, 107, 107, 0.2);
+  border-color: #ff6b6b;
+  transform: skewX(-3deg) translate(-2px, -2px);
+  box-shadow: 2px 2px 0 #ff6b6b;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #1DB954;
+  object-fit: cover;
+}
+
+.user-name {
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .user-section {
+    top: 0.5rem;
+    right: 0.5rem;
+  }
+  
+  .login-btn {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
+  }
+  
+  .login-btn span {
+    display: none;
+  }
+  
+  .profile-btn {
+    padding: 0.4rem;
+  }
+  
+  .user-name {
+    display: none;
+  }
+  
+  .user-avatar {
+    width: 28px;
+    height: 28px;
   }
 }
 </style> 

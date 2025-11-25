@@ -3,9 +3,10 @@
     <!-- Logo PlayOff - Acima do Card -->
     <div class="playoff-logo-header">
       <img 
-        src="https://res.cloudinary.com/dzwfuzxxw/image/upload/v1748884319/playoff_lds4yw.png" 
+        src="https://res.cloudinary.com/dzwfuzxxw/image/upload/v1764087001/playoff_2_yvagtx.png" 
         alt="PlayOff Music Logo" 
         class="playoff-logo"
+        :style="logoAccentStyle"
       />
     </div>
 
@@ -79,6 +80,8 @@
               :alt="`${currentTrack.title} - Capa do Álbum`"
               :key="currentTrack.albumCover"
               class="album-cover"
+              loading="eager"
+              decoding="async"
               @load="onImageLoad"
               @error="onImageError"
               crossorigin="anonymous"
@@ -109,17 +112,42 @@ const props = defineProps({
   isPlaying: Boolean,       // Status de reprodução
   position: Number,         // Posição atual em ms
   duration: Number,         // Duração total em ms
-  formatTime: Function      // Função para formatar tempo
+  formatTime: Function,     // Função para formatar tempo
+  dominantColor: {
+    type: Array,
+    default: () => [255, 107, 107]
+  }
 })
 
 // Eventos emitidos para o componente pai
-defineEmits(['toggle-playback', 'previous-track', 'next-track'])
+const emit = defineEmits(['toggle-playback', 'previous-track', 'next-track', 'seek'])
+
+// Handler de Seek
+const handleSeek = (event) => {
+  emit('seek', Number(event.target.value))
+}
 
 // ============= COMPUTED PROPERTIES =============
 // Calcula porcentagem de progresso para barra visual
 const progressPercentage = computed(() => {
   if (!props.duration || props.duration === 0) return 0
   return (props.position / props.duration) * 100
+})
+
+// Estilo dinâmico da logo baseado na cor dominante da música atual
+const logoAccentStyle = computed(() => {
+  const color = Array.isArray(props.dominantColor) && props.dominantColor.length === 3
+    ? props.dominantColor
+    : [255, 107, 107]
+
+  const [r, g, b] = color
+  const baseGlow = `drop-shadow(0 0 18px rgba(${r}, ${g}, ${b}, 0.65)) drop-shadow(0 8px 20px rgba(${r}, ${g}, ${b}, 0.35))`
+  const hoverGlow = `drop-shadow(0 0 25px rgba(${r}, ${g}, ${b}, 0.85)) drop-shadow(0 12px 30px rgba(${r}, ${g}, ${b}, 0.45))`
+
+  return {
+    '--logo-glow': baseGlow,
+    '--logo-glow-hover': hoverGlow
+  }
 })
 
 // ============= INTEGRAÇÃO COM SISTEMA DE CORES =============
@@ -204,22 +232,22 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 }
 
 .playoff-logo {
-  height: 80px;
+  height: 140px;
   width: auto;
-  border-radius: 10px;
+  border-radius: 16px;
   transition: all 0.3s ease;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  filter: var(--logo-glow, drop-shadow(0 10px 25px rgba(0, 0, 0, 0.35)));
 }
 
 .playoff-logo:hover {
-  transform: scale(1.1) rotate(2deg);
-  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4));
+  transform: scale(1.05);
+  filter: var(--logo-glow-hover, drop-shadow(0 14px 30px rgba(0, 0, 0, 0.45)));
 }
 
 /* Responsividade da logo */
 @media (max-width: 768px) {
   .playoff-logo {
-    height: 65px;
+    height: 110px;
   }
   
   .playoff-logo-header {
@@ -230,7 +258,7 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 
 @media (max-width: 480px) {
   .playoff-logo {
-    height: 55px;
+    height: 95px;
   }
   
   .playoff-logo-header {
@@ -270,12 +298,23 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   max-width: 400px;
   z-index: 10;
   position: relative;
-  padding-top: 0; /* Removendo padding extra já que logo está fora */
+  padding: 2rem;
+  padding-top: 1.5rem;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  border: 2px solid #fff;
+  transform: skewX(-3deg);
+  box-shadow: 8px 8px 0 rgba(255, 107, 107, 0.8);
+}
+
+.player-card > * {
+  transform: skewX(3deg); /* Contra-inclinação para o conteúdo */
 }
 
 .track-info {
   margin-bottom: 2rem;
-  margin-top: 1.5rem; /* Adicionando espaço acima das informações da música */
+  margin-top: 0;
+  text-align: center;
 }
 
 .track-title {
@@ -299,34 +338,54 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 
 .player-controls {
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
   justify-content: center;
   margin-bottom: 2rem;
+  align-items: center;
 }
 
 .control-btn {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.1);
+  width: 55px;
+  height: 55px;
+  border-radius: 0;
+  border: 3px solid #fff;
+  background: transparent;
   color: #fff;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 1.2rem;
 }
 
 .control-btn:hover {
-  background: rgba(255, 107, 107, 0.3);
-  transform: scale(1.1);
+  background: #ff6b6b;
+  border-color: #ff6b6b;
+  transform: translate(-2px, -2px);
+  box-shadow: 2px 2px 0 #fff;
 }
 
 .play-pause-btn {
-  width: 60px;
-  height: 60px;
-  background: linear-gradient(45deg, #ff6b6b, #feca57);
+  width: 70px;
+  height: 70px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 3px solid #fff;
+  font-size: 1.5rem;
+  transform: skewX(-5deg);
+}
+
+.play-pause-btn i {
+  transform: skewX(5deg);
+}
+
+.play-pause-btn:hover {
+  background: #ff6b6b;
+  border-color: #ff6b6b;
+  transform: skewX(-5deg) translate(-3px, -3px);
+  box-shadow: 3px 3px 0 #fff;
 }
 
 .progress-section {
@@ -405,11 +464,13 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   .control-btn {
     width: 45px;
     height: 45px;
+    font-size: 1rem;
   }
   
   .play-pause-btn {
     width: 55px;
     height: 55px;
+    font-size: 1.2rem;
   }
 }
 

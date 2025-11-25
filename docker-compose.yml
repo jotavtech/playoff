@@ -1,0 +1,49 @@
+# ========================================
+# PlayOff - Docker Compose Configuration
+# ========================================
+# 
+# Usage:
+#   Development: docker-compose up
+#   Production:  docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+#
+# Portas:
+#   - http://localhost:5175 (Frontend Vite)
+#   - http://localhost:3001 (API Backend)
+#
+# ========================================
+
+services:
+  # PlayOff Application
+  playoff:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: playoff-app
+    restart: unless-stopped
+    ports:
+      - "5175:5173"  # Vite dev server (mapeado para 5175 para evitar conflito)
+      - "3001:3000"  # Express API (mapeado para 3001 para evitar conflito)
+    volumes:
+      # Mount source code for hot reload
+      - .:/app
+      # Don't mount node_modules (use container's)
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:3000
+      # Spotify API credentials (add your own)
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
+    networks:
+      - playoff-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/songs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  playoff-network:
+    driver: bridge

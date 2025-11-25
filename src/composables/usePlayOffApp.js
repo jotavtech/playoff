@@ -15,7 +15,7 @@ export function usePlayOffApp() {
   
   // ============= CONFIGURAÇÃO DA API =============
   // URL base para comunicação com o backend
-  // Em produção, isso seria configurado via variáveis de ambiente
+  // Usa caminho relativo para aproveitar proxy do Vite
   const apiBaseUrl = '/api'
   
   // ============= COMPUTED PROPERTIES =============
