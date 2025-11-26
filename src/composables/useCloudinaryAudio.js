@@ -227,8 +227,11 @@ export function useCloudinaryAudio() {
     // Crio e configuro elemento de áudio HTML5 com settings otimizados
     audioPlayer.value = new Audio()
     audioPlayer.value.preload = 'auto'        // Pré-carrega metadados automaticamente
-    audioPlayer.value.volume = 0              // Início silencioso para fade-in suave
+    audioPlayer.value.volume = 0.7            // Volume padrão (70%)
     audioPlayer.value.crossOrigin = 'anonymous' // Permite análise de pixels para cores
+    audioPlayer.value.muted = false           // Garante que não está muted
+    
+    console.log(`🔊 Player criado com volume inicial: ${audioPlayer.value.volume}`)
     
     // Configuro listeners de eventos para monitoramento do playback
     setupAudioEvents()
@@ -250,7 +253,7 @@ export function useCloudinaryAudio() {
     console.log('   - Autenticação automática com Spotify')
     console.log('   - Extração dinâmica de cores de capas')
     console.log('   - Sistema de temas baseado em cores')
-    console.log('   - Fade-in suave e controles avançados')
+    console.log('   - Controles avançados de playback')
     
     return Promise.resolve(true)
   }
@@ -318,8 +321,11 @@ export function useCloudinaryAudio() {
       isPlaying.value = true
       console.log(`▶️ Reprodução iniciada: "${currentTrack.value?.title || 'Música desconhecida'}"`)
       
-      // Inicia fade-in suave do volume para melhor experiência
-      gradualVolumeIncrease()
+      // Garante que o volume está correto (não precisa mais de fade-in complexo)
+      if (audioPlayer.value.volume < 0.5) {
+        audioPlayer.value.volume = 0.7
+        console.log(`🔊 Volume ajustado para 70%`)
+      }
     })
     
     // Evento quando reprodução é pausada
@@ -864,9 +870,54 @@ export function useCloudinaryAudio() {
       console.log(`📡 Carregando áudio: ${songData.audioUrl}`)
       audioPlayer.value.src = songData.audioUrl
       
+      // Verificações de debug do player
+      console.log(`🔊 Estado do player antes de tocar:`)
+      console.log(`   - Volume: ${audioPlayer.value.volume}`)
+      console.log(`   - Muted: ${audioPlayer.value.muted}`)
+      console.log(`   - ReadyState: ${audioPlayer.value.readyState}`)
+      
+      // Garante que volume está OK e não está muted
+      if (audioPlayer.value.volume === 0) {
+        console.log('⚠️ Volume estava em 0, ajustando para 0.7')
+        audioPlayer.value.volume = 0.7
+      }
+      if (audioPlayer.value.muted) {
+        console.log('⚠️ Áudio estava muted, desmutando')
+        audioPlayer.value.muted = false
+      }
+      
       // Load and play
-      await audioPlayer.value.load()
+      console.log('⏳ Carregando áudio...')
+      
+      // Aguarda o carregamento com timeout de 10s
+      const loadPromise = audioPlayer.value.load()
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout ao carregar áudio')), 10000)
+      )
+      
+      try {
+        await Promise.race([loadPromise, timeoutPromise])
+        console.log('✅ Áudio carregado!')
+      } catch (error) {
+        console.warn('⚠️ Timeout/erro no load, tentando play() mesmo assim:', error.message)
+      }
+      
+      // Verifica se tem alguma fonte válida
+      if (!audioPlayer.value.src || audioPlayer.value.src === '') {
+        throw new Error('Nenhuma fonte de áudio definida')
+      }
+      
+      console.log('▶️ Tentando reproduzir...')
+      console.log(`🔗 Source: ${audioPlayer.value.src}`)
+      
       await audioPlayer.value.play()
+      
+      console.log('✅ Reprodução iniciada com sucesso!')
+      console.log(`🔊 Volume final: ${audioPlayer.value.volume}`)
+      console.log(`🔇 Muted: ${audioPlayer.value.muted}`)
+      console.log(`🎵 Tocando: ${currentTrack.value?.title}`)
+      console.log(`👤 Artista: ${currentTrack.value?.artist}`)
+      console.log(`⏱️ Duração: ${formatTime(audioPlayer.value.duration * 1000)}`)
       
       // Update dynamic background and extract colors
       console.log(`🎨 Iniciando atualização do fundo dinâmico...`)

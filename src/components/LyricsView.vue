@@ -2,12 +2,12 @@
   <div class="lyrics-view" @click.self="$emit('close')">
     <div class="lyrics-container" ref="lyricsContainer">
       <div v-if="isLoading" class="loading-state">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>Procurando letra...</p>
+        <i class="fas fa-bolt fa-spin" :style="{ color: dominantColor || '#fff' }"></i>
+        <p>Sintonizando frequência...</p>
       </div>
       
       <div v-else-if="error" class="error-state">
-        <i class="fas fa-exclamation-triangle"></i>
+        <i class="fas fa-skull-crossbones"></i>
         <p>Letra não encontrada</p>
         <p class="error-detail">{{ error }}</p>
       </div>
@@ -26,19 +26,19 @@
       </div>
       
       <div v-else class="empty-state">
-        <p>Nenhuma letra disponível</p>
+        <p>INSTRUMENTAL</p>
       </div>
     </div>
     
-    <!-- Close button for mobile or easy access -->
-    <button class="close-lyrics" @click="$emit('close')">
-      <i class="fas fa-times"></i>
+    <button class="close-lyrics-radical" @click="$emit('close')">
+      <span class="x-stroke"></span>
+      <span class="x-stroke"></span>
     </button>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 
 const props = defineProps({
   lyrics: {
@@ -59,7 +59,7 @@ const props = defineProps({
   },
   dominantColor: {
     type: String,
-    default: '#ffffff'
+    default: '#ff6b6b' // Fallback color
   }
 })
 
@@ -67,10 +67,13 @@ const emit = defineEmits(['close', 'seek'])
 const lyricsContainer = ref(null)
 
 const getLineStyle = (index) => {
+  // A cor vem do prop dominantColor
+  const color = props.dominantColor || '#ffffff'
+  
   if (index === props.currentLineIndex) {
     return {
-      color: props.dominantColor || '#ff6b6b',
-      textShadow: `2px 2px 0 #000`
+      '--glow-color': color,
+      borderColor: color
     }
   }
   return {}
@@ -108,13 +111,13 @@ onMounted(() => {
   left: 0;
   width: 100%;
   height: 100vh;
-  z-index: 15; /* Behind playing card (20) but above others */
+  z-index: 15;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  pointer-events: none;
-  background: rgba(0, 0, 0, 0.6); /* Darken background slightly */
+  background: rgba(0, 0, 0, 0.85); /* Fundo mais escuro para ressaltar o neon */
+  backdrop-filter: blur(8px);
 }
 
 .lyrics-container {
@@ -124,13 +127,12 @@ onMounted(() => {
   padding: 2rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  pointer-events: auto;
-  mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+  /* O segredo do alinhamento: tudo começa alinhado à direita (futuro/passado) */
+  align-items: flex-end; 
+  mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
 }
 
-/* Hide scrollbar */
 .lyrics-container::-webkit-scrollbar {
   width: 0;
   background: transparent;
@@ -139,56 +141,92 @@ onMounted(() => {
 .lyrics-lines {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 1rem;
+  /* Alinha itens filhos à direita por padrão */
+  align-items: flex-end; 
+  gap: 1.5rem;
   width: 100%;
-  max-width: 1200px; /* Wider container */
-  padding: 50vh 0; /* Allow scrolling to very top/bottom */
+  max-width: 1400px;
+  padding: 50vh 0;
 }
 
 .lyric-line {
-  font-family: 'Cingire', 'Impact', sans-serif;
-  font-size: 2.5rem; /* Larger base size */
-  color: rgba(255, 255, 255, 0.3); /* Faint when inactive */
-  text-align: center;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  cursor: pointer;
-  padding: 0.5rem 1rem;
-  border: 1px solid transparent;
+  font-family: 'Impact', 'Cingire', sans-serif; /* Fonte pesada */
+  font-size: 3rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 900;
-  -webkit-text-stroke: 1px rgba(255,255,255,0.1);
+  font-style: italic; /* Speed/Rock feel */
+  color: rgba(255, 255, 255, 0.15); /* Bem apagado quando não ativo */
+  text-align: right;
+  cursor: pointer;
+  padding: 0.5rem 2rem;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform: skewX(-10deg); /* Inclinação agressiva */
+  /* Borda transparente por padrão */
+  border-right: 5px solid transparent; 
+  width: fit-content;
+  max-width: 80%;
 }
 
 .lyric-line:hover {
   color: #fff;
-  transform: scale(1.1);
-  text-shadow: 0 0 20px currentColor;
+  opacity: 0.8;
+  transform: skewX(-10deg) translateX(-20px);
 }
 
+/* === ESTILO DA LINHA ATIVA (O SHOW) === */
 .lyric-line.active {
-  font-size: 5rem; /* Huge active line */
+  /* Centraliza a linha ativa! */
+  align-self: center; 
+  text-align: center;
+  
+  font-size: 5.5rem; /* Gigante */
+  color: #fff;
   opacity: 1;
-  transform: scale(1.05);
-  -webkit-text-stroke: 3px #000; /* Thick border */
+  
+  /* Remove skew ou mantém, dependendo do gosto. Manter skew dá velocidade */
+  transform: skewX(-10deg) scale(1.1);
+  
+  /* Borda brilhante na esquerda e direita para destacar */
+  border-right: 5px solid var(--glow-color);
+  border-left: 5px solid var(--glow-color);
+  padding: 1rem 3rem;
+  background: rgba(255, 255, 255, 0.02);
+  
+  /* O Efeito Chris Cornell: Neon + Raio */
   text-shadow: 
-    4px 4px 0 #000,
-    -1px -1px 0 #000,
-    1px -1px 0 #000,
-    -1px 1px 0 #000,
-    1px 1px 0 #000,
-    0 0 30px currentColor; /* Glow */
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  line-height: 1.1;
+    3px 3px 0px #000,
+    -1px -1px 0 #000,  
+    0 0 20px var(--glow-color),
+    0 0 40px var(--glow-color),
+    0 0 80px var(--glow-color);
+    
+  animation: electric-pulse 0.15s infinite alternate;
   z-index: 10;
 }
 
+/* Linhas passadas ficam à direita, mas um pouco mais longe */
 .lyric-line.past {
-  opacity: 0.2;
-  filter: blur(1px);
+  opacity: 0.1;
+  filter: blur(2px);
+  transform: skewX(-10deg) translateX(20px); /* Empurra mais pra direita */
+}
+
+/* Animação de Eletricidade/Flicker */
+@keyframes electric-pulse {
+  0% {
+    text-shadow: 
+      3px 3px 0 #000,
+      0 0 20px var(--glow-color),
+      0 0 40px var(--glow-color);
+    opacity: 0.95;
+  }
+  100% {
+    text-shadow: 
+      3px 3px 0 #000,
+      0 0 25px var(--glow-color),
+      0 0 50px var(--glow-color),
+      0 0 100px #fff; /* Flash branco no centro do neon */
+    opacity: 1;
+  }
 }
 
 .loading-state, .error-state, .empty-state {
@@ -198,21 +236,16 @@ onMounted(() => {
   justify-content: center;
   height: 100%;
   color: #fff;
-  font-family: 'Cingire', sans-serif;
-  font-size: 1.5rem;
-  text-shadow: 2px 2px 0 #000;
+  font-family: 'Impact', sans-serif;
+  font-size: 2rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
 }
 
 .loading-state i, .error-state i {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  color: #ff6b6b;
-}
-
-.error-detail {
-  font-size: 1rem;
-  opacity: 0.7;
-  font-family: sans-serif;
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  /* Cor será injetada via style */
 }
 
 .close-lyrics {
@@ -220,32 +253,26 @@ onMounted(() => {
   top: 2rem;
   right: 2rem;
   background: transparent;
-  border: 2px solid #fff;
-  color: #fff;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  font-size: 1.5rem;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 2rem;
   cursor: pointer;
-  pointer-events: auto;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  transition: all 0.3s;
 }
 
 .close-lyrics:hover {
-  background: #ff6b6b;
-  border-color: #ff6b6b;
-  transform: rotate(90deg);
+  color: #fff;
+  transform: rotate(90deg) scale(1.2);
+  text-shadow: 0 0 15px #fff;
 }
 
 @media (max-width: 768px) {
   .lyric-line {
-    font-size: 1.5rem;
+    font-size: 1.8rem;
   }
   .lyric-line.active {
-    font-size: 2rem;
+    font-size: 2.5rem;
+    padding: 0.5rem 1rem;
   }
 }
 </style>

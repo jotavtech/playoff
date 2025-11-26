@@ -22,18 +22,41 @@ export function useLyrics() {
       // specific to Lrclib optimization
       const cleanTrack = trackName.replace(/\(.*\)/g, '').trim()
       
+      // First try strict match
       const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artistName)}&track_name=${encodeURIComponent(cleanTrack)}&duration=${durationMs / 1000}`
       
-      const response = await fetch(url)
-      
+      let response = await fetch(url)
+      let data
+
       if (!response.ok) {
         if (response.status === 404) {
-            throw new Error('Lyrics not found')
-        }
-        throw new Error('Failed to fetch lyrics')
-      }
+            // Fallback: Try search API
+            console.log('Lyrics strictly not found, trying search fallback...')
+            const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(artistName + ' ' + cleanTrack)}`
+            const searchResponse = await fetch(searchUrl)
+            
+            if (!searchResponse.ok) {
+                throw new Error('Lyrics not found')
+            }
 
-      const data = await response.json()
+            const searchData = await searchResponse.json()
+            
+            // Find best match based on duration
+            if (Array.isArray(searchData) && searchData.length > 0) {
+                const targetDuration = durationMs / 1000
+                // Sort by duration difference to find closest match
+                searchData.sort((a, b) => Math.abs(a.duration - targetDuration) - Math.abs(b.duration - targetDuration))
+                data = searchData[0]
+                console.log('Found lyrics via search fallback:', data.trackName)
+            } else {
+                throw new Error('Lyrics not found')
+            }
+        } else {
+            throw new Error('Failed to fetch lyrics')
+        }
+      } else {
+         data = await response.json()
+      }
       
       if (data.syncedLyrics) {
         lyrics.value = parseLRC(data.syncedLyrics)
@@ -83,17 +106,22 @@ export function useLyrics() {
   const updateCurrentLine = (currentTime) => {
     if (!lyrics.value.length) return
 
+    // Pequeno offset para antecipar visualmente a troca (0.3s)
+    // Isso compensa o tempo de scroll e a percepção humana
+    const syncTime = currentTime + 0.3
+
     // Find the last line that has started
     let index = -1
     for (let i = 0; i < lyrics.value.length; i++) {
-      if (currentTime >= lyrics.value[i].time) {
+      if (syncTime >= lyrics.value[i].time) {
         index = i
       } else {
         break
       }
     }
     
-    if (index !== -1) {
+    // Apenas atualiza se mudou para evitar trigger desnecessário de watchers
+    if (index !== -1 && currentLineIndex.value !== index) {
         currentLineIndex.value = index
     }
   }

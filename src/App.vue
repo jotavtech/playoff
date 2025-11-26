@@ -4,11 +4,39 @@
     <div class="background-overlay"></div>
     <div class="dynamic-background" :class="{ active: currentTrack }"></div>
     
+    <!-- Banner de Aviso Spotify Premium -->
+    <!-- Removido temporariamente pois está mostrando falso positivo para usuário Premium -->
+    <div 
+      v-if="false" 
+      class="spotify-premium-banner"
+    >
+      <div class="banner-content">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div class="banner-text">
+          <strong>🚨 Spotify Premium Necessário</strong>
+          <p>Música completa requer assinatura Premium. Atualmente apenas preview 30s disponível (botão 🎧)</p>
+        </div>
+        <a href="https://www.spotify.com/br/premium/" target="_blank" class="premium-link">
+          Assinar Premium
+        </a>
+      </div>
+    </div>
+    
     <!-- Sistema de Notificações -->
     <NotificationContainer :notifications="notifications" />
     
     <!-- Botão de Login/Perfil -->
     <div class="user-section">
+      <!-- Botão de Reconexão Player (aparece se player não estiver pronto ou tiver erro) -->
+      <button 
+        v-if="isAuthenticated && (!spotifyPlayerReady || spotifyError)" 
+        class="reconnect-btn" 
+        @click="initSpotifyPlayer()" 
+        title="Reconectar Player"
+      >
+        <i class="fas fa-plug"></i>
+      </button>
+
       <button class="queue-toggle-btn" @click="showQueueModal = true" title="Ver Fila">
         <i class="fas fa-list-ul"></i>
         <span v-if="queue.length > 0" class="queue-badge">{{ queue.length }}</span>
@@ -67,6 +95,7 @@
           @vote-for-song="handleVoteAndPlay"
           @super-vote="handleSuperVote"
           @play-song="handlePlaySong"
+          @play-preview="handlePlayPreview"
           @add-to-queue="handleAddToQueue"
           @toggle-lyrics="handleToggleLyrics"
         />
@@ -131,7 +160,8 @@ const {
   updateSongsList,   // Atualizar lista para navegação
   setTrack,          // Definir track sem tocar (para Spotify SDK)
   addToQueue,        // Adicionar à fila
-  queue              // Fila de reprodução
+  queue,             // Fila de reprodução
+  searchAlbumCover   // Buscar capa e metadados (incluindo Spotify URL)
 } = useCloudinaryAudio()
 
 const {
@@ -169,7 +199,8 @@ const {
   pause: pauseSpotify,
   resume: resumeSpotify,
   getCurrentState, // Importa função de sync
-  seek: spotifySeek
+  seek: spotifySeek,
+  error: spotifyError
 } = useSpotifyPlayer()
 
 // ============= LETRAS DA MÚSICA =============
@@ -250,6 +281,15 @@ const showProfileModal = ref(false)
 const showQueueModal = ref(false)
 const showLyrics = ref(false)
 const logoAccentColor = ref([255, 107, 107]) // RGB Array default
+const lastLocalInteraction = ref(0) // Timestamp da última interação local
+const userHasInteracted = ref(false) // Track if user has clicked on the page
+const isPlayingPreview = ref(false) // Track if currently playing a preview (30s)
+const sdkInitAttempted = ref(false) // Track if SDK initialization was attempted
+
+// Aguarda 5 segundos antes de mostrar banner (dá tempo do SDK carregar)
+setTimeout(() => {
+  sdkInitAttempted.value = true
+}, 5000)
 
 // Lyrics Handlers
 const handleToggleLyrics = () => {
@@ -260,6 +300,7 @@ const handleToggleLyrics = () => {
 }
 
 const handleSeek = async (timeSeconds) => {
+  lastLocalInteraction.value = Date.now()
   const ms = timeSeconds * 1000
   if (isSpotifyActive.value) {
     await spotifySeek(ms)
@@ -288,6 +329,12 @@ watch(currentTrack, (newTrack) => {
 // e recompensa imediatamente a música que está ganhando mais votos
 
 const checkAndPlayHighestVoted = async () => {
+  // Verifico se o usuário já interagiu (necessário para auto-play no browser)
+  if (!userHasInteracted.value) {
+    console.log('⏸️ Auto-reprodução bloqueada - aguardando interação do usuário')
+    return
+  }
+  
   // Verifico se há músicas disponíveis
   if (sortedSongs.value.length === 0) {
     console.log('📭 Nenhuma música disponível para auto-reprodução')
@@ -311,6 +358,7 @@ const checkAndPlayHighestVoted = async () => {
   
   if (shouldAutoPlay) {
     console.log(`🏆 Auto-reproduzindo música líder: "${highestVoted.title}" (${highestVoted.votes} votos)`)
+    // Música líder também só toca se tiver Spotify, não cai para preview
     await handlePlaySong(highestVoted)
   } else {
     console.log(`⏸️ Auto-reprodução não necessária - música já é a atual ou sem votos`)
@@ -323,6 +371,7 @@ const checkAndPlayHighestVoted = async () => {
 // Handler para voto simples + verificação de auto-reprodução
 // Esta função demonstra como coordeno diferentes sistemas: votação e reprodução
 const handleVoteAndPlay = async (songId) => {
+  userHasInteracted.value = true
   console.log(`🗳️ App.vue: Processando voto para música ID: ${songId}`)
   
   // Executo o voto através do composable
@@ -343,7 +392,7 @@ const handleVoteAndPlay = async (songId) => {
 }
 
 // Handler para super voto (voto + reprodução imediata garantida)
-// O super voto é uma funcionalidade premium que garante reprodução imediata
+// O super voto tenta sempre tocar a música completa via Spotify
 const handleSuperVote = async (song) => {
   try {
     console.log(`⚡ App.vue: Processando super voto para "${song.title}"`)
@@ -361,6 +410,18 @@ const handleSuperVote = async (song) => {
       if (played) {
         // Feedback específico para super voto
         showNotification(`⚡ Super Voto! Tocando imediatamente: ${song.title}`, 'success')
+      } else {
+        // Falha técnica (não culpar o usuário / Premium)
+        console.error('🚨 SUPER VOTO FALHOU - Erro ao conectar com o Spotify Web Player')
+        console.log('📋 Detalhes:')
+        console.log('   - Super Voto executado ✅')
+        console.log('   - Tentou tocar via Spotify SDK ❌')
+        console.log('   - Motivo provável: player do Spotify não conectou corretamente (device ou rede)')
+        
+        showNotification(
+          `⚡ Super Voto executado! Houve um erro técnico ao conectar ao Spotify. Clique no botão 🔌 no topo para reconectar e tente novamente.`,
+          'warning'
+        )
       }
     }
   } catch (error) {
@@ -369,104 +430,270 @@ const handleSuperVote = async (song) => {
   }
 }
 
-  // Handler principal para reprodução de músicas
-  // Centraliza toda a lógica de reprodução e logging detalhado para debugging
-  const handlePlaySong = async (song) => {
-    try {
-      console.log(`🎵 App.vue: Iniciando reprodução de "${song.title}" por ${song.artist}`)
-      console.log(`📋 Dados:`, JSON.stringify(song, null, 2))
-      console.log(`🔐 Auth: ${isAuthenticated.value}, Player Ready: ${spotifyPlayerReady.value}`)
-      
-      // OPÇÃO 1: Tocar via Spotify SDK (se logado)
-      if (song.spotifyUrl && isAuthenticated.value) {
-        console.log('🟢 Tentando tocar via Spotify Web Playback SDK')
-        
-        // Se o player não estiver pronto, espera um pouco
-        if (!spotifyPlayerReady.value) {
-           console.log('⏳ Player não está pronto, aguardando...')
-           // Tenta esperar até 5 segundos
-           let attempts = 0
-           while (!spotifyPlayerReady.value && attempts < 50) {
-             await new Promise(resolve => setTimeout(resolve, 100))
-             attempts++
-           }
-           
-           if (!spotifyPlayerReady.value) {
-             console.warn('⚠️ Timeout aguardando player do Spotify')
-             // Não retorna, tenta cair para outras opções ou erro
-           }
-        }
+// Handler principal para reprodução de músicas
+// Centraliza toda a lógica de reprodução e logging detalhado para debugging
+const handlePlaySong = async (song) => {
+  lastLocalInteraction.value = Date.now()
+  userHasInteracted.value = true
+  isPlayingPreview.value = false // Playing full song, not preview
 
-        if (spotifyPlayerReady.value) {
-          // Extração robusta do ID do Spotify
-          let spotifyId = ''
-          if (song.spotifyUrl.includes('spotify:track:')) {
-            spotifyId = song.spotifyUrl.split(':').pop()
-          } else {
-            spotifyId = song.spotifyUrl.split('/').pop().split('?')[0]
-          }
-          
-          const spotifyUri = `spotify:track:${spotifyId}`
-          console.log(`🔗 URI: ${spotifyUri}`)
-          
-          const success = await playSpotifyTrack(spotifyUri)
-          
-          if (success) {
-            await setTrack(song)
-            
-            if (song.id) {
-              // Tenta usar a duração da música se disponível, senão usa 0
-              // Isso corrige o problema de não contar tempo no histórico
-              const trackDuration = song.duration_ms || song.duration || 0
-              
-              await registerPlay({
-                spotifyId: spotifyId,
-                duration: trackDuration,
-                completed: false
-              })
-            }
-            
-            showNotification(`Spotify: ${song.title}`, 'success')
-            return true
-          } else {
-            console.error('❌ Falha ao tocar no Spotify SDK')
-            showNotification('Falha ao tocar no Spotify', 'error')
-          }
-        }
-      }
-      
-      // OPÇÃO 2: Tocar via HTML5 (se tiver audioUrl válida ou tentar buscar preview)
-      // playSong do useCloudinaryAudio tem capacidade de buscar previewUrl se audioUrl estiver faltando
-      console.log(`🔵 Tentando reprodução via Player HTML5/Preview...`)
+  try {
+    console.log(`🎵 App.vue: Iniciando reprodução de "${song.title}" por ${song.artist}`)
+    console.log('📋 Dados da música:', {
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      spotifyUrl: song.spotifyUrl || '(não tem)',
+      audioUrl: song.audioUrl ? '(tem preview)' : '(sem preview)'
+    })
+    console.log('🔐 Estado Spotify:', {
+      isAuthenticated: isAuthenticated.value,
+      spotifyPlayerReady: spotifyPlayerReady.value,
+      hasToken: !!spotifyAccessToken.value,
+      deviceId: deviceId.value || '(nenhum)'
+    })
+
+    // Log detalhado se player não está pronto
+    if (!spotifyPlayerReady.value && isAuthenticated.value) {
+      console.log('⏳ Spotify Player não está pronto ainda')
+      console.log(`   - Device ID: ${deviceId.value || 'aguardando...'}`)
+      console.log(`   - Token: ${spotifyAccessToken.value ? 'OK' : 'FALTANDO'}`)
+    }
+
+    // Tenta encontrar Spotify URL se não existir e estiver logado
+    if (!song.spotifyUrl && isAuthenticated.value) {
+      console.log('🔍 Buscando URL do Spotify para tocar versão completa...')
       try {
-        const result = await playSong(song)
-        if (result) {
-          showNotification(`Preview: ${song.title}`, 'success')
-          return true
+        const meta = await searchAlbumCover(song.artist, song.title)
+        if (meta && meta.spotifyUrl) {
+          console.log(`✅ Spotify URL encontrado: ${meta.spotifyUrl}`)
+          song.spotifyUrl = meta.spotifyUrl
+          // Atualiza também o objeto original na lista se possível para não buscar de novo
+          const original = songs.value.find(s => s.id === song.id)
+          if (original) original.spotifyUrl = meta.spotifyUrl
+        } else {
+          console.log('⚠️ Não foi possível encontrar URL do Spotify')
         }
       } catch (e) {
-        console.log('⚠️ Falha na tentativa de reprodução HTML5:', e)
+        console.warn('⚠️ Falha ao buscar metadados do Spotify:', e)
       }
-      
-      // OPÇÃO 3: Música do Spotify sem login - pedir para logar (apenas informativo)
-      if (song.spotifyUrl && !isAuthenticated.value) {
-        console.log('⚠️ Música do Spotify requer login')
-        showNotification(`Faça login para ouvir a versão completa de "${song.title}"`, 'warning')
-        await setTrack(song)
-        return true
+    }
+
+    // OPÇÃO 1: Tocar via Spotify SDK (se logado e tiver URL)
+    if (song.spotifyUrl && isAuthenticated.value) {
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('🟢 INICIANDO PLAYBACK VIA SPOTIFY WEB SDK')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log(`📋 Música: ${song.title} - ${song.artist}`)
+      console.log(`🔗 Spotify URL: ${song.spotifyUrl}`)
+      console.log('')
+      console.log('🔍 VERIFICAÇÃO DE ESTADO:')
+      console.log(`   ✓ isAuthenticated: ${isAuthenticated.value}`)
+      console.log(`   ✓ spotifyPlayerReady: ${spotifyPlayerReady.value}`)
+      console.log(`   ✓ hasToken: ${!!spotifyAccessToken.value}`)
+      console.log(`   ✓ deviceId: ${deviceId.value || '❌ NENHUM'}`)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
+      // Se o player não estiver pronto, espera um pouco
+      if (!spotifyPlayerReady.value) {
+        console.log('⏳ AGUARDANDO PLAYER FICAR PRONTO...')
+        console.log('   Máximo: 10 segundos')
+        // Tenta esperar até 10 segundos
+        let attempts = 0
+        while (!spotifyPlayerReady.value && attempts < 100) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+          attempts++
+
+          // Log a cada 2 segundos
+          if (attempts % 20 === 0) {
+            console.log(`   ⏱️ ${attempts / 10}s - Player: ${spotifyPlayerReady.value ? 'PRONTO' : 'aguardando'} | Device: ${deviceId.value || 'nenhum'}`)
+          }
+        }
+
+        console.log('')
+        if (!spotifyPlayerReady.value) {
+          console.error('❌❌❌ TIMEOUT AGUARDANDO PLAYER (10s) ❌❌❌')
+          console.error('Estado após timeout:')
+          console.error(`   - spotifyPlayerReady: ${spotifyPlayerReady.value}`)
+          console.error(`   - deviceId: ${deviceId.value || 'NENHUM'}`)
+          console.error(`   - isAuthenticated: ${isAuthenticated.value}`)
+          console.error(`   - Token presente: ${!!spotifyAccessToken.value}`)
+          console.error('')
+          console.error('💡 O Player não inicializou. Verifique:')
+          console.error('   1. Se o Spotify Web Player/SDK carregou corretamente no navegador')
+          console.error('   2. Mensagens de erro do SDK acima (rede / autenticação)')
+          console.error('   3. Recarregue a página (F5) ou clique no botão 🔌 para tentar reconectar')
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+          // Continua para tentar HTML5
+        } else {
+          console.log(`✅ PLAYER FICOU PRONTO após ${attempts * 100}ms`)
+          console.log(`   Device ID: ${deviceId.value}`)
+        }
+      } else {
+        console.log('✅ PLAYER JÁ ESTAVA PRONTO')
+        console.log(`   Device ID: ${deviceId.value}`)
       }
-      
-      // Nenhuma opção disponível
-      console.log('❌ Nenhuma fonte de áudio disponível')
-      showNotification(`Sem áudio disponível para "${song.title}"`, 'error')
-      return false
-      
-    } catch (error) {
-      console.error('❌ App.vue: Erro ao reproduzir música:', error)
-      showNotification('Erro ao tentar tocar música', 'error')
+
+      if (spotifyPlayerReady.value) {
+        console.log('')
+        console.log('🎵 PREPARANDO PLAYBACK...')
+        // Extração robusta do ID do Spotify
+        let spotifyId = ''
+        if (song.spotifyUrl.includes('spotify:track:')) {
+          spotifyId = song.spotifyUrl.split(':').pop()
+          console.log('   Formato: URI (spotify:track:...)')
+        } else {
+          spotifyId = song.spotifyUrl.split('/').pop().split('?')[0]
+          console.log('   Formato: URL (https://open.spotify.com/...)')
+        }
+
+        const spotifyUri = `spotify:track:${spotifyId}`
+        console.log(`   Track ID: ${spotifyId}`)
+        console.log(`   URI Final: ${spotifyUri}`)
+        console.log('')
+        console.log('▶️ CHAMANDO playSpotifyTrack()...')
+
+        const success = await playSpotifyTrack(spotifyUri)
+
+        console.log('')
+        console.log('📊 RESULTADO DO PLAYBACK:')
+        console.log(`   Status: ${success ? '✅ SUCESSO' : '❌ FALHOU'}`)
+
+        if (success) {
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+          console.log('✅✅✅ SPOTIFY PLAYBACK INICIADO COM SUCESSO! ✅✅✅')
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+          console.log(`   🎵 Música: ${song.title}`)
+          console.log(`   👤 Artista: ${song.artist}`)
+          console.log(`   🎧 Device: ${deviceId.value}`)
+          console.log(`   ⏱️ Duração: ${song.duration_ms ? (song.duration_ms / 1000 / 60).toFixed(2) : '?'} min`)
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
+          await setTrack(song)
+
+          if (song.id) {
+            // Tenta usar a duração da música se disponível, senão usa 0
+            // Isso corrige o problema de não contar tempo no histórico
+            const trackDuration = song.duration_ms || song.duration || 0
+
+            await registerPlay({
+              spotifyId: spotifyId,
+              duration: trackDuration,
+              completed: false
+            })
+          }
+
+          showNotification(`🎵 Spotify: ${song.title}`, 'success')
+          return true
+        } else {
+          console.error('❌ Falha ao tocar no Spotify SDK')
+          showNotification('Falha ao tocar no Spotify', 'error')
+        }
+      }
+    }
+
+    // Se chegou aqui, Spotify SDK falhou ou não está disponível
+    // NÃO toca preview automaticamente - usuário deve usar botão Preview
+
+    if (song.spotifyUrl && isAuthenticated.value) {
+      // Tentou Spotify mas falhou
+      console.log('❌ Spotify SDK não disponível - NÃO atualizando UI')
+      console.log('🚨 Diagnóstico:')
+      console.log(`   - Player Ready: ${spotifyPlayerReady.value}`)
+      console.log(`   - Device ID: ${deviceId.value || 'NENHUM'}`)
+      console.log(`   - Token: ${spotifyAccessToken.value ? 'OK' : 'FALTANDO'}`)
+      console.log('')
+
+      if (!deviceId.value) {
+        console.error('❌ PROBLEMA: Device ID não foi criado!')
+        console.log('💡 Diagnóstico Avançado:')
+        console.log('   - Verifique se você está logado no Spotify Web Player')
+        console.log('   - Tentando reconectar automaticamente...')
+        // Tenta reinicializar silenciosamente
+        if (spotifyAccessToken.value) initSpotifyPlayer()
+      }
+
+      // Feedback mais suave
+      showNotification(
+        'Tentando conectar ao Spotify... Aguarde um momento e tente novamente.',
+        'info'
+      )
+      // NÃO chama setTrack - não atualiza UI se não está tocando
       return false
     }
+
+    if (song.spotifyUrl && !isAuthenticated.value) {
+      // Música do Spotify mas usuário não está logado
+      console.log('⚠️ Música do Spotify requer login - NÃO atualizando UI')
+      showNotification(
+        `Faça login no Spotify para ouvir "${song.title}". Ou use o botão Preview para 30s.`,
+        'warning'
+      )
+      // NÃO chama setTrack - não atualiza UI se não está tocando
+      return false
+    }
+
+    // Música sem Spotify URL - não tem como tocar
+    console.log('❌ Sem fonte de áudio (nem Spotify nem preview)')
+    showNotification(`Sem áudio disponível para "${song.title}"`, 'error')
+    return false
+
+  } catch (error) {
+    console.error('❌ App.vue: Erro ao reproduzir música:', error)
+    showNotification('Erro ao tentar tocar música', 'error')
+    return false
   }
+}
+
+// Handler para tocar PREVIEW (30 segundos) da música
+// Esta função é chamada apenas quando o usuário clica explicitamente no botão Preview
+const handlePlayPreview = async (song) => {
+  lastLocalInteraction.value = Date.now()
+  userHasInteracted.value = true
+  isPlayingPreview.value = true // Mark that we're in preview mode
+  
+  try {
+    console.log(`🎧 App.vue: Tocando PREVIEW (30s) de "${song.title}" por ${song.artist}`)
+    console.log(`📋 Preview - audioUrl: ${song.audioUrl ? '(tem)' : '(vai buscar)'}`)    
+    console.log(`📋 Preview - albumCover: ${song.albumCover}`)    
+    
+    // Sempre usa o player HTML5 com preview
+    const result = await playSong(song)
+    
+    if (result) {
+      showNotification(`🎵 Preview (30s): ${song.title}`, 'info')
+      return true
+    } else {
+      isPlayingPreview.value = false
+      showNotification(`Sem preview disponível para "${song.title}"`, 'error')
+      return false
+    }
+  } catch (error) {
+    isPlayingPreview.value = false
+    console.error('❌ Erro ao tocar preview:', error)
+    showNotification('Erro ao tocar preview', 'error')
+    return false
+  }
+}
+
+// Handler especial para auto-play quando adiciona música
+// Tenta Spotify mas cai automaticamente para preview se falhar
+const handleAutoPlaySong = async (song) => {
+  console.log(`🎵 Auto-play: tentando tocar "${song.title}"`)
+  
+  // Tenta tocar via Spotify SDK primeiro
+  const spotifySuccess = await handlePlaySong(song)
+  
+  if (spotifySuccess) {
+    console.log('✅ Auto-play via Spotify SDK bem-sucedido')
+    return true
+  }
+  
+  // Se Spotify falhou, cai automaticamente para preview
+  console.log('⚠️ Spotify falhou, usando preview automaticamente...')
+  await handlePlayPreview(song)
+  return true
+}
 
 // Handler para adicionar música do Spotify
 const handleAddSpotifySong = async (track) => {
@@ -507,7 +734,7 @@ const handleAddSpotifySong = async (track) => {
         console.log(`▶️ Auto-reproduzindo música adicionada: ${result.song.title}`)
         // Pequeno delay para garantir que o player esteja pronto para receber comandos
         setTimeout(() => {
-          handlePlaySong(result.song)
+          handleAutoPlaySong(result.song)
         }, 500)
       }
     } else {
@@ -553,7 +780,7 @@ const handleAlbumColorExtracted = (event) => {
       theme,          // Tema determinado (warm, cool, vibrant, neutral)
       brightness,     // Brilho da imagem (0-1)
       albumCover     // URL da capa analisada
-    } = event.detail
+    } = event.detail || {}
     
     // Aplico o tema extraído ao documento
     // Isso muda as cores de fundo, gradientes e elementos da interface
@@ -568,8 +795,12 @@ const handleAlbumColorExtracted = (event) => {
       body.classList.add(`theme-${theme}`)
       
       console.log(`🎨 Tema aplicado: ${theme}`)
-      console.log(`🌈 Cor dominante: rgb(${dominant.join(', ')})`)
-      console.log(`💡 Brilho detectado: ${brightness.toFixed(2)}`)
+      if (Array.isArray(dominant)) {
+        console.log(`🌈 Cor dominante: rgb(${dominant.join(', ')})`)
+      }
+      if (typeof brightness === 'number') {
+        console.log(`💡 Brilho detectado: ${brightness.toFixed(2)}`)
+      }
     }
 
     if (Array.isArray(dominant) && dominant.length === 3) {
@@ -588,6 +819,14 @@ const handleAlbumColorExtracted = (event) => {
 // ============= WATCHERS REATIVOS =============
 // Observadores que reagem a mudanças de estado e mantêm sincronização
 
+// Inicializa o player do Spotify quando o usuário faz login ou o token muda
+watch(() => spotifyAccessToken.value, (newToken) => {
+  if (newToken && isAuthenticated.value && !spotifyPlayerReady.value) {
+    console.log('🎧 Inicializando Spotify Web Player (Token detectado via watcher)...')
+    initSpotifyPlayer(newToken)
+  }
+}, { immediate: true })
+
 // Observo mudanças na lista combinada (Queue + Voting) para atualizar navegação
 // Isso garante que as funções "próxima/anterior" funcionem com a fila
 watch(combinedSongs, (newSongs) => {
@@ -601,6 +840,8 @@ watch(combinedSongs, (newSongs) => {
 // Funções que permitem navegar entre músicas com tratamento de erro
 
 const handleTogglePlayback = async () => {
+  lastLocalInteraction.value = Date.now()
+  userHasInteracted.value = true
   if (isSpotifyActive.value) {
     await toggleSpotifyPlayback()
   } else {
@@ -622,7 +863,8 @@ const handlePreviousTrack = async () => {
     
     const prevSong = list[prevIndex]
     if (prevSong) {
-      await handlePlaySong(prevSong)
+      // Anterior pode usar preview se Spotify falhar (experiência contínua)
+      await handleAutoPlaySong(prevSong)
       console.log(`✅ Navegação para anterior concluída: ${prevSong.title}`)
     }
   } catch (error) {
@@ -674,7 +916,8 @@ const handleNextTrack = async () => {
     }
 
     if (nextSong) {
-      await handlePlaySong(nextSong)
+      // Próxima música pode usar preview se Spotify falhar (experiência contínua)
+      await handleAutoPlaySong(nextSong)
       console.log(`✅ Navegação para próxima concluída: ${nextSong.title}`)
     }
   } catch (error) {
@@ -712,12 +955,25 @@ const startSpotifySync = () => {
     }
     
     if (state && state.item) {
-      // Verifica se estamos tocando algo diferente do app
-      // Se o player local (SDK) estiver tocando, o estado já é gerenciado por ele
-      // Mas se for outro device, precisamos atualizar a UI
-      
-      const isLocalDevice = state.device.id === deviceId.value
-      if (isLocalDevice) return // Deixa o SDK gerenciar
+      // Verifica se houve interação local recente (últimos 10s)
+      // Isso previne que o estado antigo do Spotify (em outro device) sobrescreva nossa ação recente
+      if (Date.now() - lastLocalInteraction.value < 10000) {
+        // console.log('⏳ Aguardando propagação da ação local - sync pausado')
+        return
+      }
+
+      // Verifica se o device ativo é o próprio Web Player do PlayOff
+      // Mesmo assim, queremos sincronizar nome/capa/disco quando a música
+      // é trocada pelo app do celular controlando esse device
+      const isLocalDevice = state.device && deviceId.value && state.device.id === deviceId.value
+      // Não damos mais return aqui; usamos o estado para atualizar a UI
+      // independentemente de ser outro device ou o próprio Web Player
+
+      // Se estiver tocando áudio HTML5 localmente, não deixa o Spotify externo atropelar
+      if (isAudioPlaying.value) {
+        // console.log('🎵 HTML5 tocando - ignorando sync do Spotify externo')
+        return
+      }
 
       if (state.is_playing) {
         console.log('🎵 Detectado Spotify em outro device:', state.item.name)
@@ -758,7 +1014,7 @@ const startSpotifySync = () => {
         // e estamos logados, deve funcionar se tivermos spotifyUrl
       }
     }
-  }, 5000) // Polling a cada 5s
+  }, 3000) // Polling a cada 3s
 }
 
 // ============= CICLO DE VIDA DO COMPONENTE =============
@@ -772,6 +1028,74 @@ onMounted(async () => {
     console.log('🔧 1/4: Inicializando player de áudio...')
     await initializePlayer()
     
+    // Tenta inicializar Spotify Player se autenticado
+    const tryInitSpotify = () => {
+      console.log('🔍 Verificando condições para Spotify Player...')
+      console.log(`   - isAuthenticated: ${isAuthenticated.value}`)
+      console.log(`   - spotifyAccessToken: ${spotifyAccessToken.value ? 'PRESENTE' : 'AUSENTE'}`)
+      console.log(`   - spotifyPlayerReady: ${spotifyPlayerReady.value}`)
+      console.log(`   - deviceId: ${deviceId.value || 'nenhum'}`)
+      
+      if (isAuthenticated.value && spotifyAccessToken.value && !spotifyPlayerReady.value) {
+        console.log('✅ Condições OK - Inicializando Spotify Web Player...')
+        
+        // Verifica se SDK script está carregado
+        if (typeof window.Spotify === 'undefined') {
+          console.warn('⚠️ Spotify SDK script não detectado ainda! Player tentará conectar assim que carregar.')
+        }
+        
+        initSpotifyPlayer()
+        return true
+      } else {
+        if (!isAuthenticated.value) console.log('   ❌ Não autenticado')
+        if (!spotifyAccessToken.value) console.log('   ❌ Token ausente')
+        if (spotifyPlayerReady.value) console.log('   ℹ️ Player já está pronto')
+      }
+      return false
+    }
+    
+    // Tenta agora
+    console.log('🎯 Tentativa 1/4 de inicializar Spotify Player...')
+    if (!tryInitSpotify()) {
+      // Se não conseguiu, tenta de novo após 500ms (token pode não ter carregado ainda)
+      setTimeout(() => {
+        if (!spotifyPlayerReady.value) {
+          console.log('🔄 Tentativa 2/4: Retry após 500ms...')
+          tryInitSpotify()
+        }
+      }, 500)
+      
+      // E mais uma vez após 1.5s para garantir
+      setTimeout(() => {
+        if (!spotifyPlayerReady.value && isAuthenticated.value) {
+          console.log('🔄 Tentativa 3/4: Retry após 1.5s...')
+          tryInitSpotify()
+        }
+      }, 1500)
+      
+      // Tentativa final após 3s
+      setTimeout(() => {
+        if (!spotifyPlayerReady.value && isAuthenticated.value) {
+          console.log('🔄 Tentativa 4/4 (FINAL): Retry após 3s...')
+          const success = tryInitSpotify()
+          
+          if (!success && isAuthenticated.value) {
+            console.error('❌ FALHA: Spotify Player não inicializou após 4 tentativas!')
+            console.log('📋 Estado final:')
+            console.log(`   - Auth: ${isAuthenticated.value}`)
+            console.log(`   - Token: ${spotifyAccessToken.value ? 'OK' : 'FALTANDO'}`)
+            console.log(`   - SDK: ${typeof window.Spotify !== 'undefined' ? 'Carregado' : 'NÃO carregado'}`)
+            console.log(`   - Device: ${deviceId.value || 'NENHUM'}`)
+            console.log('')
+            console.log('💡 Se você tem Premium, tente:')
+            console.log('   1. Recarregar a página (F5)')
+            console.log('   2. Fazer logout e login novamente')
+            console.log('   3. Limpar cache e cookies')
+          }
+        }
+      }, 3000)
+    }
+    
     console.log('📦 2/4: Carregando dados da aplicação...')
     await initializeData()
     
@@ -784,15 +1108,36 @@ onMounted(async () => {
     window.addEventListener('albumColorExtracted', handleAlbumColorExtracted)
     // Escuto evento de fim de música HTML5
     window.addEventListener('audio-ended', () => {
-      console.log('🏁 App.vue: Áudio HTML5 acabou - indo para próxima')
+      console.log('🏁 App.vue: Áudio HTML5 acabou')
+      
+      // Se está tocando preview, NÃO avança automaticamente
+      if (isPlayingPreview.value) {
+        console.log('⏸️ Preview finalizado - NÃO avançando automaticamente')
+        isPlayingPreview.value = false
+        return
+      }
+      
+      // Se for música completa, avança para próxima
+      console.log('➡️ Indo para próxima música')
       handleNextTrack()
     })
     
+    // Detecta qualquer clique na página para habilitar áudio
+    const enableAudioOnInteraction = () => {
+      if (!userHasInteracted.value) {
+        userHasInteracted.value = true
+        console.log('✅ Interação do usuário detectada - áudio habilitado')
+      }
+    }
+    document.addEventListener('click', enableAudioOnInteraction)
+    document.addEventListener('touchstart', enableAudioOnInteraction)
+    
     console.log('✅ PlayOff Vue App inicializado com sucesso!')
-    showNotification('🎵 PlayOff carregado! Comece a votar!', 'success')
+    showNotification('🎵 PlayOff carregado! Clique em uma música para começar!', 'success')
     
     // Verifico se devo reproduzir alguma música automaticamente
     // Aguardo 2 segundos para garantir que tudo esteja carregado
+    // (Só vai funcionar se o usuário já tiver interagido)
     setTimeout(() => {
       console.log('🎯 Verificando auto-reprodução inicial...')
       checkAndPlayHighestVoted()
@@ -891,6 +1236,34 @@ onUnmounted(() => {
   color: #000;
   transform: skewX(-5deg) translate(-2px, -2px);
   box-shadow: 2px 2px 0 #ff6b6b;
+}
+
+.reconnect-btn {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 107, 107, 0.2);
+  border: 2px solid #ff6b6b;
+  color: #ff6b6b;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  transform: skewX(-5deg);
+  animation: pulse-red 2s infinite;
+}
+
+.reconnect-btn:hover {
+  background: #ff6b6b;
+  color: #fff;
+  transform: skewX(-5deg) scale(1.1);
+}
+
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 107, 107, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
 }
 
 .queue-badge {
@@ -1002,6 +1375,116 @@ onUnmounted(() => {
   .user-avatar {
     width: 28px;
     height: 28px;
+  }
+}
+
+/* Banner Spotify Premium */
+.spotify-premium-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+  border-bottom: 3px solid #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  animation: slideDown 0.5s ease;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.banner-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.banner-content i {
+  font-size: 2rem;
+  color: #fff;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.banner-text {
+  flex: 1;
+  min-width: 300px;
+}
+
+.banner-text strong {
+  display: block;
+  color: #fff;
+  font-size: 1.2rem;
+  font-family: 'Cingire', 'Impact', sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
+}
+
+.banner-text p {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.premium-link {
+  background: #fff;
+  color: #ff6b6b;
+  padding: 0.8rem 1.5rem;
+  border: 2px solid #fff;
+  font-weight: bold;
+  text-decoration: none;
+  text-transform: uppercase;
+  font-family: 'Cingire', sans-serif;
+  letter-spacing: 0.05em;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.premium-link:hover {
+  background: #1DB954;
+  color: #fff;
+  transform: translate(-2px, -2px);
+  box-shadow: 3px 3px 0 #fff;
+}
+
+@media (max-width: 768px) {
+  .banner-content {
+    padding: 0.8rem 1rem;
+    gap: 1rem;
+  }
+  
+  .banner-content i {
+    font-size: 1.5rem;
+  }
+  
+  .banner-text strong {
+    font-size: 1rem;
+  }
+  
+  .banner-text p {
+    font-size: 0.85rem;
+  }
+  
+  .premium-link {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
   }
 }
 </style> 

@@ -58,6 +58,9 @@
             <button @click.stop="$emit('add-to-queue', song)" class="queue-btn" title="Adicionar à Fila">
               <i class="fas fa-list-ul"></i>
             </button>
+            <button @click.stop="$emit('play-preview', song)" class="preview-btn" title="Preview (30s)">
+              <i class="fas fa-headphones"></i>
+            </button>
             <button @click.stop="handleSuperVote(song)" class="super-btn" title="Super Voto">
               <i class="fas fa-bolt"></i>
             </button>
@@ -118,7 +121,7 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['vote-for-song', 'super-vote', 'play-song', 'add-to-queue', 'toggle-lyrics'])
+const emit = defineEmits(['vote-for-song', 'super-vote', 'play-song', 'play-preview', 'add-to-queue', 'toggle-lyrics'])
 
 // Refs
 const coversContainer = ref(null)
@@ -481,6 +484,27 @@ watch(() => props.songs, () => {
 .queue-btn:hover {
   background: #1DB954;
   border-color: #1DB954;
+  transform: translate(-2px, -2px);
+  box-shadow: 2px 2px 0 #fff;
+}
+
+.preview-btn {
+  width: 50px;
+  height: 50px;
+  background: transparent;
+  border: 3px solid #fff;
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-btn:hover {
+  background: #9b59b6;
+  border-color: #9b59b6;
   transform: translate(-2px, -2px);
   box-shadow: 2px 2px 0 #fff;
 }

@@ -20,31 +20,54 @@ export function useSpotifyPlayer() {
 
   let progressInterval = null
   let previousState = null // Para detecção de mudanças de estado
+  let lastStateTime = 0 // Timestamp de quando recebemos o estado do Spotify
 
   // Inicializa o Spotify Web Playback SDK
-  const initializePlayer = (accessToken, onTrackEnded) => {
+  const initializePlayer = (onTrackEnded) => {
     if (onTrackEnded) trackEndedCallback.value = onTrackEnded
     
-    if (!accessToken) {
-      console.warn('⚠️ Access token não fornecido')
-      return
-    }
-
-    if (!window.Spotify) {
-      console.warn('⚠️ Spotify SDK não carregado, aguardando...')
-      
-      // Espera o SDK carregar
-      window.onSpotifyWebPlaybackSDKReady = () => {
-        createPlayer(accessToken)
+    console.log('🚀 Iniciando setup do Spotify Player...')
+    
+    // Função auxiliar para tentar criar o player
+    const tryCreatePlayer = () => {
+      if (window.Spotify) {
+        createPlayer()
+        return true
       }
+      return false
+    }
+
+    // Tenta criar imediatamente se SDK já carregou
+    if (tryCreatePlayer()) {
       return
     }
 
-    createPlayer(accessToken)
+    console.log('⏳ Aguardando Spotify SDK carregar...')
+
+    // Configura callback para quando o SDK carregar
+    window.onSpotifyWebPlaybackSDKReady = () => {
+      console.log('📦 Spotify SDK carregou via callback!')
+      tryCreatePlayer()
+    }
+
+    // Fallback: polling caso o callback já tenha sido chamado antes
+    let attempts = 0
+    const maxAttempts = 50 // 5 segundos
+    const pollInterval = setInterval(() => {
+      attempts++
+      if (tryCreatePlayer()) {
+        clearInterval(pollInterval)
+        console.log(`✅ Spotify SDK encontrado após ${attempts * 100}ms`)
+      } else if (attempts >= maxAttempts) {
+        clearInterval(pollInterval)
+        console.error('❌ Timeout aguardando Spotify SDK')
+        error.value = 'Spotify SDK não carregou. Recarregue a página.'
+      }
+    }, 100)
   }
 
   // Cria instância do player
-  const createPlayer = (accessToken) => {
+  const createPlayer = () => {
     if (player.value) {
       console.log('🎵 Player já existe, reconectando...')
       player.value.disconnect()
@@ -56,8 +79,18 @@ export function useSpotifyPlayer() {
     console.log('🎵 Criando Spotify Web Player...')
 
     player.value = new window.Spotify.Player({
-      name: '🎵 PlayOff Web Player',
-      getOAuthToken: cb => { cb(accessToken) },
+      name: 'PlayOff Music Player 🎵',
+      getOAuthToken: cb => { 
+        // Sempre pega o token mais recente do localStorage
+        const token = localStorage.getItem('spotify_access_token')
+        if (token) {
+          console.log('🔐 Spotify pediu token: fornecendo token atual')
+          cb(token)
+        } else {
+          console.error('❌ Spotify pediu token mas não há token no storage')
+          cb('')
+        }
+      },
       volume: volume.value
     })
 
@@ -69,12 +102,15 @@ export function useSpotifyPlayer() {
       deviceId.value = device_id
       isReady.value = true
       isConnecting.value = false
+      // Tenta transferir o playback automaticamente assim que estiver pronto
+      transferPlayback()
     })
 
     // Player não pronto
     player.value.addListener('not_ready', ({ device_id }) => {
       console.log('⚠️ Device offline:', device_id)
       isReady.value = false
+      isConnecting.value = true // Tenta reconectar
     })
 
     // Erros
@@ -91,14 +127,21 @@ export function useSpotifyPlayer() {
     })
 
     player.value.addListener('account_error', ({ message }) => {
-      console.error('❌ Erro de conta (precisa Spotify Premium):', message)
-      error.value = 'Spotify Premium necessário para reprodução'
+      console.error('❌ Erro de conta:', message)
+      if (message.includes('Premium')) {
+         error.value = 'Spotify Premium necessário para reprodução'
+      } else {
+         // Tenta reconectar se for outro erro de conta
+         console.log('🔄 Tentando reconectar após erro de conta...')
+         setTimeout(() => player.value.connect(), 1000)
+      }
       isConnecting.value = false
     })
 
     player.value.addListener('playback_error', ({ message }) => {
       console.error('❌ Erro de playback:', message)
-      error.value = `Erro de playback: ${message}`
+      // Não define erro global para não travar UI
+      console.log('🔄 Tentando recuperar de erro de playback...')
     })
 
     // Estado da reprodução alterado
@@ -107,6 +150,9 @@ export function useSpotifyPlayer() {
         currentTrack.value = null
         return
       }
+
+      // Marca o tempo exato que recebemos este estado
+      lastStateTime = Date.now()
 
       // Detecção de fim de música (heurística para Spotify SDK)
       // Se estava tocando (previousState.paused === false)
@@ -158,11 +204,19 @@ export function useSpotifyPlayer() {
   // Inicia intervalo de atualização de progresso
   const startProgressInterval = () => {
     stopProgressInterval()
+    // Atualiza a cada 100ms para fluidez visual (letras/barra)
+    // Mas calcula baseado no tempo real (delta) para precisão
     progressInterval = setInterval(() => {
-      if (!isPaused.value) {
-        position.value += 1000
+      if (!isPaused.value && lastStateTime > 0) {
+        // Posição estimada = Posição relatada pelo SDK + Tempo decorrido desde o relato
+        // Limitado pela duração total para não passar do fim
+        const elapsed = Date.now() - lastStateTime
+        if (previousState) {
+           const estimated = previousState.position + elapsed
+           position.value = Math.min(estimated, duration.value)
+        }
       }
-    }, 1000)
+    }, 100)
   }
 
   // Para intervalo de progresso
@@ -173,75 +227,120 @@ export function useSpotifyPlayer() {
     }
   }
 
-  // Toca uma música específica
+  // Toca uma música específica (track Spotify)
   const playTrack = async (spotifyUri) => {
-    if (!deviceId.value) {
-      console.warn('⚠️ Device não está pronto')
-      error.value = 'Player não está pronto'
-      return false
-    }
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('🎵 useSpotifyPlayer.playTrack() CHAMADO')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log(`   URI: ${spotifyUri}`)
+    console.log(`   Device ID local (Web Playback): ${deviceId.value || '❌ NENHUM'}`)
 
     const accessToken = localStorage.getItem('spotify_access_token')
+    console.log(`   Token: ${accessToken ? `${accessToken.substring(0, 20)}... (OK)` : '❌ AUSENTE'}`)
+
     if (!accessToken) {
+      console.error('❌ ERRO: Token de acesso não encontrado!')
       error.value = 'Não autenticado'
       return false
     }
 
     try {
-      console.log('▶️ Tocando:', spotifyUri)
+      console.log('')
+      console.log('🔍 Buscando dispositivos Spotify disponíveis...')
+      const devices = await getDevices()
+      console.log(`   Devices encontrados: ${devices.length}`)
+      devices.forEach(d => {
+        console.log(`   - ${d.name} | id=${d.id} | active=${d.is_active} | type=${d.type}`)
+      })
 
-      const response = await fetch(
-        `https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ uris: [spotifyUri] })
+      if (!devices || devices.length === 0) {
+        console.error('❌ Nenhum dispositivo Spotify disponível para este usuário.')
+        error.value = 'Nenhum dispositivo Spotify ativo. Abra o Spotify no celular/desktop ou Web Player e tente novamente.'
+        return false
+      }
+
+      // Prioridade de escolha do device alvo:
+      // 1) Dispositivo atualmente ativo no Spotify (celular/desktop/etc)
+      // 2) Web Playback SDK deste app, se estiver presente na lista
+      // 3) Primeiro device da lista (fallback)
+      let targetDevice = devices.find(d => d.is_active) || null
+
+      if (!targetDevice && deviceId.value) {
+        const webDevice = devices.find(d => d.id === deviceId.value)
+        if (webDevice) {
+          console.log('🎧 Nenhum device ativo, mas Web Playback está disponível na lista. Tentando ativá-lo...')
+          await transferPlayback()
+          // Pequeno delay para o Spotify propagar mudança de device ativo
+          await new Promise(r => setTimeout(r, 500))
+          targetDevice = webDevice
         }
-      )
+      }
+
+      if (!targetDevice) {
+        targetDevice = devices[0]
+        console.log(`🎯 Usando primeiro device da lista como alvo: ${targetDevice.name} (${targetDevice.id})`)
+      } else {
+        console.log(`🎯 Device alvo escolhido: ${targetDevice.name} (${targetDevice.id})`)        
+      }
+
+      const apiUrl = `https://api.spotify.com/v1/me/player/play?device_id=${targetDevice.id}`
+      console.log('')
+      console.log('📡 CHAMANDO API DO SPOTIFY:')
+      console.log(`   URL: ${apiUrl}`)
+      console.log(`   Method: PUT`)
+      console.log(`   Body: { uris: ["${spotifyUri}"] }`)
+
+      const response = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ uris: [spotifyUri] })
+      })
+
+      console.log('')
+      console.log('📥 RESPOSTA DA API:')
+      console.log(`   Status: ${response.status} ${response.statusText}`)
+      console.log(`   OK: ${response.ok}`)
 
       if (response.status === 204 || response.ok) {
-        console.log('✅ Reprodução iniciada')
+        console.log('✅✅✅ API RETORNOU SUCESSO! ✅✅✅')
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        error.value = null
         return true
       }
 
-      // Erro específico
+      console.log('')
+      console.log('❌ API RETORNOU ERRO!')
       const errorData = await response.json().catch(() => null)
+      console.log('   Dados do erro:', JSON.stringify(errorData, null, 2))
+
       const errorMessage = errorData?.error?.message || 'Erro desconhecido'
-      
-      // Tratamento específico para "no list was loaded" ou device not active
-      if (errorMessage.includes('no list was loaded') || errorMessage.includes('Device not found')) {
-         console.warn('⚠️ Tentando ativar device e retry...', errorMessage)
-         // Tenta transferir playback para cá primeiro
-         await transferPlayback()
-         // Retry após curto delay
-         return new Promise(resolve => {
-           setTimeout(async () => {
-              try {
-                const retryResponse = await fetch(
-                  `https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`,
-                  {
-                    method: 'PUT',
-                    headers: {
-                      'Authorization': `Bearer ${accessToken}`,
-                      'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ uris: [spotifyUri] })
-                  }
-                )
-                resolve(retryResponse.status === 204 || retryResponse.ok)
-              } catch (e) {
-                resolve(false)
-              }
-           }, 500)
-         })
+      const errorReason = errorData?.error?.reason || 'unknown'
+      const errorStatus = errorData?.error?.status || response.status
+
+      console.log(`   Mensagem: ${errorMessage}`)
+      console.log(`   Razão: ${errorReason}`)
+      console.log(`   Status: ${errorStatus}`)
+
+      // Atualiza erro global para que o frontend saiba que o player falhou
+      error.value = errorMessage
+
+      if (errorStatus === 404 && (errorReason === 'NO_ACTIVE_DEVICE' || errorMessage.includes('No active device'))) {
+        console.warn('⚠️ Spotify retornou NO_ACTIVE_DEVICE (404)')
+        console.warn('   Nenhum dispositivo ativo para receber o comando de play.')
+        error.value = 'Nenhum dispositivo Spotify ativo. Abra o Spotify no celular/desktop, dê play em qualquer música e tente novamente.'
+        return false
       }
 
       throw new Error(errorMessage)
     } catch (err) {
-      console.error('❌ Erro ao tocar:', err)
+      console.error('')
+      console.error('❌❌❌ EXCEÇÃO AO TOCAR MÚSICA ❌❌❌')
+      console.error(`   Erro: ${err.message}`)
+      console.error(`   Stack: ${err.stack}`)
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
       error.value = err.message
       return false
     }
