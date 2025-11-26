@@ -166,6 +166,9 @@ export function useCloudinaryAudio() {
           // Bonus para popularidade (spotify ranking)
           score += spotifyTrack.popularity * 0.1
           
+          // Bonus para preview disponível (importante para fallback HTML5)
+          if (spotifyTrack.preview_url) score += 40
+          
           console.log(`🎯 Candidato: "${spotifyTrack.name}" por ${spotifyTrack.artists[0]?.name} - Score: ${score}`)
           
           if (score > bestScore) {

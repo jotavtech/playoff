@@ -291,7 +291,14 @@ const handleSuperVote = async (song) => {
         }
 
         if (spotifyPlayerReady.value) {
-          const spotifyId = song.spotifyUrl.split('/').pop()
+          // Extração robusta do ID do Spotify
+          let spotifyId = ''
+          if (song.spotifyUrl.includes('spotify:track:')) {
+            spotifyId = song.spotifyUrl.split(':').pop()
+          } else {
+            spotifyId = song.spotifyUrl.split('/').pop().split('?')[0]
+          }
+          
           const spotifyUri = `spotify:track:${spotifyId}`
           console.log(`🔗 URI: ${spotifyUri}`)
           
