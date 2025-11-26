@@ -31,9 +31,14 @@
           <span class="result-name">{{ track.name }}</span>
           <span class="result-artist">{{ track.artist }}</span>
         </div>
-        <button class="add-btn">
-          <i class="fas fa-plus"></i>
-        </button>
+        <div class="result-actions">
+          <button @click.stop="$emit('add-to-queue', track)" class="queue-btn" title="Adicionar à Fila">
+            <i class="fas fa-list-ul"></i>
+          </button>
+          <button @click.stop="addSong(track)" class="add-btn" title="Adicionar à Votação">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -46,7 +51,7 @@
 <script setup>
 import { ref } from 'vue'
 
-const emit = defineEmits(['add-song'])
+const emit = defineEmits(['add-song', 'add-to-queue'])
 
 const searchQuery = ref('')
 const searchResults = ref([])
@@ -232,7 +237,12 @@ const addSong = (track) => {
   font-size: 0.85rem;
 }
 
-.add-btn {
+.result-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.add-btn, .queue-btn {
   width: 36px;
   height: 36px;
   background: transparent;
@@ -248,6 +258,11 @@ const addSong = (track) => {
 .add-btn:hover {
   background: #1DB954;
   border-color: #1DB954;
+}
+
+.queue-btn:hover {
+  background: #ff6b6b;
+  border-color: #ff6b6b;
 }
 
 .no-results {

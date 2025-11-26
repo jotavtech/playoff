@@ -9,6 +9,11 @@
     
     <!-- Botão de Login/Perfil -->
     <div class="user-section">
+      <button class="queue-toggle-btn" @click="showQueueModal = true" title="Ver Fila">
+        <i class="fas fa-list-ul"></i>
+        <span v-if="queue.length > 0" class="queue-badge">{{ queue.length }}</span>
+      </button>
+
       <button v-if="!isAuthenticated" @click="showLoginModal = true" class="login-btn">
         <i class="fab fa-spotify"></i>
         <span>Entrar</span>
@@ -21,6 +26,7 @@
 
     <!-- Modais -->
     <LoginModal :showModal="showLoginModal" @close="showLoginModal = false" />
+    <QueueModal v-if="showQueueModal" @close="showQueueModal = false" />
     <UserProfile 
       v-if="showProfileModal" 
       :user="user" 
@@ -43,19 +49,38 @@
           @toggle-playback="handleTogglePlayback"
           @previous-track="handlePreviousTrack"
           @next-track="handleNextTrack"
+          @toggle-lyrics="handleToggleLyrics"
         />
 
         <!-- Busca de Músicas via Spotify -->
-        <SpotifySearch @add-song="handleAddSpotifySong" />
+        <SpotifySearch 
+          @add-song="handleAddSpotifySong" 
+          @add-to-queue="handleAddToQueue"
+        />
 
         <!-- Carrossel de Músicas para Votação -->
         <MusicCarousel 
-          :songs="sortedSongs"
+          :songs="combinedSongs"
           :current-track="currentTrack"
           :is-playing="isPlaying"
+          :is-lyrics-visible="showLyrics"
           @vote-for-song="handleVoteAndPlay"
           @super-vote="handleSuperVote"
           @play-song="handlePlaySong"
+          @add-to-queue="handleAddToQueue"
+          @toggle-lyrics="handleToggleLyrics"
+        />
+
+        <!-- Letras da música -->
+        <LyricsView 
+          v-if="showLyrics"
+          :lyrics="lyricsLines"
+          :current-line-index="currentLineIndex"
+          :is-loading="isLoadingLyrics"
+          :error="errorLyrics"
+          :dominant-color="currentDominantColor"
+          @close="showLyrics = false"
+          @seek="handleSeek"
         />
 
         <!-- Footer Punk -->
@@ -71,6 +96,7 @@ import { useCloudinaryAudio } from './composables/useCloudinaryAudio'
 import { usePlayOffApp } from './composables/usePlayOffApp'
 import { useAuth } from './composables/useAuth'
 import { useSpotifyPlayer } from './composables/useSpotifyPlayer'
+import { useLyrics } from './composables/useLyrics'
 import HeroSection from './components/HeroSection.vue'
 import MusicCarousel from './components/MusicCarousel.vue'
 import NotificationContainer from './components/NotificationContainer.vue'
@@ -78,6 +104,8 @@ import SpotifySearch from './components/SpotifySearch.vue'
 import LoginModal from './components/LoginModal.vue'
 import UserProfile from './components/UserProfile.vue'
 import TheFooter from './components/TheFooter.vue'
+import QueueModal from './components/QueueModal.vue'
+import LyricsView from './components/LyricsView.vue'
 
 // ============= CONFIGURAÇÃO DA API =============
 // Usando URL relativa para aproveitar o proxy do Vite
@@ -101,7 +129,9 @@ const {
   nextTrack,         // Ir para próxima música
   formatTime,        // Formatar tempo (ms para mm:ss)
   updateSongsList,   // Atualizar lista para navegação
-  setTrack           // Definir track sem tocar (para Spotify SDK)
+  setTrack,          // Definir track sem tocar (para Spotify SDK)
+  addToQueue,        // Adicionar à fila
+  queue              // Fila de reprodução
 } = useCloudinaryAudio()
 
 const {
@@ -138,11 +168,57 @@ const {
   togglePlay: toggleSpotifyPlayback,
   pause: pauseSpotify,
   resume: resumeSpotify,
-  getCurrentState // Importa função de sync
+  getCurrentState, // Importa função de sync
+  seek: spotifySeek
 } = useSpotifyPlayer()
+
+// ============= LETRAS DA MÚSICA =============
+const { 
+  lyrics: lyricsLines, 
+  currentLineIndex, 
+  isLoadingLyrics, 
+  errorLyrics, 
+  fetchLyrics, 
+  updateCurrentLine 
+} = useLyrics()
 
 // ============= COMPUTED TIME & STATE =============
 // Unifica estado dos dois players (HTML5 e Spotify)
+
+// ============= COMPUTED LISTS =============
+// Combina lista de votação com a fila de reprodução para exibição
+const combinedSongs = computed(() => {
+  const list = []
+  const ids = new Set()
+
+  // 1. Current Track (se existir)
+  if (currentTrack.value) {
+    list.push(currentTrack.value)
+    ids.add(currentTrack.value.id)
+  }
+
+  // 2. Queue (Fila de prioridade)
+  if (queue.value && queue.value.length > 0) {
+    queue.value.forEach(song => {
+      if (!ids.has(song.id)) {
+        list.push(song)
+        ids.add(song.id)
+      }
+    })
+  }
+
+  // 3. Vote List (Restante da lista ordenada)
+  if (sortedSongs.value && sortedSongs.value.length > 0) {
+    sortedSongs.value.forEach(song => {
+      if (!ids.has(song.id)) {
+        list.push(song)
+        ids.add(song.id)
+      }
+    })
+  }
+
+  return list
+})
 
 const isSpotifyActive = computed(() => {
   return currentTrack.value?.spotifyUrl && isAuthenticated.value && spotifyPlayerReady.value
@@ -160,26 +236,49 @@ const isPlaying = computed(() => {
   return isSpotifyActive.value ? !isSpotifyPaused.value : isAudioPlaying.value
 })
 
-const handleTogglePlayback = () => {
-  if (isSpotifyActive.value) {
-    toggleSpotifyPlayback()
-  } else {
-    toggleAudioPlayback()
+const currentDominantColor = computed(() => {
+  if (logoAccentColor.value && logoAccentColor.value.length === 3) {
+    const [r, g, b] = logoAccentColor.value
+    return `rgb(${r}, ${g}, ${b})`
   }
-}
+  return '#ff6b6b'
+})
 
 // ============= ESTADO DA UI =============
 const showLoginModal = ref(false)
 const showProfileModal = ref(false)
+const showQueueModal = ref(false)
+const showLyrics = ref(false)
+const logoAccentColor = ref([255, 107, 107]) // RGB Array default
 
-// Cor atual utilizada para acentuar a logo (dinâmica conforme música)
-const logoAccentColor = ref([255, 107, 107])
+// Lyrics Handlers
+const handleToggleLyrics = () => {
+  showLyrics.value = !showLyrics.value
+  if (showLyrics.value && currentTrack.value) {
+    fetchLyrics(currentTrack.value.title, currentTrack.value.artist, currentTrack.value.duration)
+  }
+}
 
-// Inicializa Spotify Player quando usuário está autenticado
-watch(spotifyAccessToken, (token) => {
-  if (token) {
-    console.log('🎵 Inicializando Spotify Web Player...')
-    initSpotifyPlayer(token)
+const handleSeek = async (timeSeconds) => {
+  const ms = timeSeconds * 1000
+  if (isSpotifyActive.value) {
+    await spotifySeek(ms)
+  } else {
+    seek(ms)
+  }
+}
+
+// Sync lyrics with position
+watch(() => currentTime.value, (newPos) => {
+  if (showLyrics.value) {
+    updateCurrentLine(newPos / 1000)
+  }
+})
+
+// Fetch lyrics on track change if lyrics mode is active
+watch(currentTrack, (newTrack) => {
+  if (showLyrics.value && newTrack) {
+    fetchLyrics(newTrack.title, newTrack.artist, newTrack.duration)
   }
 })
 
@@ -192,6 +291,12 @@ const checkAndPlayHighestVoted = async () => {
   // Verifico se há músicas disponíveis
   if (sortedSongs.value.length === 0) {
     console.log('📭 Nenhuma música disponível para auto-reprodução')
+    return
+  }
+  
+  // Se já estiver tocando algo, não interrompe! (Correção para evitar trocas indesejadas)
+  if (isPlaying.value) {
+    console.log('⏸️ Música já está tocando - auto-reprodução cancelada para não interromper')
     return
   }
   
@@ -251,10 +356,12 @@ const handleSuperVote = async (song) => {
       console.log(`⚡ Super voto executado: "${superVotedSong.title}" agora tem ${superVotedSong.votes} votos`)
       
       // Reproduzo imediatamente (característica do super voto)
-      await handlePlaySong(song)
+      const played = await handlePlaySong(song)
       
-      // Feedback específico para super voto
-      showNotification(`⚡ Super Voto! Tocando imediatamente: ${song.title}`, 'success')
+      if (played) {
+        // Feedback específico para super voto
+        showNotification(`⚡ Super Voto! Tocando imediatamente: ${song.title}`, 'success')
+      }
     }
   } catch (error) {
     console.error('❌ App.vue: Erro crítico no super voto:', error)
@@ -320,7 +427,7 @@ const handleSuperVote = async (song) => {
             }
             
             showNotification(`Spotify: ${song.title}`, 'success')
-            return
+            return true
           } else {
             console.error('❌ Falha ao tocar no Spotify SDK')
             showNotification('Falha ao tocar no Spotify', 'error')
@@ -335,7 +442,7 @@ const handleSuperVote = async (song) => {
         const result = await playSong(song)
         if (result) {
           showNotification(`Preview: ${song.title}`, 'success')
-          return
+          return true
         }
       } catch (e) {
         console.log('⚠️ Falha na tentativa de reprodução HTML5:', e)
@@ -346,23 +453,18 @@ const handleSuperVote = async (song) => {
         console.log('⚠️ Música do Spotify requer login')
         showNotification(`Faça login para ouvir a versão completa de "${song.title}"`, 'warning')
         await setTrack(song)
-        return
+        return true
       }
       
       // Nenhuma opção disponível
       console.log('❌ Nenhuma fonte de áudio disponível')
       showNotification(`Sem áudio disponível para "${song.title}"`, 'error')
+      return false
       
     } catch (error) {
       console.error('❌ App.vue: Erro ao reproduzir música:', error)
-      
-      // Tratamento específico para erro de autoplay policy
-      if (error.name === 'NotAllowedError' || error.message.includes('interact')) {
-        showNotification('⚠️ Clique em Play para iniciar o áudio', 'warning')
-        // Poderíamos mostrar um botão de play overlay aqui se quiséssemos
-      } else {
-        showNotification(`Erro: ${error.message}`, 'error')
-      }
+      showNotification('Erro ao tentar tocar música', 'error')
+      return false
     }
   }
 
@@ -400,13 +502,13 @@ const handleAddSpotifySong = async (track) => {
       await refreshSongs()
       
       // Auto-reproduz a música adicionada
-      // Busca a música na lista atualizada
-      const addedSong = sortedSongs.value.find(s => 
-        s.title === track.name && s.artist === track.artist
-      )
-      if (addedSong) {
-        console.log(`▶️ Auto-reproduzindo música adicionada: ${addedSong.title}`)
-        await handlePlaySong(addedSong)
+      // Usa o objeto retornado pelo servidor para garantir que temos os dados corretos
+      if (result.song) {
+        console.log(`▶️ Auto-reproduzindo música adicionada: ${result.song.title}`)
+        // Pequeno delay para garantir que o player esteja pronto para receber comandos
+        setTimeout(() => {
+          handlePlaySong(result.song)
+        }, 500)
       }
     } else {
       const error = await response.json()
@@ -415,6 +517,24 @@ const handleAddSpotifySong = async (track) => {
   } catch (error) {
     console.error('❌ Erro ao adicionar música:', error)
     showNotification('Erro ao adicionar música', 'error')
+  }
+}
+
+// Handler para adicionar à fila
+const handleAddToQueue = (song) => {
+  try {
+    const success = addToQueue(song)
+    if (success) {
+      showNotification(`📥 Adicionado à fila: ${song.title}`, 'success')
+      // Abre o modal automaticamente para mostrar a fila
+      showQueueModal.value = true
+    } else {
+      showNotification('Música já está na fila', 'warning')
+      showQueueModal.value = true // Abre mesmo assim para mostrar
+    }
+  } catch (error) {
+    console.error('❌ Erro ao adicionar à fila:', error)
+    showNotification('Erro ao adicionar à fila', 'error')
   }
 }
 
@@ -468,25 +588,31 @@ const handleAlbumColorExtracted = (event) => {
 // ============= WATCHERS REATIVOS =============
 // Observadores que reagem a mudanças de estado e mantêm sincronização
 
-// Observo mudanças na lista de músicas ordenadas para atualizar navegação do player
-// Isso garante que as funções "próxima/anterior" funcionem com a lista atual
-watch(sortedSongs, (newSongs) => {
+// Observo mudanças na lista combinada (Queue + Voting) para atualizar navegação
+// Isso garante que as funções "próxima/anterior" funcionem com a fila
+watch(combinedSongs, (newSongs) => {
   if (newSongs && newSongs.length > 0) {
-    console.log(`🔄 App.vue: Atualizando lista de navegação com ${newSongs.length} músicas`)
+    // console.log(`🔄 App.vue: Atualizando lista de navegação com ${newSongs.length} músicas`)
     updateSongsList(newSongs)
-  } else {
-    console.log('📭 Lista de músicas vazia - navegação desabilitada')
   }
 }, { deep: true, immediate: true }) // deep: true para mudanças internas, immediate: true para execução inicial
 
 // ============= HANDLERS DE NAVEGAÇÃO =============
 // Funções que permitem navegar entre músicas com tratamento de erro
 
+const handleTogglePlayback = async () => {
+  if (isSpotifyActive.value) {
+    await toggleSpotifyPlayback()
+  } else {
+    toggleAudioPlayback()
+  }
+}
+
 const handlePreviousTrack = async () => {
   try {
     console.log('⏮️ App.vue: Navegando para música anterior...')
     
-    const list = sortedSongs.value
+    const list = combinedSongs.value
     if (!list || list.length === 0) return
 
     const currentIndex = list.findIndex(s => s.id === currentTrack.value?.id)
@@ -509,15 +635,44 @@ const handleNextTrack = async () => {
   try {
     console.log('⏭️ App.vue: Navegando para próxima música...')
     
-    const list = sortedSongs.value
+    const list = combinedSongs.value
     if (!list || list.length === 0) return
 
+    // Se a música atual não está na lista (ex: recém acabada e removida da fila?), fallback para primeiro
     const currentIndex = list.findIndex(s => s.id === currentTrack.value?.id)
+    
+    // Lógica para quando a música atual é a última da fila
+    // Como a lista muda dinamicamente (fila é consumida), o próximo sempre será o índice 1 se o atual for 0?
+    // Não necessariamente.
+    
     let nextIndex = currentIndex + 1
+    
+    if (currentIndex === -1) {
+       nextIndex = 0
+    }
     
     if (nextIndex >= list.length) nextIndex = 0 // Loop
     
     const nextSong = list[nextIndex]
+    
+    // Se a próxima música for da fila, removemos ela da fila ao tocar?
+    // Não, handlePlaySong vai definir currentTrack.
+    // O watcher de combinedSongs vai re-computar.
+    // Se nextSong estava na queue, ao virar currentTrack, ela sai da queue (visualmente) mas entra como current.
+    // Porém, precisamos remover da `queue` ref manualmente se ela for consumida?
+    // Sim, `handleNextTrack` consome a fila.
+    
+    // Verifico se a próxima música está na fila para removê-la
+    // Mas `combinedSongs` é computed. Eu preciso modificar `queue`.
+    const isNextInQueue = queue.value.some(q => q.id === nextSong.id)
+    if (isNextInQueue) {
+      console.log(`📥 Removendo "${nextSong.title}" da fila (sendo tocada)`)
+      // Removemos da fila pois ela vai virar currentTrack
+      // Encontra index na queue original
+      const qIndex = queue.value.findIndex(q => q.id === nextSong.id)
+      if (qIndex !== -1) queue.value.splice(qIndex, 1)
+    }
+
     if (nextSong) {
       await handlePlaySong(nextSong)
       console.log(`✅ Navegação para próxima concluída: ${nextSong.title}`)
@@ -627,6 +782,11 @@ onMounted(async () => {
     console.log('🎨 4/4: Configurando listeners de eventos...')
     // Escuto eventos de extração de cor das capas de álbum
     window.addEventListener('albumColorExtracted', handleAlbumColorExtracted)
+    // Escuto evento de fim de música HTML5
+    window.addEventListener('audio-ended', () => {
+      console.log('🏁 App.vue: Áudio HTML5 acabou - indo para próxima')
+      handleNextTrack()
+    })
     
     console.log('✅ PlayOff Vue App inicializado com sucesso!')
     showNotification('🎵 PlayOff carregado! Comece a votar!', 'success')
@@ -650,6 +810,7 @@ onUnmounted(() => {
   
   // Removo event listeners para evitar memory leaks
   window.removeEventListener('albumColorExtracted', handleAlbumColorExtracted)
+  window.removeEventListener('audio-ended', handleNextTrack)
   
   console.log('✅ Limpeza concluída')
 })
@@ -674,7 +835,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  gap: 0;
+  gap: 4rem; /* Default gap to ensure spacing above footer */
 }
 
 /* Media queries para responsividade */
@@ -704,6 +865,49 @@ onUnmounted(() => {
   top: 1rem;
   right: 1rem;
   z-index: 1000;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.queue-toggle-btn {
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #fff;
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.2s;
+  transform: skewX(-5deg);
+}
+
+.queue-toggle-btn:hover {
+  background: #fff;
+  color: #000;
+  transform: skewX(-5deg) translate(-2px, -2px);
+  box-shadow: 2px 2px 0 #ff6b6b;
+}
+
+.queue-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #ff6b6b;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: bold;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #fff;
 }
 
 .login-btn {

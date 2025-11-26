@@ -52,6 +52,14 @@
           >
             <i class="fas fa-step-forward"></i>
           </button>
+
+          <button 
+            class="control-btn lyrics-hero-btn" 
+            @click="$emit('toggle-lyrics')"
+            title="Letra"
+          >
+            <span class="kanji-icon">水</span>
+          </button>
         </div>
 
         <!-- Barra de Progresso -->
@@ -120,7 +128,7 @@ const props = defineProps({
 })
 
 // Eventos emitidos para o componente pai
-const emit = defineEmits(['toggle-playback', 'previous-track', 'next-track', 'seek'])
+const emit = defineEmits(['toggle-playback', 'previous-track', 'next-track', 'seek', 'toggle-lyrics'])
 
 // Handler de Seek
 const handleSeek = (event) => {
@@ -388,6 +396,24 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   border-color: #ff6b6b;
   transform: skewX(-5deg) translate(-3px, -3px);
   box-shadow: 3px 3px 0 #fff;
+}
+
+.lyrics-hero-btn {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: #ff6b6b; /* Salmon background */
+  border-color: #ff6b6b;
+}
+
+.lyrics-hero-btn:hover {
+  background: #fff;
+  color: #ff6b6b;
+  box-shadow: 2px 2px 0 #ff6b6b;
+}
+
+.kanji-icon {
+  font-weight: bold;
+  line-height: 1;
+  font-size: 1.8rem;
 }
 
 .progress-section {

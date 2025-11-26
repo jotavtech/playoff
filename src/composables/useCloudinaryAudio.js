@@ -7,6 +7,21 @@ import { ref, reactive } from 'vue'
 // - Last.fm como API de fallback para informações musicais
 // - ColorThief para extração dinâmica de cores das capas
 // - Sistema de temas dinâmicos baseado nas cores extraídas
+// ============= ESTADO REATIVO DO PLAYER (SINGLETON) =============
+// Movido para fora da função para garantir estado compartilhado entre componentes
+
+const currentTrack = ref(null)         // Música sendo reproduzida atualmente
+const isPlaying = ref(false)           // Estado de reprodução (true/false)
+const position = ref(0)                // Posição atual em millisegundos
+const duration = ref(0)                // Duração total em millisegundos
+const playlist = ref([])               // Lista de reprodução
+const queue = ref([])                  // Fila de prioridade
+const audioPlayer = ref(null)          // Referência do elemento de áudio HTML5
+const spotifyToken = ref(null)         // Token de autenticação Spotify
+const spotifyTokenExpiry = ref(null)   // Timestamp de expiração do token
+const currentSongsList = ref([])       // Lista atual de músicas para navegação
+let colorThief = null                  // Instância do ColorThief
+
 export function useCloudinaryAudio() {
   // ============= CONFIGURAÇÕES DAS APIS =============
   // Credenciais e endpoints para integração com serviços externos
@@ -26,24 +41,9 @@ export function useCloudinaryAudio() {
   const spotifyClientSecret = '3bc40e26370c43818ec3612d25fcbf96'
   const spotifyBaseUrl = 'https://api.spotify.com/v1'
   
-  // ============= ESTADO REATIVO DO PLAYER =============
-  // Todo o estado do player é reativo para sincronização automática com a UI
-  
-  const currentTrack = ref(null)         // Música sendo reproduzida atualmente
-  const isPlaying = ref(false)           // Estado de reprodução (true/false)
-  const position = ref(0)                // Posição atual em millisegundos
-  const duration = ref(0)                // Duração total em millisegundos
-  const playlist = ref([])               // Lista de reprodução
-  const audioPlayer = ref(null)          // Referência do elemento de áudio HTML5
-  const spotifyToken = ref(null)         // Token de autenticação Spotify
-  const spotifyTokenExpiry = ref(null)   // Timestamp de expiração do token
-  const currentSongsList = ref([])       // Lista atual de músicas para navegação
-  
   // ============= INICIALIZAÇÃO DE BIBLIOTECAS EXTERNAS =============
   
   // Inicializo ColorThief para extração avançada de cores
-  // Esta biblioteca analisa pixels das imagens para determinar paletas de cores
-  let colorThief = null
   
   // ============= AUTENTICAÇÃO SPOTIFY =============
   
@@ -333,15 +333,8 @@ export function useCloudinaryAudio() {
       isPlaying.value = false
       console.log(`⏹️ Música finalizada: "${currentTrack.value?.title || 'Música desconhecida'}"`)
       
-      // Automaticamente avança para próxima música se houver lista disponível
-      if (currentSongsList.value && currentSongsList.value.length > 0) {
-        console.log('🔄 Auto-avançando para próxima música da lista...')
-        nextTrack(currentSongsList.value).catch(error => {
-          console.error('❌ Erro no auto-avanço:', error)
-        })
-      } else {
-        console.log('📭 Fim da reprodução - nenhuma lista de continuação disponível')
-      }
+      // Dispara evento para App.vue controlar a navegação (importante para suportar Spotify/HTML5 híbrido)
+      window.dispatchEvent(new CustomEvent('audio-ended'))
     })
     
     // Evento de erro no carregamento/reprodução
@@ -408,8 +401,41 @@ export function useCloudinaryAudio() {
   
   // ============= BUSCA AVANÇADA DE CAPAS DE ÁLBUM =============
   
+  // iTunes Search API Fallback
+  // Excelente fonte para previews de áudio e capas de alta qualidade
+  const searchItunesPreview = async (artist, track) => {
+    try {
+      console.log(`🍎 Buscando preview no iTunes: "${artist}" - "${track}"`)
+      const query = encodeURIComponent(`${artist} ${track}`)
+      const url = `https://itunes.apple.com/search?term=${query}&media=music&entity=song&limit=1`
+      
+      const response = await fetch(url)
+      if (!response.ok) throw new Error('iTunes API error')
+      
+      const data = await response.json()
+      
+      if (data.resultCount > 0) {
+        const item = data.results[0]
+        console.log(`✅ iTunes encontrou: ${item.trackName}`)
+        return {
+            previewUrl: item.previewUrl,
+            albumCover: item.artworkUrl100.replace('100x100', '600x600'), // Get larger image
+            albumName: item.collectionName,
+            trackName: item.trackName,
+            artist: item.artistName,
+            releaseDate: item.releaseDate,
+            genre: item.primaryGenreName
+        }
+      }
+      return null
+    } catch (e) {
+      console.warn('⚠️ iTunes search failed:', e)
+      return null
+    }
+  }
+
   // Sistema em cascata para buscar capas com múltiplas APIs como fallback
-  // Prioridade: Spotify > Last.fm > MusicBrainz + Cover Art Archive
+  // Prioridade: Spotify > iTunes > Last.fm > MusicBrainz + Cover Art Archive
   // Esta estratégia garante que sempre encontremos uma capa, mesmo que básica
   const searchAlbumCover = async (artist, track) => {
     try {
@@ -422,9 +448,17 @@ export function useCloudinaryAudio() {
         console.log('✅ Sucesso via Spotify - usando resultado de alta qualidade')
         return spotifyInfo
       }
+
+      // Tentativa 2: iTunes (Fallback com áudio preview)
+      console.log('2️⃣ Tentando iTunes API (fallback com áudio)...')
+      const itunesInfo = await searchItunesPreview(artist, track)
+      if (itunesInfo && itunesInfo.albumCover) {
+        console.log('✅ Sucesso via iTunes')
+        return itunesInfo
+      }
       
-      // Tentativa 2: Last.fm informações de track específico
-      console.log('2️⃣ Tentando Last.fm track info (fallback 1)...')
+      // Tentativa 3: Last.fm informações de track específico
+      console.log('3️⃣ Tentando Last.fm track info (fallback 2)...')
       const trackInfo = await fetchLastFmTrackInfo(artist, track)
       if (trackInfo && trackInfo.albumCover) {
         console.log('✅ Sucesso via Last.fm track info')
@@ -800,6 +834,22 @@ export function useCloudinaryAudio() {
         currentTrack.value = { ...songData }
       }
       
+      // Fallback final: Se ainda não tem áudio, tenta buscar explicitamente no iTunes
+      // Isso cobre casos onde o Spotify achou a capa mas não tem preview
+      if (!songData.audioUrl || songData.audioUrl === '') {
+        console.log('🔍 Tentando fallback final de áudio no iTunes...')
+        const itunesInfo = await searchItunesPreview(songData.artist, songData.title)
+        if (itunesInfo && itunesInfo.previewUrl) {
+          console.log(`🎵 Preview de áudio encontrado no iTunes: ${itunesInfo.previewUrl}`)
+          songData.audioUrl = itunesInfo.previewUrl
+          // Se ainda estiver sem capa decente, usa a do iTunes
+          if (!songData.albumCover || songData.albumCover.includes('default-album')) {
+             songData.albumCover = itunesInfo.albumCover
+             currentTrack.value = { ...songData }
+          }
+        }
+      }
+
       // Verifica se há URL de áudio disponível
       if (!songData.audioUrl || songData.audioUrl === '') {
         console.warn('⚠️ Nenhuma URL de áudio disponível para esta música')
@@ -954,8 +1004,35 @@ export function useCloudinaryAudio() {
     }
   }
   
-  // Next track - vai para a próxima música na lista
+  // Adiciona música à fila de prioridade
+  const addToQueue = (song) => {
+    // Evita duplicatas consecutivas na fila
+    const lastInQueue = queue.value[queue.value.length - 1]
+    if (lastInQueue && lastInQueue.id === song.id) {
+      console.log('⚠️ Música já é a última da fila')
+      return false
+    }
+    
+    queue.value.push(song)
+    console.log(`📥 Adicionada à fila: ${song.title}`)
+    return true
+  }
+
+  // Next track - vai para a próxima música na lista (prioriza fila)
   const nextTrack = async (songsList = []) => {
+    // 1. Prioridade: Fila manual
+    if (queue.value.length > 0) {
+      const nextSong = queue.value.shift() // Remove primeira da fila
+      console.log(`⏭️ Tocando próxima da fila: ${nextSong.title}`)
+      try {
+        await playSong(nextSong)
+        return true
+      } catch (error) {
+        console.error('❌ Erro ao tocar música da fila:', error)
+        // Se falhar, tenta a próxima (recursivo ou cai pro fallback)
+      }
+    }
+
     if (!currentTrack.value || !songsList || songsList.length === 0) {
       console.log('⏭️ Parando música atual (sem lista disponível)')
       audioPlayer.value.pause()
@@ -1162,6 +1239,8 @@ export function useCloudinaryAudio() {
     updateSongsList,
     setTrack,
     seek,
+    queue,
+    addToQueue,
     detectImageBrightness: async (src) => { // Wrapper para compatibilidade
       return new Promise((resolve) => {
         const img = new Image()

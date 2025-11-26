@@ -16,7 +16,7 @@
     </button>
 
     <!-- Giant Diagonal Covers Container -->
-    <div class="covers-container" ref="coversContainer">
+    <div class="covers-container" ref="coversContainer" :class="{ 'lyrics-mode': isLyricsVisible }">
       <div 
         v-for="(song, index) in displayedSongs" 
         :key="song.id"
@@ -52,14 +52,30 @@
           
           <!-- Vote buttons -->
           <div class="cover-actions">
-            <button @click.stop="handleVote(song.id)" class="vote-btn" :class="{ voted: hasVoted(song.id) }">
+            <button @click.stop="handleVote(song.id)" class="vote-btn" :class="{ voted: hasVoted(song.id) }" title="Votar">
               <i class="fas fa-heart"></i>
             </button>
-            <button @click.stop="handleSuperVote(song)" class="super-btn">
+            <button @click.stop="$emit('add-to-queue', song)" class="queue-btn" title="Adicionar à Fila">
+              <i class="fas fa-list-ul"></i>
+            </button>
+            <button @click.stop="handleSuperVote(song)" class="super-btn" title="Super Voto">
               <i class="fas fa-bolt"></i>
+            </button>
+            <button @click.stop="$emit('toggle-lyrics', song)" class="lyrics-btn" title="Letra">
+              <span class="kanji-icon">水</span>
             </button>
           </div>
         </div>
+
+        <!-- Lyrics Mode Play/Pause Button -->
+        <button 
+          v-if="isLyricsVisible && currentTrack?.id === song.id" 
+          class="lyrics-play-btn" 
+          @click.stop="$emit('play-song', song)"
+          title="Pausar/Reproduzir"
+        >
+          <i class="fas" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
+        </button>
 
         <!-- Playing badge -->
         <div class="playing-badge" v-if="currentTrack?.id === song.id && isPlaying">
@@ -94,11 +110,15 @@ const props = defineProps({
   isPlaying: {
     type: Boolean,
     default: false
+  },
+  isLyricsVisible: {
+    type: Boolean,
+    default: false
   }
 })
 
 // Emits
-const emit = defineEmits(['vote-for-song', 'super-vote', 'play-song'])
+const emit = defineEmits(['vote-for-song', 'super-vote', 'play-song', 'add-to-queue', 'toggle-lyrics'])
 
 // Refs
 const coversContainer = ref(null)
@@ -444,6 +464,27 @@ watch(() => props.songs, () => {
   box-shadow: 2px 2px 0 #fff;
 }
 
+.queue-btn {
+  width: 50px;
+  height: 50px;
+  background: transparent;
+  border: 3px solid #fff;
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.queue-btn:hover {
+  background: #1DB954;
+  border-color: #1DB954;
+  transform: translate(-2px, -2px);
+  box-shadow: 2px 2px 0 #fff;
+}
+
 .super-btn {
   background: #ffd700;
   border-color: #ffd700;
@@ -454,6 +495,75 @@ watch(() => props.songs, () => {
   background: #fff;
   transform: translate(-2px, -2px);
   box-shadow: 2px 2px 0 #ffd700;
+}
+
+.lyrics-btn {
+  width: 50px;
+  height: 50px;
+  background: #ff6b6b;
+  border: 3px solid #ff6b6b;
+  color: #fff;
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Noto Sans JP', sans-serif; /* Ensure font supports Kanji if possible, or fallback */
+}
+
+.lyrics-btn:hover {
+  background: #fff;
+  color: #ff6b6b;
+  transform: translate(-2px, -2px);
+  box-shadow: 2px 2px 0 #ff6b6b;
+}
+
+.lyrics-play-btn {
+  position: absolute;
+  right: -30px; /* Protrude from the card */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 70px;
+  height: 70px;
+  background: #ff6b6b;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 100;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+  transition: all 0.2s;
+}
+
+.lyrics-play-btn:hover {
+  transform: translateY(-50%) scale(1.1);
+  background: #fff;
+  color: #ff6b6b;
+  box-shadow: 0 0 20px rgba(255, 107, 107, 0.8);
+}
+
+.kanji-icon {
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* Lyrics Mode - Shrink Effect */
+.covers-container.lyrics-mode .cover-panel {
+  transform: skewX(-5deg) scale(0.7) translateY(10%) !important;
+  opacity: 0.4;
+  filter: grayscale(0.8);
+}
+
+.covers-container.lyrics-mode .cover-panel.playing {
+  transform: skewX(-5deg) scale(0.75) translateY(10%) !important;
+  opacity: 1; /* Keep playing song visible */
+  filter: none;
+  z-index: 20;
 }
 
 /* Playing Badge - Blurred */

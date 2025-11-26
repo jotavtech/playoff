@@ -69,12 +69,27 @@
   background-color: #0a0a0a;
   color: #fff;
   position: relative;
-  margin-top: 5rem;
-  padding-bottom: 0;
+  margin-top: auto; /* Push to bottom */
+  padding-bottom: 2rem; /* Give some breathing room at bottom */
   margin-bottom: 0;
   border-top: 5px solid #fff;
-  overflow: hidden;
+  overflow: visible; /* Allow pseudo-element to extend */
   width: 100%;
+  z-index: 10; /* Ensure it sits above background effects if any */
+}
+
+/* Extend footer background below to cover any visible dynamic background */
+.punk-footer::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh; /* Extend far below */
+  background-color: #0a0a0a;
+  transform: translateY(100%);
+  z-index: -1;
+  pointer-events: none;
 }
 
 /* Faixa estilo "fita de isolamento" */

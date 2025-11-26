@@ -16,11 +16,15 @@ export function useSpotifyPlayer() {
   const duration = ref(0)
   const volume = ref(0.7)
   const error = ref(null)
+  const trackEndedCallback = ref(null) // Callback para notificar fim da música
 
   let progressInterval = null
+  let previousState = null // Para detecção de mudanças de estado
 
   // Inicializa o Spotify Web Playback SDK
-  const initializePlayer = (accessToken) => {
+  const initializePlayer = (accessToken, onTrackEnded) => {
+    if (onTrackEnded) trackEndedCallback.value = onTrackEnded
+    
     if (!accessToken) {
       console.warn('⚠️ Access token não fornecido')
       return
@@ -103,6 +107,18 @@ export function useSpotifyPlayer() {
         currentTrack.value = null
         return
       }
+
+      // Detecção de fim de música (heurística para Spotify SDK)
+      // Se estava tocando (previousState.paused === false)
+      // E agora pausou (state.paused === true)
+      // E posição resetou para 0 (state.position === 0)
+      // E não é buffering (state.loading === false - não exposto mas inferido)
+      if (previousState && !previousState.paused && state.paused && state.position === 0) {
+         console.log('🏁 Spotify Track Ended Detected')
+         if (trackEndedCallback.value) trackEndedCallback.value()
+      }
+
+      previousState = state
 
       // Atualiza informações da track atual
       const track = state.track_window.current_track
@@ -193,7 +209,37 @@ export function useSpotifyPlayer() {
 
       // Erro específico
       const errorData = await response.json().catch(() => null)
-      throw new Error(errorData?.error?.message || 'Erro desconhecido')
+      const errorMessage = errorData?.error?.message || 'Erro desconhecido'
+      
+      // Tratamento específico para "no list was loaded" ou device not active
+      if (errorMessage.includes('no list was loaded') || errorMessage.includes('Device not found')) {
+         console.warn('⚠️ Tentando ativar device e retry...', errorMessage)
+         // Tenta transferir playback para cá primeiro
+         await transferPlayback()
+         // Retry após curto delay
+         return new Promise(resolve => {
+           setTimeout(async () => {
+              try {
+                const retryResponse = await fetch(
+                  `https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`,
+                  {
+                    method: 'PUT',
+                    headers: {
+                      'Authorization': `Bearer ${accessToken}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ uris: [spotifyUri] })
+                  }
+                )
+                resolve(retryResponse.status === 204 || retryResponse.ok)
+              } catch (e) {
+                resolve(false)
+              }
+           }, 500)
+         })
+      }
+
+      throw new Error(errorMessage)
     } catch (err) {
       console.error('❌ Erro ao tocar:', err)
       error.value = err.message
