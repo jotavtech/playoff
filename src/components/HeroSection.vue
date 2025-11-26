@@ -295,11 +295,11 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 /* Estilos específicos para o player card */
 .player-card {
   width: 100%;
-  max-width: 400px;
+  max-width: 550px;
   z-index: 10;
   position: relative;
-  padding: 2rem;
-  padding-top: 1.5rem;
+  padding: 2.5rem;
+  padding-top: 2rem;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(10px);
   border: 2px solid #fff;
@@ -312,41 +312,43 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 }
 
 .track-info {
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
   margin-top: 0;
   text-align: center;
 }
 
 .track-title {
-  font-size: 2rem;
+  font-family: 'Astek Grotesk', sans-serif;
+  font-size: 3rem;
   font-weight: bold;
   margin-bottom: 0.5rem;
   color: #fff;
+  letter-spacing: -0.02em;
 }
 
 .track-artist {
-  font-size: 1.2rem;
+  font-size: 1.4rem;
   color: #ff6b6b;
   margin-bottom: 0.3rem;
 }
 
 .track-album {
-  font-size: 1rem;
+  font-size: 1.1rem;
   color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
 }
 
 .player-controls {
   display: flex;
-  gap: 1.5rem;
+  gap: 2rem;
   justify-content: center;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
   align-items: center;
 }
 
 .control-btn {
-  width: 55px;
-  height: 55px;
+  width: 65px;
+  height: 65px;
   border-radius: 0;
   border: 3px solid #fff;
   background: transparent;
@@ -356,7 +358,7 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  font-size: 1.4rem;
 }
 
 .control-btn:hover {
@@ -367,13 +369,13 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 }
 
 .play-pause-btn {
-  width: 70px;
-  height: 70px;
+  width: 100px;
+  height: 100px;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 3px solid #fff;
-  font-size: 1.5rem;
+  border: 4px solid #fff;
+  font-size: 2.5rem;
   transform: skewX(-5deg);
 }
 

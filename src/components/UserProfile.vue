@@ -90,9 +90,9 @@
               <span class="song-artist">{{ song.artist }}</span>
             </div>
 
-            <div class="song-plays">
+            <div class="song-plays" :style="{ color: getFireConfig(song.play_count).color, textShadow: getFireConfig(song.play_count).shadow }">
               <span class="play-count">{{ song.play_count }}x</span>
-              <i class="fas fa-headphones"></i>
+              <i :class="getFireConfig(song.play_count).showFire ? 'fas fa-fire' : 'fas fa-headphones'"></i>
             </div>
           </div>
         </div>
@@ -222,6 +222,21 @@ const getRankClass = (index) => {
   return ''
 }
 
+// Configuração do ícone de fogo
+const getFireConfig = (count) => {
+  const n = parseInt(count) || 0
+  
+  if (n >= 200) return { color: '#000000', showFire: true, shadow: '0 0 5px #ffffff, 0 0 10px #ffffff' } // Fogo preto (com brilho branco para contraste)
+  if (n >= 100) return { color: '#FFFFFF', showFire: true, shadow: '0 0 10px #FFFFFF' } // Fogo branco
+  if (n >= 75) return { color: '#FF0000', showFire: true, shadow: '0 0 10px #FF0000' } // Fogo vermelho
+  if (n >= 50) return { color: '#9D00FF', showFire: true, shadow: '0 0 10px #9D00FF' } // Fogo roxo
+  if (n >= 25) return { color: '#00FF00', showFire: true, shadow: '0 0 10px #00FF00' } // Fogo verde
+  if (n >= 10) return { color: '#00BFFF', showFire: true, shadow: '0 0 10px #00BFFF' } // Fogo azul
+  if (n >= 5) return { color: '#FFD700', showFire: true, shadow: '0 0 10px #FFD700' } // Fogo amarelo
+  
+  return { color: '#ff6b6b', showFire: false, shadow: 'none' }
+}
+
 // Logout
 const handleLogout = () => {
   emit('logout')
@@ -289,10 +304,11 @@ onMounted(async () => {
   background: rgba(0, 0, 0, 0.95);
   backdrop-filter: blur(10px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 9999;
   padding: 1rem;
+  padding-top: 2rem;
   animation: fadeIn 0.3s ease;
 }
 

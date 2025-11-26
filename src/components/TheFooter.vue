@@ -70,7 +70,7 @@
   color: #fff;
   position: relative;
   margin-top: 5rem;
-  padding-bottom: 0.5rem;
+  padding-bottom: 0;
   margin-bottom: 0;
   border-top: 5px solid #fff;
   overflow: hidden;
@@ -197,17 +197,20 @@
 }
 
 .punk-link::before {
-  content: '>';
+  content: '\f714'; /* Skull icon from Font Awesome */
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
   position: absolute;
   left: 0;
   opacity: 0;
   transition: all 0.2s;
   color: #ff6b6b;
+  font-size: 0.9em;
 }
 
 .punk-link:hover::before {
   opacity: 1;
-  left: -10px;
+  left: -20px;
 }
 
 /* Social Section */

@@ -358,6 +358,36 @@ export function useSpotifyPlayer() {
     }
   }
 
+  // Busca o estado atual de reprodução (sync com outros dispositivos)
+  const getCurrentState = async (token = null) => {
+    const accessToken = token || localStorage.getItem('spotify_access_token')
+    if (!accessToken) return null
+
+    try {
+      const response = await fetch('https://api.spotify.com/v1/me/player', {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+
+      if (response.status === 204) {
+        return null // Nada tocando
+      }
+
+      if (response.status === 401) {
+        // Token expirado ou inválido
+        return { error: 401 }
+      }
+
+      if (response.ok) {
+        return await response.json()
+      }
+
+      return null
+    } catch (err) {
+      console.error('❌ Erro ao buscar estado atual:', err)
+      return null
+    }
+  }
+
   // Cleanup ao desmontar
   onUnmounted(() => {
     disconnect()
@@ -385,6 +415,7 @@ export function useSpotifyPlayer() {
     setVolume,
     disconnect,
     getDevices,
-    transferPlayback
+    transferPlayback,
+    getCurrentState
   }
 }

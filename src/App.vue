@@ -122,7 +122,8 @@ const {
   isAuthenticated,    // Se está logado
   spotifyAccessToken, // Token de acesso do Spotify
   logout,             // Função de logout
-  registerPlay        // Registrar reprodução
+  registerPlay,       // Registrar reprodução
+  refreshToken        // Função para renovar token
 } = useAuth()
 
 // ============= SPOTIFY WEB PLAYER =============
@@ -136,7 +137,8 @@ const {
   isPaused: isSpotifyPaused,
   togglePlay: toggleSpotifyPlayback,
   pause: pauseSpotify,
-  resume: resumeSpotify
+  resume: resumeSpotify,
+  getCurrentState // Importa função de sync
 } = useSpotifyPlayer()
 
 // ============= COMPUTED TIME & STATE =============
@@ -268,51 +270,74 @@ const handleSuperVote = async (song) => {
       console.log(`📋 Dados:`, JSON.stringify(song, null, 2))
       console.log(`🔐 Auth: ${isAuthenticated.value}, Player Ready: ${spotifyPlayerReady.value}`)
       
-      // OPÇÃO 1: Tocar via Spotify SDK (se logado e player pronto)
-      if (song.spotifyUrl && isAuthenticated.value && spotifyPlayerReady.value) {
+      // OPÇÃO 1: Tocar via Spotify SDK (se logado)
+      if (song.spotifyUrl && isAuthenticated.value) {
         console.log('🟢 Tentando tocar via Spotify Web Playback SDK')
         
-        const spotifyId = song.spotifyUrl.split('/').pop()
-        const spotifyUri = `spotify:track:${spotifyId}`
-        console.log(`🔗 URI: ${spotifyUri}`)
-        
-        const success = await playSpotifyTrack(spotifyUri)
-        
-        if (success) {
-          await setTrack(song)
+        // Se o player não estiver pronto, espera um pouco
+        if (!spotifyPlayerReady.value) {
+           console.log('⏳ Player não está pronto, aguardando...')
+           // Tenta esperar até 5 segundos
+           let attempts = 0
+           while (!spotifyPlayerReady.value && attempts < 50) {
+             await new Promise(resolve => setTimeout(resolve, 100))
+             attempts++
+           }
+           
+           if (!spotifyPlayerReady.value) {
+             console.warn('⚠️ Timeout aguardando player do Spotify')
+             // Não retorna, tenta cair para outras opções ou erro
+           }
+        }
+
+        if (spotifyPlayerReady.value) {
+          const spotifyId = song.spotifyUrl.split('/').pop()
+          const spotifyUri = `spotify:track:${spotifyId}`
+          console.log(`🔗 URI: ${spotifyUri}`)
           
-          if (song.id) {
-            // Tenta usar a duração da música se disponível, senão usa 0
-            // Isso corrige o problema de não contar tempo no histórico
-            const trackDuration = song.duration_ms || song.duration || 0
+          const success = await playSpotifyTrack(spotifyUri)
+          
+          if (success) {
+            await setTrack(song)
             
-            await registerPlay({
-              spotifyId: spotifyId,
-              duration: trackDuration,
-              completed: false
-            })
+            if (song.id) {
+              // Tenta usar a duração da música se disponível, senão usa 0
+              // Isso corrige o problema de não contar tempo no histórico
+              const trackDuration = song.duration_ms || song.duration || 0
+              
+              await registerPlay({
+                spotifyId: spotifyId,
+                duration: trackDuration,
+                completed: false
+              })
+            }
+            
+            showNotification(`Spotify: ${song.title}`, 'success')
+            return
+          } else {
+            console.error('❌ Falha ao tocar no Spotify SDK')
+            showNotification('Falha ao tocar no Spotify', 'error')
           }
-          
-          showNotification(`Spotify: ${song.title}`, 'success')
-          return
-        } else {
-          console.error('❌ Falha ao tocar no Spotify SDK')
-          showNotification('Falha ao tocar no Spotify', 'error')
         }
       }
       
-      // OPÇÃO 2: Tocar via HTML5 (se tiver audioUrl válida)
-      if (song.audioUrl && song.audioUrl.trim() !== '') {
-        console.log(`🔵 Tocando via Player HTML5: ${song.audioUrl}`)
-        await playSong(song)
-        showNotification(`Preview: ${song.title}`, 'success')
-        return
+      // OPÇÃO 2: Tocar via HTML5 (se tiver audioUrl válida ou tentar buscar preview)
+      // playSong do useCloudinaryAudio tem capacidade de buscar previewUrl se audioUrl estiver faltando
+      console.log(`🔵 Tentando reprodução via Player HTML5/Preview...`)
+      try {
+        const result = await playSong(song)
+        if (result) {
+          showNotification(`Preview: ${song.title}`, 'success')
+          return
+        }
+      } catch (e) {
+        console.log('⚠️ Falha na tentativa de reprodução HTML5:', e)
       }
       
-      // OPÇÃO 3: Música do Spotify sem login - pedir para logar
+      // OPÇÃO 3: Música do Spotify sem login - pedir para logar (apenas informativo)
       if (song.spotifyUrl && !isAuthenticated.value) {
         console.log('⚠️ Música do Spotify requer login')
-        showNotification(`Faça login para ouvir "${song.title}"`, 'warning')
+        showNotification(`Faça login para ouvir a versão completa de "${song.title}"`, 'warning')
         await setTrack(song)
         return
       }
@@ -503,6 +528,77 @@ const handleLogout = () => {
   showNotification('👋 Até logo! Você foi desconectado.', 'info')
 }
 
+// ============= SINCRONIZAÇÃO SPOTIFY EXTERNO =============
+const startSpotifySync = () => {
+  setInterval(async () => {
+    if (!isAuthenticated.value) return
+
+    // Passa token explicitamente para garantir uso do mais atual
+    const state = await getCurrentState(spotifyAccessToken.value)
+    
+    if (state && state.error === 401) {
+      console.log('🔄 Token expirado durante sync, tentando renovar...')
+      const refreshed = await refreshToken()
+      if (refreshed) {
+         console.log('✅ Token renovado, sync retomará no próximo ciclo')
+      } else {
+         // Se falhar renovação e estavamos logados, talvez devêssemos deslogar?
+         // Por enquanto apenas loga
+         console.warn('⚠️ Falha ao renovar token durante sync')
+      }
+      return
+    }
+    
+    if (state && state.item) {
+      // Verifica se estamos tocando algo diferente do app
+      // Se o player local (SDK) estiver tocando, o estado já é gerenciado por ele
+      // Mas se for outro device, precisamos atualizar a UI
+      
+      const isLocalDevice = state.device.id === deviceId.value
+      if (isLocalDevice) return // Deixa o SDK gerenciar
+
+      if (state.is_playing) {
+        console.log('🎵 Detectado Spotify em outro device:', state.item.name)
+        
+        const track = {
+          id: state.item.id,
+          title: state.item.name,
+          artist: state.item.artists.map(a => a.name).join(', '),
+          album: state.item.album.name,
+          albumCover: state.item.album.images[0]?.url,
+          spotifyUrl: state.item.external_urls.spotify,
+          duration: state.item.duration_ms,
+          votes: 0 // Placeholder
+        }
+
+        // Atualiza track atual apenas se mudou
+        if (!currentTrack.value || currentTrack.value.id !== track.id) {
+          await setTrack(track)
+          
+          // Registra no histórico
+          await registerPlay({
+            spotifyId: track.id,
+            duration: track.duration,
+            completed: false
+          })
+        }
+        
+        // Sincroniza estado de pause/play
+        isSpotifyPaused.value = !state.is_playing
+        
+        // Atualiza posição e duração para a barra de progresso
+        spotifyPosition.value = state.progress_ms
+        spotifyDuration.value = state.item.duration_ms
+
+        // Força status de playing visualmente
+        // Precisamos garantir que isSpotifyActive seja true
+        // Como isSpotifyActive depende de spotifyPlayerReady e isAuthenticated,
+        // e estamos logados, deve funcionar se tivermos spotifyUrl
+      }
+    }
+  }, 5000) // Polling a cada 5s
+}
+
 // ============= CICLO DE VIDA DO COMPONENTE =============
 
 // Inicialização quando o componente é montado
@@ -519,6 +615,7 @@ onMounted(async () => {
     
     console.log('🔄 3/4: Iniciando loops de atualização...')
     startUpdateLoops()
+    startSpotifySync()
     
     console.log('🎨 4/4: Configurando listeners de eventos...')
     // Escuto eventos de extração de cor das capas de álbum
