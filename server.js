@@ -538,6 +538,54 @@ let songs = [
   }
 ];
 
+const mapDbSongToMemory = (dbSong) => {
+  const releaseYear = dbSong.release_date ? parseInt(dbSong.release_date.substring(0, 4), 10) : null;
+
+  return {
+    id: dbSong.spotify_id || `db-song-${dbSong.id}`,
+    title: dbSong.title,
+    artist: dbSong.artist,
+    album: dbSong.album || 'Álbum Desconhecido',
+    audioUrl: dbSong.audio_url || '',
+    albumCover: dbSong.album_cover,
+    year: Number.isNaN(releaseYear) ? null : releaseYear,
+    votes: dbSong.votes || 0,
+    addedAt: dbSong.created_at || new Date().toISOString(),
+    spotifyUrl: dbSong.spotify_url || '',
+    duration_ms: dbSong.duration_ms || 0,
+    previewUrl: dbSong.preview_url || null,
+    added_by_user_id: dbSong.added_by_user_id || null,
+    addedBy: dbSong.added_by_user_id ? 'User' : 'Database'
+  };
+};
+
+const bootstrapSongsFromDatabase = () => {
+  try {
+    const storedSongs = db.getAllSongs();
+
+    if (!storedSongs || storedSongs.length === 0) {
+      console.log('📭 Nenhuma música salva no banco. Mantendo apenas o seed em memória.');
+      return;
+    }
+
+    const mappedSongs = storedSongs.map(mapDbSongToMemory);
+    const currentSongsMap = new Map(songs.map(song => [song.id, song]));
+
+    mappedSongs.forEach((song) => {
+      currentSongsMap.set(song.id, { ...currentSongsMap.get(song.id), ...song });
+    });
+
+    songs = Array.from(currentSongsMap.values());
+    voteManager.currentHighestVoted = voteManager.getHighestVotedSong();
+
+    console.log(`💾 ${mappedSongs.length} música(s) sincronizadas do banco de dados (total atual: ${songs.length}).`);
+  } catch (error) {
+    console.error('❌ Erro ao carregar músicas do banco de dados:', error);
+  }
+};
+
+bootstrapSongsFromDatabase();
+
 let chatMessages = [
   {
     user: 'Sistema',

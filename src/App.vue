@@ -31,7 +31,7 @@
       <button 
         v-if="isAuthenticated && (!spotifyPlayerReady || spotifyError)" 
         class="reconnect-btn" 
-        @click="initSpotifyPlayer()" 
+        @click="initSpotifyPlayer(handleNextTrack)" 
         title="Reconectar Player"
       >
         <i class="fas fa-plug"></i>
@@ -252,7 +252,12 @@ const combinedSongs = computed(() => {
 })
 
 const isSpotifyActive = computed(() => {
-  return currentTrack.value?.spotifyUrl && isAuthenticated.value && spotifyPlayerReady.value
+  // Se o HTML5 estiver tocando, prioriza ele (modo preview)
+  if (isAudioPlaying.value) return false
+  
+  // Se tem URL do Spotify e está autenticado, considera modo Spotify ativo
+  // (Mesmo que seja reprodução remota em outro dispositivo)
+  return currentTrack.value?.spotifyUrl && isAuthenticated.value
 })
 
 const currentTime = computed(() => {
@@ -609,8 +614,8 @@ const handlePlaySong = async (song) => {
         console.log('💡 Diagnóstico Avançado:')
         console.log('   - Verifique se você está logado no Spotify Web Player')
         console.log('   - Tentando reconectar automaticamente...')
-        // Tenta reinicializar silenciosamente
-        if (spotifyAccessToken.value) initSpotifyPlayer()
+        // Tenta reinicializar silenciosamente com callback de next track
+        if (spotifyAccessToken.value) initSpotifyPlayer(handleNextTrack)
       }
 
       // Feedback mais suave
@@ -823,7 +828,8 @@ const handleAlbumColorExtracted = (event) => {
 watch(() => spotifyAccessToken.value, (newToken) => {
   if (newToken && isAuthenticated.value && !spotifyPlayerReady.value) {
     console.log('🎧 Inicializando Spotify Web Player (Token detectado via watcher)...')
-    initSpotifyPlayer(newToken)
+    // Passa handleNextTrack para garantir auto-play
+    initSpotifyPlayer(handleNextTrack)
   }
 }, { immediate: true })
 
@@ -933,23 +939,39 @@ const handleLogout = () => {
   showNotification('👋 Até logo! Você foi desconectado.', 'info')
 }
 
+const lastSpotifySyncTime = ref(0) // Timestamp da última sync com a API
+const lastSpotifySyncPosition = ref(0) // Posição recebida na última sync
+let isRefreshingToken = false // Flag para evitar concorrência de refresh
+
 // ============= SINCRONIZAÇÃO SPOTIFY EXTERNO =============
 const startSpotifySync = () => {
   setInterval(async () => {
-    if (!isAuthenticated.value) return
+    // Se não estiver autenticado ou já estiver tentando renovar token, pula
+    if (!isAuthenticated.value || isRefreshingToken) return
 
     // Passa token explicitamente para garantir uso do mais atual
     const state = await getCurrentState(spotifyAccessToken.value)
     
     if (state && state.error === 401) {
       console.log('🔄 Token expirado durante sync, tentando renovar...')
-      const refreshed = await refreshToken()
-      if (refreshed) {
-         console.log('✅ Token renovado, sync retomará no próximo ciclo')
-      } else {
-         // Se falhar renovação e estavamos logados, talvez devêssemos deslogar?
-         // Por enquanto apenas loga
-         console.warn('⚠️ Falha ao renovar token durante sync')
+      
+      isRefreshingToken = true
+      try {
+        const refreshed = await refreshToken()
+        if (refreshed) {
+           console.log('✅ Token renovado, sync retomará no próximo ciclo')
+           // Se o player estava pronto, pode precisar reinicializar
+           if (spotifyPlayerReady.value) {
+             initSpotifyPlayer(handleNextTrack)
+           }
+        } else {
+           console.warn('⚠️ Falha crítica ao renovar token - deslogando usuário')
+           logout() // Força logout para parar o ciclo de erros
+        }
+      } catch (e) {
+        console.error('Erro no refresh:', e)
+      } finally {
+        isRefreshingToken = false
       }
       return
     }
@@ -958,25 +980,20 @@ const startSpotifySync = () => {
       // Verifica se houve interação local recente (últimos 10s)
       // Isso previne que o estado antigo do Spotify (em outro device) sobrescreva nossa ação recente
       if (Date.now() - lastLocalInteraction.value < 10000) {
-        // console.log('⏳ Aguardando propagação da ação local - sync pausado')
         return
       }
 
       // Verifica se o device ativo é o próprio Web Player do PlayOff
-      // Mesmo assim, queremos sincronizar nome/capa/disco quando a música
-      // é trocada pelo app do celular controlando esse device
       const isLocalDevice = state.device && deviceId.value && state.device.id === deviceId.value
-      // Não damos mais return aqui; usamos o estado para atualizar a UI
-      // independentemente de ser outro device ou o próprio Web Player
-
+      
       // Se estiver tocando áudio HTML5 localmente, não deixa o Spotify externo atropelar
       if (isAudioPlaying.value) {
-        // console.log('🎵 HTML5 tocando - ignorando sync do Spotify externo')
         return
       }
 
-      if (state.is_playing) {
-        console.log('🎵 Detectado Spotify em outro device:', state.item.name)
+      // SEMPRE atualiza se estiver tocando no Spotify, independente do device
+      // O usuário quer ver o que está tocando no celular
+      if (state.is_playing || (state.item && !isLocalDevice)) {
         
         const track = {
           id: state.item.id,
@@ -984,16 +1001,18 @@ const startSpotifySync = () => {
           artist: state.item.artists.map(a => a.name).join(', '),
           album: state.item.album.name,
           albumCover: state.item.album.images[0]?.url,
-          spotifyUrl: state.item.external_urls.spotify,
+          spotifyUrl: state.item.external_urls?.spotify,
           duration: state.item.duration_ms,
-          votes: 0 // Placeholder
+          votes: 0,
+          isExternalDevice: !isLocalDevice
         }
 
         // Atualiza track atual apenas se mudou
         if (!currentTrack.value || currentTrack.value.id !== track.id) {
+          console.log(`🔄 Sincronizando música do Spotify (${!isLocalDevice ? 'Celular/PC' : 'Web'}): ${track.title}`)
           await setTrack(track)
           
-          // Registra no histórico
+          // Registra no histórico se for música nova
           await registerPlay({
             spotifyId: track.id,
             duration: track.duration,
@@ -1004,17 +1023,45 @@ const startSpotifySync = () => {
         // Sincroniza estado de pause/play
         isSpotifyPaused.value = !state.is_playing
         
-        // Atualiza posição e duração para a barra de progresso
+        // ATUALIZAÇÃO PRECISA DO TEMPO
+        // Salva o timestamp e a posição exata deste momento para interpolação
+        lastSpotifySyncTime.value = Date.now()
+        lastSpotifySyncPosition.value = state.progress_ms
+        
         spotifyPosition.value = state.progress_ms
         spotifyDuration.value = state.item.duration_ms
 
-        // Força status de playing visualmente
-        // Precisamos garantir que isSpotifyActive seja true
-        // Como isSpotifyActive depende de spotifyPlayerReady e isAuthenticated,
-        // e estamos logados, deve funcionar se tivermos spotifyUrl
+        // Se for device externo, garantimos que o app saiba que está tocando
+        if (!isLocalDevice && state.is_playing) {
+           isSpotifyPaused.value = false
+        }
       }
     }
-  }, 3000) // Polling a cada 3s
+  }, 1000) // Polling a cada 1s (mais rápido para responsividade)
+}
+
+// ============= INTERPOLAÇÃO LOCAL DE TEMPO =============
+const startLocalInterpolation = () => {
+  // Loop de alta frequência (60fps aprox) para suavidade total
+  setInterval(() => {
+    // Se Spotify está ativo e tocando (e temos dados de sync)
+    if (isSpotifyActive.value && !isSpotifyPaused.value && lastSpotifySyncTime.value > 0) {
+      
+      // Calcula quanto tempo passou desde a última sync da API
+      const delta = Date.now() - lastSpotifySyncTime.value
+      
+      // Nova posição é a posição original + o tempo decorrido
+      // Isso garante sincronia perfeita sem "drift" acumulativo
+      const newPos = lastSpotifySyncPosition.value + delta
+      
+      // Só atualiza se não passou da duração total
+      if (spotifyDuration.value > 0 && newPos <= spotifyDuration.value) {
+        spotifyPosition.value = newPos
+      } else if (spotifyDuration.value > 0 && newPos > spotifyDuration.value) {
+        spotifyPosition.value = spotifyDuration.value
+      }
+    }
+  }, 30) // 33ms ~ 30fps para UI suave
 }
 
 // ============= CICLO DE VIDA DO COMPONENTE =============
@@ -1044,7 +1091,7 @@ onMounted(async () => {
           console.warn('⚠️ Spotify SDK script não detectado ainda! Player tentará conectar assim que carregar.')
         }
         
-        initSpotifyPlayer()
+        initSpotifyPlayer(handleNextTrack)
         return true
       } else {
         if (!isAuthenticated.value) console.log('   ❌ Não autenticado')
@@ -1102,6 +1149,7 @@ onMounted(async () => {
     console.log('🔄 3/4: Iniciando loops de atualização...')
     startUpdateLoops()
     startSpotifySync()
+    startLocalInterpolation()
     
     console.log('🎨 4/4: Configurando listeners de eventos...')
     // Escuto eventos de extração de cor das capas de álbum

@@ -248,22 +248,56 @@ onMounted(() => {
   /* Cor será injetada via style */
 }
 
-.close-lyrics {
-  position: absolute;
+/* === BOTÃO FECHAR RADICAL === */
+.close-lyrics-radical {
+  position: fixed;
   top: 2rem;
-  right: 2rem;
+  left: 2rem;
+  width: 60px;
+  height: 60px;
   background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 2rem;
+  border: 3px solid #fff;
   cursor: pointer;
+  z-index: 100; /* Acima de tudo */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: skewX(-10deg);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 5px 5px 0 rgba(0,0,0,0.5);
+}
+
+.close-lyrics-radical .x-stroke {
+  position: absolute;
+  width: 40px;
+  height: 4px;
+  background-color: #fff;
   transition: all 0.3s;
 }
 
-.close-lyrics:hover {
-  color: #fff;
-  transform: rotate(90deg) scale(1.2);
-  text-shadow: 0 0 15px #fff;
+.close-lyrics-radical .x-stroke:first-child {
+  transform: rotate(45deg);
+}
+
+.close-lyrics-radical .x-stroke:last-child {
+  transform: rotate(-45deg);
+}
+
+.close-lyrics-radical:hover {
+  background: #fff;
+  border-color: #ff0000; /* Vermelho sangue */
+  transform: skewX(-10deg) scale(1.1) rotate(5deg);
+  box-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000;
+}
+
+.close-lyrics-radical:hover .x-stroke {
+  background-color: #ff0000;
+}
+
+/* Ao clicar (efeito de pressão) */
+.close-lyrics-radical:active {
+  transform: skewX(-10deg) scale(0.95);
+  box-shadow: 0 0 10px #ff0000;
 }
 
 @media (max-width: 768px) {
@@ -273,6 +307,15 @@ onMounted(() => {
   .lyric-line.active {
     font-size: 2.5rem;
     padding: 0.5rem 1rem;
+  }
+  .close-lyrics-radical {
+    top: 1rem;
+    left: 1rem;
+    width: 50px;
+    height: 50px;
+  }
+  .close-lyrics-radical .x-stroke {
+    width: 30px;
   }
 }
 </style>

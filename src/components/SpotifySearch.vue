@@ -153,7 +153,9 @@ const addSong = (track) => {
 .search-box {
   display: flex;
   gap: 0;
-  border: 3px solid #fff;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 .search-input {

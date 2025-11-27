@@ -245,7 +245,7 @@ watch(() => props.songs, () => {
 }
 
 .carousel-title {
-  font-family: 'Snuggle Punk', 'Impact', sans-serif;
+  font-family: 'Cingire', sans-serif;
   color: #fff;
   font-size: 2.5rem;
   letter-spacing: 0.05em;

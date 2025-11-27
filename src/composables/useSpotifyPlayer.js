@@ -346,83 +346,71 @@ export function useSpotifyPlayer() {
     }
   }
 
-  // Play/Pause toggle
+  // Helper para chamadas de API
+  const callSpotifyApi = async (endpoint, method = 'POST', body = null) => {
+    const accessToken = localStorage.getItem('spotify_access_token')
+    if (!accessToken) return false
+
+    try {
+      const options = {
+        method,
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      }
+      if (body) {
+        options.headers['Content-Type'] = 'application/json'
+        options.body = JSON.stringify(body)
+      }
+
+      const response = await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, options)
+
+      if (response.status === 204 || response.ok) return true
+      
+      // Tratamento específico para 404 (No Active Device)
+      if (response.status === 404) {
+        console.warn(`⚠️ Comando ${endpoint} falhou: Nenhum dispositivo ativo`)
+        error.value = 'Nenhum dispositivo Spotify ativo. Dê play no celular/desktop primeiro.'
+        return false
+      }
+      
+      return false
+    } catch (err) {
+      console.error(`❌ Erro na API Spotify (${endpoint}):`, err)
+      return false
+    }
+  }
+
+  // Play/Pause toggle via API (funciona remoto)
   const togglePlay = async () => {
-    if (!player.value) return false
-
-    try {
-      await player.value.togglePlay()
-      return true
-    } catch (err) {
-      console.error('❌ Erro ao toggle play:', err)
-      return false
+    if (isPaused.value) {
+      return await callSpotifyApi('play', 'PUT')
+    } else {
+      return await callSpotifyApi('pause', 'PUT')
     }
   }
 
-  // Pausa
+  // Pausa via API
   const pause = async () => {
-    if (!player.value) return false
-
-    try {
-      await player.value.pause()
-      return true
-    } catch (err) {
-      console.error('❌ Erro ao pausar:', err)
-      return false
-    }
+    return await callSpotifyApi('pause', 'PUT')
   }
 
-  // Resume
+  // Resume via API
   const resume = async () => {
-    if (!player.value) return false
-
-    try {
-      await player.value.resume()
-      return true
-    } catch (err) {
-      console.error('❌ Erro ao resumir:', err)
-      return false
-    }
+    return await callSpotifyApi('play', 'PUT')
   }
 
-  // Próxima música
+  // Próxima música via API
   const nextTrack = async () => {
-    if (!player.value) return false
-
-    try {
-      await player.value.nextTrack()
-      return true
-    } catch (err) {
-      console.error('❌ Erro ao pular:', err)
-      return false
-    }
+    return await callSpotifyApi('next', 'POST')
   }
 
-  // Música anterior
+  // Música anterior via API
   const previousTrack = async () => {
-    if (!player.value) return false
-
-    try {
-      await player.value.previousTrack()
-      return true
-    } catch (err) {
-      console.error('❌ Erro ao voltar:', err)
-      return false
-    }
+    return await callSpotifyApi('previous', 'POST')
   }
-
-  // Seek (pular para posição)
-  const seek = async (positionMs) => {
-    if (!player.value) return false
-
-    try {
-      await player.value.seek(positionMs)
-      position.value = positionMs
-      return true
-    } catch (err) {
-      console.error('❌ Erro ao seek:', err)
-      return false
-    }
+  
+  // Seek via API
+  const seek = async (position_ms) => {
+    return await callSpotifyApi(`seek?position_ms=${Math.floor(position_ms)}`, 'PUT')
   }
 
   // Ajusta volume

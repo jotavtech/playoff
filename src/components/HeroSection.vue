@@ -22,7 +22,12 @@
           <p v-if="currentTrack" class="track-artist">{{ currentTrack.artist }}</p>
           <p v-else class="track-artist">Sistema de Votação Musical</p>
           
-          <p v-if="currentTrack" class="track-album">{{ currentTrack.album }}</p>
+          <p v-if="currentTrack" class="track-album">
+            <span v-if="currentTrack.isExternalDevice" class="external-device-badge" title="Tocando no Spotify (Celular/PC)">
+              <i class="fas fa-mobile-alt"></i> Remoto
+            </span>
+            {{ currentTrack.album }}
+          </p>
           <p v-else class="track-album">Vote na sua música favorita!</p>
         </div>
 
@@ -285,7 +290,7 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   padding: 2rem;
   min-height: 100vh;
   gap: 2rem;
-  margin-bottom: 8rem;
+  margin-bottom: 2rem;
   width: 100%;
   position: relative;
   overflow: visible;
@@ -506,5 +511,27 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 .vinyl-center.white-album .placeholder-text {
   color: #333;
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+}
+
+.external-device-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(29, 185, 84, 0.2);
+  border: 1px solid #1DB954;
+  color: #1DB954;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+  animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+  0% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0.4); }
+  70% { box-shadow: 0 0 0 5px rgba(29, 185, 84, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0); }
 }
 </style> 
