@@ -200,8 +200,52 @@ const {
   resume: resumeSpotify,
   getCurrentState, // Importa função de sync
   seek: spotifySeek,
-  error: spotifyError
+  error: spotifyError,
+  currentTrack: spotifyCurrentTrack // Track do Spotify (local ou remoto)
 } = useSpotifyPlayer()
+
+// ============= SYNC REMOTO (CELULAR → WEB) =============
+// Observa mudanças na track do Spotify (vindas do celular ou outro device)
+// e atualiza a UI principal para refletir o que está tocando
+watch(spotifyCurrentTrack, (newSpotifyTrack) => {
+  if (!newSpotifyTrack) return
+
+  // Se a música atual da UI já é a mesma do Spotify, não faz nada (evita loop)
+  if (currentTrack.value && (
+      currentTrack.value.id === newSpotifyTrack.id || 
+      currentTrack.value.spotifyUrl?.includes(newSpotifyTrack.id)
+  )) {
+    return
+  }
+
+  // Se estamos tocando preview (HTML5) ativamente, ignoramos sync remoto
+  // para não interromper a experiência local
+  if (isAudioPlaying.value) return
+
+  console.log('🔄 App.vue: Sincronizando com Spotify Remoto:', newSpotifyTrack.name)
+
+  // Converte track do Spotify para formato do App
+  const mappedTrack = {
+    id: newSpotifyTrack.id,
+    title: newSpotifyTrack.name,
+    artist: newSpotifyTrack.artist,
+    album: newSpotifyTrack.album,
+    albumCover: newSpotifyTrack.albumCover,
+    spotifyUrl: newSpotifyTrack.uri, // URI para play
+    duration_ms: newSpotifyTrack.duration_ms,
+    duration: newSpotifyTrack.duration_ms, // Compatibilidade
+    audioUrl: null // Não tem audio HTML5
+  }
+
+  // Atualiza a track principal da UI
+  setTrack(mappedTrack)
+  
+  // Se lyrics estiver aberta, busca nova letra
+  if (showLyrics.value) {
+    fetchLyrics(mappedTrack.title, mappedTrack.artist, mappedTrack.duration_ms)
+  }
+})
+
 
 // ============= LETRAS DA MÚSICA =============
 const { 
