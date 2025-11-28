@@ -43,7 +43,7 @@
           <li><a href="#" class="punk-link" @click.prevent>INÍCIO</a></li>
           <li><a href="#" class="punk-link" @click.prevent>VOTAÇÃO</a></li>
           <li><a href="#" class="punk-link" @click.prevent>RANKING</a></li>
-          <li><a href="#" class="punk-link" @click.prevent>SOBRE</a></li>
+          <li><a href="#" class="punk-link" @click.prevent="$emit('open-about')">SOBRE</a></li>
         </ul>
       </div>
 
@@ -63,6 +63,10 @@
     </div>
   </footer>
 </template>
+
+<script setup>
+defineEmits(['open-about'])
+</script>
 
 <style scoped>
 .punk-footer {

@@ -331,7 +331,7 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 }
 
 .track-title {
-  font-family: 'Astek Grotesk', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 3rem;
   font-weight: bold;
   margin-bottom: 0.5rem;

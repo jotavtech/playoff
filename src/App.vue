@@ -42,6 +42,14 @@
         <span v-if="queue.length > 0" class="queue-badge">{{ queue.length }}</span>
       </button>
 
+      <button class="retrospective-btn" @click="showRetrospective = true" title="Resumo da Semana">
+        <i class="fas fa-compact-disc"></i>
+      </button>
+
+      <button class="about-btn" @click="showAbout = true" title="Sobre o Dev">
+        <i class="fas fa-fingerprint"></i>
+      </button>
+
       <button v-if="!isAuthenticated" @click="showLoginModal = true" class="login-btn">
         <i class="fab fa-spotify"></i>
         <span>Entrar</span>
@@ -55,6 +63,15 @@
     <!-- Modais -->
     <LoginModal :showModal="showLoginModal" @close="showLoginModal = false" />
     <QueueModal v-if="showQueueModal" @close="showQueueModal = false" />
+    <RetrospectiveModal 
+      v-if="showRetrospective" 
+      :songs="combinedSongs" 
+      @close="showRetrospective = false" 
+    />
+    <AboutView 
+      v-if="showAbout" 
+      @close="showAbout = false" 
+    />
     <UserProfile 
       v-if="showProfileModal" 
       :user="user" 
@@ -104,6 +121,7 @@
         <LyricsView 
           v-if="showLyrics"
           :lyrics="lyricsLines"
+          :track="currentTrack"
           :current-line-index="currentLineIndex"
           :is-loading="isLoadingLyrics"
           :error="errorLyrics"
@@ -113,7 +131,7 @@
         />
 
         <!-- Footer Punk -->
-        <TheFooter />
+        <TheFooter @open-about="showAbout = true" />
       </div>
     </div>
   </div>
@@ -135,6 +153,8 @@ import UserProfile from './components/UserProfile.vue'
 import TheFooter from './components/TheFooter.vue'
 import QueueModal from './components/QueueModal.vue'
 import LyricsView from './components/LyricsView.vue'
+import RetrospectiveModal from './components/RetrospectiveModal.vue'
+import AboutView from './views/AboutView.vue'
 
 // ============= CONFIGURAÇÃO DA API =============
 // Usando URL relativa para aproveitar o proxy do Vite
@@ -328,6 +348,8 @@ const currentDominantColor = computed(() => {
 const showLoginModal = ref(false)
 const showProfileModal = ref(false)
 const showQueueModal = ref(false)
+const showRetrospective = ref(false)
+const showAbout = ref(false)
 const showLyrics = ref(false)
 const logoAccentColor = ref([255, 107, 107]) // RGB Array default
 const lastLocalInteraction = ref(0) // Timestamp da última interação local

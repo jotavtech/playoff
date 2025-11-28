@@ -105,6 +105,12 @@ export function useLyrics() {
   // Update active line based on current time
   const updateCurrentLine = (currentTime) => {
     if (!lyrics.value.length) return
+    
+    // Validação de segurança
+    if (typeof currentTime !== 'number' || isNaN(currentTime)) {
+        // console.warn('updateCurrentLine: currentTime inválido', currentTime)
+        return
+    }
 
     // Pequeno offset para antecipar visualmente a troca (0.3s)
     // Isso compensa o tempo de scroll e a percepção humana
@@ -120,9 +126,15 @@ export function useLyrics() {
       }
     }
     
+    // Debug esporádico (a cada 10s de música aprox)
+    if (Math.floor(currentTime) % 10 === 0 && Math.random() < 0.1) {
+        console.log(`Lyrics Sync: Time=${currentTime.toFixed(2)}s, Index=${index}/${lyrics.value.length}`)
+    }
+    
     // Apenas atualiza se mudou para evitar trigger desnecessário de watchers
     if (index !== -1 && currentLineIndex.value !== index) {
         currentLineIndex.value = index
+        // console.log(`Line changed to ${index}: ${lyrics.value[index].text}`)
     }
   }
 

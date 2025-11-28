@@ -1276,6 +1276,53 @@ body.theme-neutral {
   }
 }
 
+.retrospective-btn {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background: #000;
+  border: 2px solid #ff6b6b;
+  color: #ff6b6b;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+}
+
+.about-btn {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background: #000;
+  border: 2px solid #4a5568;
+  color: #4a5568;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.about-btn:hover {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+}
+
+.retrospective-btn:hover {
+  background: #ff6b6b;
+  color: #000;
+  transform: scale(1.1) rotate(10deg);
+  box-shadow: 0 0 20px rgba(255, 107, 107, 0.6);
+}
+
 /* Dynamic Vinyl Disc Colors - Responds to music themes */
 body.theme-warm .vinyl-disc {
   background: 

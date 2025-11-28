@@ -1250,7 +1250,14 @@ export function useCloudinaryAudio() {
         audioPlayer.value.currentTime = 0
       }
       
-      isPlaying.value = true
+      // Atualiza a duração com base nos dados da música (importante para sync remoto)
+      if (songData.duration || songData.duration_ms) {
+        duration.value = songData.duration || songData.duration_ms
+      }
+      
+      // Não forçamos isPlaying = true aqui pois setTrack é usado para sync passivo
+      // O estado de playing deve vir do player externo (Spotify) ou ser acionado por playSong()
+      
       return true
     } catch (error) {
       console.error('Erro ao definir faixa:', error)
