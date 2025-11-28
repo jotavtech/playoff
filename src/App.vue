@@ -482,17 +482,26 @@ const handleSuperVote = async (song) => {
         // Feedback específico para super voto
         showNotification(`⚡ Super Voto! Tocando imediatamente: ${song.title}`, 'success')
       } else {
-        // Falha técnica (não culpar o usuário / Premium)
-        console.error('🚨 SUPER VOTO FALHOU - Erro ao conectar com o Spotify Web Player')
-        console.log('📋 Detalhes:')
-        console.log('   - Super Voto executado ✅')
-        console.log('   - Tentou tocar via Spotify SDK ❌')
-        console.log('   - Motivo provável: player do Spotify não conectou corretamente (device ou rede)')
+        // Falha técnica no Spotify - Tenta fallback para preview
+        console.warn('⚠️ Spotify falhou no Super Voto - Tentando fallback para preview...')
         
-        showNotification(
-          `⚡ Super Voto executado! Houve um erro técnico ao conectar ao Spotify. Clique no botão 🔌 no topo para reconectar e tente novamente.`,
-          'warning'
-        )
+        const previewPlayed = await handlePlayPreview(song)
+        
+        if (previewPlayed) {
+          showNotification(`⚡ Super Voto! Tocando preview (Spotify indisponível)`, 'warning')
+        } else {
+          // Falha total
+          console.error('🚨 SUPER VOTO FALHOU - Erro ao conectar com o Spotify Web Player e sem preview')
+          console.log('📋 Detalhes:')
+          console.log('   - Super Voto executado ✅')
+          console.log('   - Tentou tocar via Spotify SDK ❌')
+          console.log('   - Tentou tocar preview ❌')
+          
+          showNotification(
+            `⚡ Super Voto executado! Mas não foi possível tocar a música. Verifique sua conexão com o Spotify.`,
+            'warning'
+          )
+        }
       }
     }
   } catch (error) {
