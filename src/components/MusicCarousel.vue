@@ -52,8 +52,16 @@
           
           <!-- Vote buttons -->
           <div class="cover-actions">
-            <button @click.stop="handleVote(song.id)" class="vote-btn" :class="{ voted: hasVoted(song.id) }" title="Votar">
-              <i class="fas fa-heart"></i>
+            <button @click.stop="handleVote(song)" class="vote-btn" :class="{ voted: hasVoted(song.id) }" title="Votar">
+              <i class="fas fa-thumbs-up"></i>
+            </button>
+            <button 
+              @click.stop="handleToggleLike(song)" 
+              class="like-btn" 
+              :class="{ liked: checkIfLiked(song) }" 
+              :title="checkIfLiked(song) ? 'Descurtir' : 'Curtir'"
+            >
+              <i :class="checkIfLiked(song) ? 'fas fa-heart' : 'far fa-heart'"></i>
             </button>
             <button @click.stop="$emit('add-to-queue', song)" class="queue-btn" title="Adicionar à Fila">
               <i class="fas fa-list-ul"></i>
@@ -117,11 +125,27 @@ const props = defineProps({
   isLyricsVisible: {
     type: Boolean,
     default: false
+  },
+  // Função para verificar se música está curtida
+  isLikedFn: {
+    type: Function,
+    default: () => false
   }
 })
 
 // Emits
-const emit = defineEmits(['vote-for-song', 'super-vote', 'play-song', 'play-preview', 'add-to-queue', 'toggle-lyrics'])
+const emit = defineEmits(['vote-for-song', 'super-vote', 'play-song', 'play-preview', 'add-to-queue', 'toggle-lyrics', 'toggle-like'])
+
+// Verifica se a música está curtida
+const checkIfLiked = (song) => {
+  const songId = song.id || song.spotify_id
+  return props.isLikedFn(songId)
+}
+
+// Handler para toggle like
+const handleToggleLike = (song) => {
+  emit('toggle-like', song)
+}
 
 // Refs
 const coversContainer = ref(null)
@@ -184,9 +208,9 @@ const prevPage = () => {
 }
 
 // Methods
-const handleVote = (songId) => {
-  emit('vote-for-song', songId)
-  votedSongs.value.add(songId)
+const handleVote = (song) => {
+  emit('vote-for-song', song)
+  votedSongs.value.add(song.id)
 }
 
 const handleSuperVote = (song) => {
@@ -198,17 +222,68 @@ const hasVoted = (songId) => {
   return votedSongs.value.has(songId)
 }
 
-const handleImageError = (event, song) => {
+const handleImageError = async (event, song) => {
   console.warn(`⚠️ Erro ao carregar capa para "${song?.title || 'desconhecido'}":`, event.target.src)
+  
+  // Tenta buscar do Spotify antes de usar fallback
+  if (!event.target.dataset.spotifyAttempted) {
+    event.target.dataset.spotifyAttempted = 'true'
+    
+    try {
+      const userToken = localStorage.getItem('spotify_access_token')
+      if (userToken && song?.artist && song?.title) {
+        console.log(`🔍 Tentando buscar capa do Spotify para ${song.title}...`)
+        
+        const cleanArtist = song.artist.replace(/[^\w\s]/gi, '').trim()
+        const cleanTrack = song.title.replace(/[^\w\s]/gi, '').trim()
+        const query = encodeURIComponent(`track:"${cleanTrack}" artist:"${cleanArtist}"`)
+        const url = `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1&market=BR`
+        
+        const response = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${userToken}` }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          if (data.tracks?.items?.[0]?.album?.images?.[0]?.url) {
+            const spotifyCover = data.tracks.items[0].album.images[0].url
+            console.log(`✅ Capa encontrada no Spotify: ${spotifyCover}`)
+            event.target.src = spotifyCover
+            // Atualiza o objeto da música também
+            if (song) {
+              song.albumCover = spotifyCover
+            }
+            return
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao buscar capa do Spotify:', err)
+    }
+  }
+  
+  // Fallback para imagem padrão
   if (!event.target.src.includes('default-album.jpg')) {
     event.target.src = '/default-album.jpg'
   }
 }
 
-// Watch for songs changes to reset page
-watch(() => props.songs, () => {
-  currentPage.value = 0
-}, { deep: true })
+// Watch for songs list LENGTH changes to reset page (not deep changes like albumCover updates)
+// Só reseta quando a quantidade de músicas muda, não quando propriedades internas mudam
+watch(() => props.songs.length, (newLength, oldLength) => {
+  // Só reseta se a lista cresceu significativamente ou diminuiu
+  if (newLength !== oldLength) {
+    // Se adicionou muitas músicas novas, volta para o início
+    if (newLength > oldLength + 3) {
+      currentPage.value = 0
+    }
+    // Se a página atual ficou inválida (removeram músicas), ajusta
+    const maxPage = Math.max(0, Math.ceil(newLength / songsPerPage) - 1)
+    if (currentPage.value > maxPage) {
+      currentPage.value = maxPage
+    }
+  }
+})
 </script>
 
 <style scoped>
@@ -261,7 +336,8 @@ watch(() => props.songs, () => {
   text-transform: uppercase;
   margin: 0;
   transform: skewX(8deg);
-  text-shadow: 3px 3px 0 #ff6b6b, 0 0 20px rgba(255, 107, 107, 0.5);
+  text-shadow: 3px 3px 0 var(--accent-rgb), 0 0 20px var(--glow-color);
+  transition: text-shadow var(--color-transition);
 }
 
 /* Navigation Arrows */
@@ -294,9 +370,10 @@ watch(() => props.songs, () => {
 .nav-next { right: 2rem; }
 
 .nav-arrow:hover:not(:disabled) {
-  background: #ff6b6b;
-  border-color: #ff6b6b;
+  background: var(--accent-rgb);
+  border-color: var(--accent-rgb);
   transform: translateY(-50%) scale(1.1);
+  transition: all 0.2s, background var(--color-transition), border-color var(--color-transition);
 }
 
 .nav-arrow:disabled {
@@ -447,8 +524,9 @@ watch(() => props.songs, () => {
 
 .cover-votes {
   font-family: 'Cingire', sans-serif;
-  color: #ff6b6b;
+  color: var(--accent-rgb);
   font-size: 1.2rem;
+  transition: color var(--color-transition);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -488,10 +566,53 @@ watch(() => props.songs, () => {
 }
 
 .vote-btn:hover, .vote-btn.voted {
-  background: #ff6b6b;
-  border-color: #ff6b6b;
+  background: var(--accent-rgb);
+  border-color: var(--accent-rgb);
   transform: translate(-2px, -2px);
   box-shadow: 2px 2px 0 #fff;
+  transition: all 0.2s, background var(--color-transition), border-color var(--color-transition);
+}
+
+/* Botão de Curtir - Sincronizado com o player */
+.like-btn {
+  width: 50px;
+  height: 50px;
+  background: transparent;
+  border: 3px solid var(--accent-medium);
+  color: var(--accent-light);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s, border-color var(--color-transition), color var(--color-transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.like-btn:hover {
+  background: var(--accent-subtle);
+  border-color: var(--accent-rgb);
+  color: var(--accent-rgb);
+  transform: translate(-2px, -2px);
+  box-shadow: 2px 2px 0 #fff;
+}
+
+.like-btn.liked {
+  background: var(--accent-rgb);
+  border-color: var(--accent-rgb);
+  color: #fff;
+  animation: likeHeartPulse 0.4s ease;
+}
+
+.like-btn.liked:hover {
+  background: var(--accent-dark-rgb);
+  border-color: var(--accent-dark-rgb);
+  box-shadow: 0 0 15px var(--glow-color);
+}
+
+@keyframes likeHeartPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
 }
 
 .queue-btn {
@@ -551,11 +672,12 @@ watch(() => props.songs, () => {
 .lyrics-btn {
   width: 50px;
   height: 50px;
-  background: #ff6b6b;
-  border: 3px solid #ff6b6b;
+  background: var(--accent-rgb);
+  border: 3px solid var(--accent-rgb);
   color: #fff;
   font-size: 1.4rem;
   cursor: pointer;
+  transition: all 0.2s, background var(--color-transition), border-color var(--color-transition);
   transition: all 0.2s;
   display: flex;
   align-items: center;
@@ -565,9 +687,9 @@ watch(() => props.songs, () => {
 
 .lyrics-btn:hover {
   background: #fff;
-  color: #ff6b6b;
+  color: var(--accent-rgb);
   transform: translate(-2px, -2px);
-  box-shadow: 2px 2px 0 #ff6b6b;
+  box-shadow: 2px 2px 0 var(--accent-rgb);
 }
 
 .lyrics-play-btn {
@@ -577,8 +699,9 @@ watch(() => props.songs, () => {
   transform: translateY(-50%);
   width: 70px;
   height: 70px;
-  background: #ff6b6b;
+  background: var(--accent-rgb);
   border: 4px solid #fff;
+  transition: all 0.3s, background var(--color-transition);
   border-radius: 50%;
   color: #fff;
   font-size: 2rem;
@@ -594,8 +717,8 @@ watch(() => props.songs, () => {
 .lyrics-play-btn:hover {
   transform: translateY(-50%) scale(1.1);
   background: #fff;
-  color: #ff6b6b;
-  box-shadow: 0 0 20px rgba(255, 107, 107, 0.8);
+  color: var(--accent-rgb);
+  box-shadow: 0 0 20px var(--glow-color);
 }
 
 .kanji-icon {

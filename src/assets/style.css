@@ -5,23 +5,90 @@
   box-sizing: border-box;
 }
 
-html {
+/* ============= SISTEMA DE CORES DINÂMICAS ============= */
+/* Variáveis CSS globais baseadas na cor da capa do álbum */
+:root {
+  /* Cor primária (padrão vermelho coral) */
+  --accent-color: 255, 107, 107;
+  --accent-rgb: rgb(var(--accent-color));
+  --accent-light: rgba(var(--accent-color), 0.8);
+  --accent-medium: rgba(var(--accent-color), 0.6);
+  --accent-soft: rgba(var(--accent-color), 0.4);
+  --accent-subtle: rgba(var(--accent-color), 0.2);
+  --accent-faint: rgba(var(--accent-color), 0.1);
+  
+  /* Cor secundária (mais clara/saturada) */
+  --accent-secondary: 255, 150, 120;
+  --accent-secondary-rgb: rgb(var(--accent-secondary));
+  
+  /* Cor terciária (mais escura) */
+  --accent-dark: 200, 80, 80;
+  --accent-dark-rgb: rgb(var(--accent-dark));
+  
+  /* Sombras e brilhos */
+  --glow-color: rgba(var(--accent-color), 0.5);
+  --shadow-color: rgba(var(--accent-color), 0.3);
+  
+  /* Transição suave para mudança de cores */
+  --color-transition: 0.8s ease;
+}
+
+html, body {
   height: 100%;
-  overflow-x: hidden; /* Prevents horizontal scrolling on mobile */
-  overscroll-behavior: none; /* Prevents pull-to-refresh on mobile */
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-medium) rgba(20, 20, 20, 0.9);
 }
 
 body {
+  overflow-x: hidden;
+  overflow-y: auto;
   font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  /* Default black theme when no music is playing */
-  background: #121215; /* Simplified background for performance */
+  background: #121215;
   color: #e2e8f0;
   min-height: 100vh;
-  /* Fallback for older browsers */
   min-height: 100dvh; 
-  overflow-x: hidden;
   position: relative;
-  transition: background-color 0.5s ease;
+  transition: background-color var(--color-transition);
+}
+
+/* Global Scrollbar Styling - Usa cor dinâmica */
+body::-webkit-scrollbar {
+  width: 10px;
+  background: rgba(20, 20, 20, 0.9);
+}
+
+body::-webkit-scrollbar-track {
+  background: rgba(20, 20, 20, 0.9);
+}
+
+body::-webkit-scrollbar-thumb {
+  background: var(--accent-medium);
+  border-radius: 5px;
+  border: 2px solid rgba(20, 20, 20, 0.9);
+  transition: background var(--color-transition);
+}
+
+body::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-light);
+}
+
+/* Esconder scrollbars em elementos internos (exceto modais) */
+.app::-webkit-scrollbar,
+.container::-webkit-scrollbar,
+.main-content::-webkit-scrollbar,
+.hero-section::-webkit-scrollbar {
+  display: none;
+}
+
+.app, .container, .main-content, .hero-section {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 @media (min-width: 769px) {
@@ -164,7 +231,7 @@ body.theme-black {
 #app {
   width: 100%;
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow: visible;
   min-height: 100vh;
   min-height: 100dvh;
   position: relative;
@@ -180,7 +247,7 @@ body.theme-black {
   min-height: 100vh;
   min-height: 100dvh;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   backdrop-filter: blur(2px);
 }
 
@@ -908,32 +975,8 @@ body.theme-black {
   }
 }
 
-/* Scrollbar Styles */
-.voting-songs::-webkit-scrollbar,
-.chat-messages::-webkit-scrollbar,
-.songs-container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.voting-songs::-webkit-scrollbar-track,
-.chat-messages::-webkit-scrollbar-track,
-.songs-container::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-}
-
-.voting-songs::-webkit-scrollbar-thumb,
-.chat-messages::-webkit-scrollbar-thumb,
-.songs-container::-webkit-scrollbar-thumb {
-  background: rgba(255, 107, 107, 0.6);
-  border-radius: 4px;
-}
-
-.voting-songs::-webkit-scrollbar-thumb:hover,
-.chat-messages::-webkit-scrollbar-thumb:hover,
-.songs-container::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 107, 107, 0.8);
-}
+/* Scrollbar Styles - Unified globally above */
+/* Removed specific selectors to prevent override conflicts */
 
 /* Now playing display */
 .now-playing {

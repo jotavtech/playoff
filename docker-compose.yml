@@ -22,7 +22,7 @@ services:
     container_name: playoff-app
     restart: unless-stopped
     ports:
-      - "5175:5173"  # Vite dev server (mapeado para 5175 para evitar conflito)
+      - "5175:5175"  # Vite dev server (mapeado para 5175)
       - "3001:3000"  # Express API (mapeado para 3001 para evitar conflito)
     volumes:
       # Mount source code for hot reload

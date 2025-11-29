@@ -96,9 +96,9 @@ defineEmits(['open-about'])
   pointer-events: none;
 }
 
-/* Faixa estilo "fita de isolamento" */
+/* Faixa estilo "fita de isolamento" - Cor dinâmica */
 .footer-tape {
-  background: #ff6b6b;
+  background: var(--accent-rgb);
   color: #000;
   font-family: 'Impact', sans-serif;
   font-size: 1.2rem;
@@ -109,9 +109,10 @@ defineEmits(['open-about'])
   margin-bottom: 3rem;
   border-top: 2px solid #fff;
   border-bottom: 2px solid #fff;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+  box-shadow: 0 5px 15px var(--shadow-color);
   white-space: nowrap;
   overflow: hidden;
+  transition: background var(--color-transition), box-shadow var(--color-transition);
 }
 
 .tape-content {
@@ -182,13 +183,14 @@ defineEmits(['open-about'])
 /* Links Section */
 .links-title {
   font-family: 'Cingire', sans-serif;
-  color: #ff6b6b;
+  color: var(--accent-rgb);
   font-size: 1.5rem;
   margin-bottom: 1.5rem;
   border-bottom: 2px solid #333;
   padding-bottom: 0.5rem;
   display: inline-block;
   transform: skewX(-5deg);
+  transition: color var(--color-transition);
 }
 
 .punk-list {
@@ -210,7 +212,7 @@ defineEmits(['open-about'])
 }
 
 .punk-link:hover {
-  color: #ff6b6b;
+  color: var(--accent-rgb);
   padding-left: 1rem;
   text-shadow: 2px 2px 0 rgba(255,255,255,0.2);
 }
@@ -222,8 +224,8 @@ defineEmits(['open-about'])
   position: absolute;
   left: 0;
   opacity: 0;
-  transition: all 0.2s;
-  color: #ff6b6b;
+  transition: all 0.2s, color var(--color-transition);
+  color: var(--accent-rgb);
   font-size: 0.9em;
 }
 

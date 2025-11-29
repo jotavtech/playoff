@@ -475,10 +475,10 @@ onMounted(() => {
 
 .close-lyrics-radical:hover {
   background: #fff;
-  border-color: #ff0000;
+  border-color: var(--accent-rgb);
   transform: skewX(-10deg) scale(1.1) rotate(5deg);
 }
-.close-lyrics-radical:hover .x-stroke { background-color: #ff0000; }
+.close-lyrics-radical:hover .x-stroke { background-color: var(--accent-rgb); }
 
 @media (max-width: 768px) {
   .lyric-line { 

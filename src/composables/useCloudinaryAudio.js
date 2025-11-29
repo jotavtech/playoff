@@ -952,6 +952,13 @@ export function useCloudinaryAudio() {
     if (colorInfo) {
       applyDynamicTheme(colorInfo.theme)
       
+      // Aplica cores dinâmicas em todo o site
+      if (colorInfo.dominantColor) {
+        const dominant = [colorInfo.dominantColor.r, colorInfo.dominantColor.g, colorInfo.dominantColor.b]
+        const palette = colorInfo.palette?.map(c => [c.r, c.g, c.b]) || []
+        applyAccentColors(dominant, palette)
+      }
+      
       // Dispatch custom event with color information
       window.dispatchEvent(new CustomEvent('albumColorExtracted', {
         detail: colorInfo
@@ -970,13 +977,49 @@ export function useCloudinaryAudio() {
     // If no track is playing or no theme provided, apply black theme
     if (!currentTrack.value || !theme) {
       body.classList.add('theme-black')
-      console.log('🎨 Tema aplicado: black (sem música tocando)')
+      // Reset to default colors
+      applyAccentColors([255, 107, 107])
+      console.log('🎨 Tema aplicado: black (cor padrão)')
       return
     }
     
     // Apply the specific theme based on album colors
     body.classList.add(`theme-${theme}`)
     console.log(`🎨 Tema aplicado: ${theme}`)
+  }
+  
+  // Aplica cores de destaque em todo o site via CSS variables
+  const applyAccentColors = (dominantRGB, palette = []) => {
+    const root = document.documentElement
+    const [r, g, b] = dominantRGB
+    
+    // Cor principal
+    root.style.setProperty('--accent-color', `${r}, ${g}, ${b}`)
+    
+    // Gera variações de cor
+    const lighterR = Math.min(255, r + 50)
+    const lighterG = Math.min(255, g + 50)
+    const lighterB = Math.min(255, b + 50)
+    root.style.setProperty('--accent-secondary', `${lighterR}, ${lighterG}, ${lighterB}`)
+    
+    const darkerR = Math.max(0, r - 50)
+    const darkerG = Math.max(0, g - 50)
+    const darkerB = Math.max(0, b - 50)
+    root.style.setProperty('--accent-dark', `${darkerR}, ${darkerG}, ${darkerB}`)
+    
+    // Se tiver paleta, usa a segunda cor como secundária
+    if (palette.length > 1) {
+      const [r2, g2, b2] = palette[1]
+      root.style.setProperty('--accent-secondary', `${r2}, ${g2}, ${b2}`)
+    }
+    
+    // Se tiver 3ª cor na paleta, usa como terciária
+    if (palette.length > 2) {
+      const [r3, g3, b3] = palette[2]
+      root.style.setProperty('--accent-dark', `${r3}, ${g3}, ${b3}`)
+    }
+    
+    console.log(`🌈 Cores aplicadas: rgb(${r}, ${g}, ${b})`)
   }
   
   // Initialize with black theme
@@ -1235,6 +1278,10 @@ export function useCloudinaryAudio() {
   const setTrack = async (songData) => {
     try {
       console.log(`🎵 setTrack chamado para: ${songData.title}`)
+      
+      // IMPORTANTE: Resetar posição imediatamente ao trocar de faixa
+      position.value = 0
+      
       currentTrack.value = songData
       
       const albumInfo = await searchAlbumCover(songData.artist, songData.title)
@@ -1253,7 +1300,11 @@ export function useCloudinaryAudio() {
       // Atualiza a duração com base nos dados da música (importante para sync remoto)
       if (songData.duration || songData.duration_ms) {
         duration.value = songData.duration || songData.duration_ms
+      } else {
+        duration.value = 0
       }
+      
+      console.log(`⏱️ Tempo resetado: posição=${position.value}ms, duração=${duration.value}ms`)
       
       // Não forçamos isPlaying = true aqui pois setTrack é usado para sync passivo
       // O estado de playing deve vir do player externo (Spotify) ou ser acionado por playSong()
@@ -1294,6 +1345,7 @@ export function useCloudinaryAudio() {
     searchAlbumCover,
     extractDominantColor,
     applyDynamicTheme,
+    applyAccentColors,
     updateSongsList,
     setTrack,
     seek,

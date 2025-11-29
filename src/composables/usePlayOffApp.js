@@ -39,6 +39,10 @@ export function usePlayOffApp() {
         const data = await response.json()
         songs.value = data.songs || []
         console.log(`✅ ${songs.value.length} músicas carregadas do backend com sucesso`)
+        
+        // Buscar capas faltantes do Spotify em background
+        fetchMissingCovers()
+        
         return true
       } else {
         throw new Error(`Resposta HTTP ${response.status}`)
@@ -46,6 +50,84 @@ export function usePlayOffApp() {
     } catch (error) {
       console.log('🔌 Backend offline ou inacessível, falhando graciosamente:', error.message)
       throw error
+    }
+  }
+  
+  // Busca capas do Spotify para músicas que não têm ou têm URLs inválidas
+  const fetchMissingCovers = async () => {
+    console.log('🎨 Verificando capas das músicas...')
+    
+    for (const song of songs.value) {
+      // Verifica se a capa é uma URL válida ou se está faltando
+      const needsCover = !song.albumCover || 
+                         song.albumCover.includes('placeholder') ||
+                         song.albumCover.includes('default-album') ||
+                         song.albumCover === ''
+      
+      if (needsCover) {
+        console.log(`🔍 Buscando capa para: ${song.title} - ${song.artist}`)
+        try {
+          const coverInfo = await fetchSpotifyCover(song.artist, song.title)
+          if (coverInfo && coverInfo.albumCover) {
+            song.albumCover = coverInfo.albumCover
+            if (coverInfo.spotifyUrl && !song.spotifyUrl) {
+              song.spotifyUrl = coverInfo.spotifyUrl
+            }
+            console.log(`✅ Capa encontrada para ${song.title}`)
+          }
+        } catch (err) {
+          console.warn(`⚠️ Não foi possível buscar capa para ${song.title}:`, err.message)
+        }
+      }
+    }
+  }
+  
+  // Busca capa diretamente via Spotify API
+  const fetchSpotifyCover = async (artist, track) => {
+    try {
+      // Usa o token do usuário se disponível, senão tenta Client Credentials
+      const userToken = localStorage.getItem('spotify_access_token')
+      
+      if (!userToken) {
+        console.log('⚠️ Token do usuário não disponível para buscar capa')
+        return null
+      }
+      
+      const cleanArtist = artist.replace(/[^\w\s]/gi, '').trim()
+      const cleanTrack = track.replace(/[^\w\s]/gi, '').trim()
+      const query = encodeURIComponent(`track:"${cleanTrack}" artist:"${cleanArtist}"`)
+      const url = `https://api.spotify.com/v1/search?q=${query}&type=track&limit=3&market=BR`
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${userToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        return null
+      }
+      
+      const data = await response.json()
+      
+      if (data.tracks?.items?.length > 0) {
+        const bestMatch = data.tracks.items[0]
+        const album = bestMatch.album
+        
+        if (album.images?.length > 0) {
+          return {
+            albumCover: album.images[0].url,
+            albumName: album.name,
+            spotifyUrl: bestMatch.external_urls?.spotify
+          }
+        }
+      }
+      
+      return null
+    } catch (error) {
+      console.warn('Erro ao buscar capa do Spotify:', error)
+      return null
     }
   }
   
@@ -79,7 +161,7 @@ export function usePlayOffApp() {
         title: 'The Bronze',
         artist: 'Queens of the Stone Age',
         audioUrl: 'https://res.cloudinary.com/dzwfuzxxw/video/upload/v1748879302/Queens_Of_The_Stone_Age_The_Bronze_P3kM58n2ceE_x9m9kx.mp3',
-        albumCover: 'https://upload.wikimedia.org/wikipedia/en/5/5d/Queens_of_the_Stone_Age_%28Queens_of_the_Stone_Age_album_-_cover_art%29.jpg',
+        albumCover: 'https://i.scdn.co/image/ab67616d0000b273e8dd4db47e7177c63b031a23',
         album: 'Queens of the Stone Age',
         votes: 3
       },
@@ -138,12 +220,37 @@ export function usePlayOffApp() {
   // Função principal para votar em uma música
   // Implemento otimistic UI updates - atualizo a interface imediatamente
   // e depois sincronizo com o servidor. Isso proporciona experiência mais fluida
-  const voteForSong = async (songId) => {
+  // Aceita songId (string) ou songData (objeto completo para músicas do Spotify)
+  const voteForSong = async (songIdOrData) => {
     try {
+      // Determina se recebeu ID ou objeto completo
+      const isObject = typeof songIdOrData === 'object' && songIdOrData !== null
+      const songId = isObject ? (songIdOrData.id || songIdOrData.spotify_id) : songIdOrData
+      
       console.log(`🗳️ Processando voto para música ID: ${songId}`)
       
       // Encontro a música na lista local
-      const song = songs.value.find(s => s.id === songId)
+      let song = songs.value.find(s => s.id === songId)
+      
+      // Se não encontrou e recebemos dados completos, adiciona à lista
+      if (!song && isObject) {
+        console.log('🎵 Música não está na lista, adicionando automaticamente...')
+        song = {
+          id: songIdOrData.id || songIdOrData.spotify_id || `spotify-${Date.now()}`,
+          title: songIdOrData.title || songIdOrData.name,
+          artist: songIdOrData.artist || songIdOrData.artists?.[0]?.name,
+          album: songIdOrData.album || songIdOrData.album?.name || 'Álbum Desconhecido',
+          albumCover: songIdOrData.albumCover || songIdOrData.album_cover || songIdOrData.album?.images?.[0]?.url,
+          audioUrl: songIdOrData.audioUrl || '',
+          spotifyUrl: songIdOrData.spotifyUrl || songIdOrData.spotify_url || songIdOrData.external_urls?.spotify,
+          duration_ms: songIdOrData.duration_ms || songIdOrData.duration || 0,
+          votes: 0,
+          addedAt: new Date().toISOString()
+        }
+        songs.value.push(song)
+        console.log(`✅ Música "${song.title}" adicionada à lista`)
+      }
+      
       if (!song) {
         console.error('❌ Música não encontrada na lista local:', songId)
         showNotification('Música não encontrada', 'error')
@@ -156,7 +263,7 @@ export function usePlayOffApp() {
       console.log(`📊 Votos atualizados localmente: ${oldVotes} → ${song.votes}`)
       
       // Tento sincronizar com backend em background
-      await submitVoteToBackend(songId, song.votes)
+      await submitVoteToBackend(song.id, song.votes)
       
       // Feedback positivo para o usuário
       showNotification(`🗳️ Voto registrado para "${song.title}"!`, 'success')

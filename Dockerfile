@@ -34,14 +34,14 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Expose ports (Vite dev server + Express API)
-EXPOSE 5173 3000
+EXPOSE 5175 3000
 
 # Environment variables
 ENV NODE_ENV=development
 ENV VITE_API_URL=http://localhost:3000
 
 # Start both servers with concurrently
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]
 
 # Production build
 FROM base AS builder

@@ -105,8 +105,9 @@ const handleSpotifyLogin = async () => {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh; /* Mobile viewport fix */
   background: rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(10px);
   display: flex;
@@ -114,6 +115,8 @@ const handleSpotifyLogin = async () => {
   justify-content: center;
   z-index: 9999;
   animation: fadeIn 0.3s ease;
+  overflow-y: auto; /* Allow scroll if content is too tall */
+  padding: 1rem;
 }
 
 @keyframes fadeIn {
@@ -126,7 +129,8 @@ const handleSpotifyLogin = async () => {
   border: 4px solid #fff;
   padding: 3rem;
   max-width: 500px;
-  width: 90%;
+  width: 100%;
+  margin: auto; /* Helps with centering in flex container with scroll */
   position: relative;
   transform: skewX(-2deg);
   box-shadow: 

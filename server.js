@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { Pool } = require('pg');
 
 // ============= DATABASE SETUP (PostgreSQL) =============
 // Configurado para Railway PostgreSQL
@@ -10,11 +9,18 @@ const { Pool } = require('pg');
 // URL do banco de dados (Railway fornece automaticamente)
 const DATABASE_URL = process.env.DATABASE_URL;
 
-// Pool de conexões PostgreSQL
-const pool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: DATABASE_URL && !DATABASE_URL.includes('localhost') ? { rejectUnauthorized: false } : false
-});
+// Pool de conexões PostgreSQL - SÓ CRIA SE TIVER DATABASE_URL
+let pool = null;
+if (DATABASE_URL) {
+  const { Pool } = require('pg');
+  pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: !DATABASE_URL.includes('localhost') ? { rejectUnauthorized: false } : false
+  });
+  console.log('📊 Pool PostgreSQL configurado');
+} else {
+  console.log('⚠️ DATABASE_URL não configurada - rodando SEM banco de dados');
+}
 
 // Schema do banco de dados PostgreSQL
 const DB_SCHEMA = `
@@ -86,6 +92,40 @@ CREATE TABLE IF NOT EXISTS user_song_stats (
   first_played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(user_id, song_id)
 );
+
+-- Tabela de Músicas Curtidas pelo Usuário
+CREATE TABLE IF NOT EXISTS liked_songs (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  song_id INTEGER REFERENCES songs(id) ON DELETE CASCADE,
+  spotify_track_id VARCHAR(255),
+  title VARCHAR(255) NOT NULL,
+  artist VARCHAR(255) NOT NULL,
+  album VARCHAR(255),
+  album_cover TEXT,
+  spotify_url TEXT,
+  duration_ms INTEGER,
+  liked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, spotify_track_id)
+);
+
+-- Tabela de Amizades
+CREATE TABLE IF NOT EXISTS friendships (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  friend_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status VARCHAR(20) DEFAULT 'pending', -- pending, accepted, blocked
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  accepted_at TIMESTAMP,
+  UNIQUE(user_id, friend_id)
+);
+
+-- Índices para performance
+CREATE INDEX IF NOT EXISTS idx_liked_songs_user ON liked_songs(user_id);
+CREATE INDEX IF NOT EXISTS idx_liked_songs_spotify ON liked_songs(spotify_track_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_user ON friendships(user_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_friend ON friendships(friend_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_status ON friendships(status);
 `;
 
 // Inicializa o banco de dados
@@ -108,10 +148,12 @@ async function initDatabase() {
 }
 
 // Objeto db com funções async para PostgreSQL
+// Todas as funções verificam se pool existe antes de executar
 const db = {
   pool,
   
   async upsertUser(d) {
+    if (!pool) return null;
     const query = `
       INSERT INTO users (spotify_id, email, display_name, profile_image, country, spotify_access_token, spotify_refresh_token, token_expires_at, last_login) 
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
@@ -125,24 +167,29 @@ const db = {
   },
   
   async getUserBySpotifyId(id) {
+    if (!pool) return null;
     const result = await pool.query('SELECT * FROM users WHERE spotify_id = $1', [id]);
     return result.rows[0];
   },
   
   async getUserById(id) {
+    if (!pool) return null;
     const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
     return result.rows[0];
   },
   
   async updateUserTokens(at, rt, exp, id) {
+    if (!pool) return;
     await pool.query('UPDATE users SET spotify_access_token = $1, spotify_refresh_token = $2, token_expires_at = $3 WHERE id = $4', [at, rt, exp, id]);
   },
   
   async incrementUserPlays(id) {
+    if (!pool) return;
     await pool.query('UPDATE users SET total_plays = total_plays + 1 WHERE id = $1', [id]);
   },
   
   async upsertSong(d) {
+    if (!pool) return null;
     const query = `
       INSERT INTO songs (spotify_id, title, artist, album, album_cover, audio_url, preview_url, spotify_url, duration_ms, release_date, popularity, added_by_user_id) 
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
@@ -157,49 +204,59 @@ const db = {
   },
   
   async getSongById(id) {
+    if (!pool) return null;
     const result = await pool.query('SELECT * FROM songs WHERE id = $1', [id]);
     return result.rows[0];
   },
   
   async getSongBySpotifyId(id) {
+    if (!pool) return null;
     const result = await pool.query('SELECT * FROM songs WHERE spotify_id = $1', [id]);
     return result.rows[0];
   },
   
   async getAllSongs() {
+    if (!pool) return [];
     const result = await pool.query('SELECT * FROM songs ORDER BY created_at DESC');
     return result.rows;
   },
   
   async incrementSongPlays(id) {
+    if (!pool) return;
     await pool.query('UPDATE songs SET total_plays = total_plays + 1 WHERE id = $1', [id]);
   },
   
   async getTopSongs(limit) {
+    if (!pool) return [];
     const result = await pool.query('SELECT * FROM songs ORDER BY total_plays DESC, popularity DESC LIMIT $1', [limit]);
     return result.rows;
   },
   
   async getUserAddedSongs(id) {
+    if (!pool) return [];
     const result = await pool.query('SELECT * FROM songs WHERE added_by_user_id = $1 ORDER BY created_at DESC', [id]);
     return result.rows;
   },
   
   async addPlayHistory(uid, sid, dur, comp, src = 'playoff') {
+    if (!pool) return;
     await pool.query('INSERT INTO play_history (user_id, song_id, play_duration_ms, completed, source) VALUES ($1, $2, $3, $4, $5)', [uid, sid, dur, comp, src]);
   },
   
   async getUserHistory(uid, limit) {
+    if (!pool) return [];
     const result = await pool.query('SELECT ph.*, s.title, s.artist, s.album, s.album_cover FROM play_history ph JOIN songs s ON ph.song_id = s.id WHERE ph.user_id = $1 ORDER BY ph.played_at DESC LIMIT $2', [uid, limit]);
     return result.rows;
   },
   
   async getRecentPlays(limit) {
+    if (!pool) return [];
     const result = await pool.query('SELECT ph.*, s.title, s.artist, s.album_cover, u.display_name as user_name FROM play_history ph JOIN songs s ON ph.song_id = s.id JOIN users u ON ph.user_id = u.id ORDER BY ph.played_at DESC LIMIT $1', [limit]);
     return result.rows;
   },
   
   async incrementUserSongStats(uid, sid, dur) {
+    if (!pool) return;
     const query = `
       INSERT INTO user_song_stats (user_id, song_id, play_count, total_duration_ms, last_played_at) VALUES ($1, $2, 1, $3, CURRENT_TIMESTAMP)
       ON CONFLICT(user_id, song_id) DO UPDATE SET play_count = user_song_stats.play_count + 1, total_duration_ms = user_song_stats.total_duration_ms + $3, last_played_at = CURRENT_TIMESTAMP`;
@@ -207,27 +264,267 @@ const db = {
   },
   
   async getUserTopSongs(uid, limit) {
+    if (!pool) return [];
     const result = await pool.query('SELECT s.*, uss.play_count, uss.total_duration_ms, uss.last_played_at FROM user_song_stats uss JOIN songs s ON uss.song_id = s.id WHERE uss.user_id = $1 ORDER BY uss.play_count DESC, uss.last_played_at DESC LIMIT $2', [uid, limit]);
     return result.rows;
   },
   
   async getUserStats(uid) {
+    if (!pool) return { unique_songs: 0, total_plays: 0, total_listening_time: 0 };
     const result = await pool.query('SELECT COUNT(DISTINCT song_id) as unique_songs, SUM(play_count) as total_plays, SUM(total_duration_ms) as total_listening_time FROM user_song_stats WHERE user_id = $1', [uid]);
     return result.rows[0];
   },
   
   async addVote(uid, sid) {
+    if (!pool) return;
     await pool.query('INSERT INTO votes (user_id, song_id, votes) VALUES ($1, $2, 1) ON CONFLICT(user_id, song_id) DO UPDATE SET votes = votes.votes + 1, voted_at = CURRENT_TIMESTAMP', [uid, sid]);
   },
   
   async getUserVotes(uid) {
+    if (!pool) return [];
     const result = await pool.query('SELECT v.*, s.title, s.artist, s.album_cover FROM votes v JOIN songs s ON v.song_id = s.id WHERE v.user_id = $1 ORDER BY v.votes DESC', [uid]);
     return result.rows;
   },
   
   async getSongVotes(sid) {
+    if (!pool) return { total_votes: 0 };
     const result = await pool.query('SELECT COALESCE(SUM(votes), 0) as total_votes FROM votes WHERE song_id = $1', [sid]);
     return result.rows[0];
+  },
+  
+  // ============= LIKED SONGS =============
+  
+  async likeSong(userId, songData) {
+    if (!pool) return null;
+    const query = `
+      INSERT INTO liked_songs (user_id, song_id, spotify_track_id, title, artist, album, album_cover, spotify_url, duration_ms)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT(user_id, spotify_track_id) DO UPDATE SET
+        title = EXCLUDED.title, artist = EXCLUDED.artist, album = EXCLUDED.album,
+        album_cover = EXCLUDED.album_cover, spotify_url = EXCLUDED.spotify_url,
+        duration_ms = EXCLUDED.duration_ms, liked_at = CURRENT_TIMESTAMP
+      RETURNING *`;
+    const result = await pool.query(query, [
+      userId, songData.song_id || null, songData.spotify_track_id,
+      songData.title, songData.artist, songData.album || null,
+      songData.album_cover || null, songData.spotify_url || null, songData.duration_ms || 0
+    ]);
+    return result.rows[0];
+  },
+  
+  async unlikeSong(userId, spotifyTrackId) {
+    if (!pool) return false;
+    const result = await pool.query('DELETE FROM liked_songs WHERE user_id = $1 AND spotify_track_id = $2 RETURNING id', [userId, spotifyTrackId]);
+    return result.rowCount > 0;
+  },
+  
+  async getUserLikedSongs(userId, limit = 100) {
+    if (!pool) return [];
+    const result = await pool.query(
+      'SELECT * FROM liked_songs WHERE user_id = $1 ORDER BY liked_at DESC LIMIT $2',
+      [userId, limit]
+    );
+    return result.rows;
+  },
+  
+  async isLiked(userId, spotifyTrackId) {
+    if (!pool) return false;
+    const result = await pool.query(
+      'SELECT id FROM liked_songs WHERE user_id = $1 AND spotify_track_id = $2',
+      [userId, spotifyTrackId]
+    );
+    return result.rowCount > 0;
+  },
+  
+  async getLikedSongIds(userId) {
+    if (!pool) return [];
+    const result = await pool.query(
+      'SELECT spotify_track_id FROM liked_songs WHERE user_id = $1',
+      [userId]
+    );
+    return result.rows.map(r => r.spotify_track_id);
+  },
+  
+  // ============= FRIENDS SYSTEM =============
+  
+  // Busca usuários por nome (exclui o usuário atual)
+  async searchUsers(query, currentUserId) {
+    if (!pool) return [];
+    const result = await pool.query(`
+      SELECT id, display_name, profile_image, spotify_id,
+        (SELECT status FROM friendships WHERE 
+          (user_id = $2 AND friend_id = u.id) OR 
+          (user_id = u.id AND friend_id = $2)
+        LIMIT 1) as friendship_status
+      FROM users u
+      WHERE u.id != $2 
+        AND (LOWER(display_name) LIKE LOWER($1) OR LOWER(email) LIKE LOWER($1))
+      LIMIT 20
+    `, [`%${query}%`, currentUserId]);
+    return result.rows;
+  },
+  
+  // Lista amigos aceitos
+  async getFriends(userId) {
+    if (!pool) return [];
+    const result = await pool.query(`
+      SELECT u.id, u.display_name, u.profile_image, u.spotify_id, u.last_login,
+        f.accepted_at,
+        (SELECT COUNT(*) FROM play_history ph WHERE ph.user_id = u.id) as total_plays,
+        (SELECT json_build_object(
+          'title', ls.title, 'artist', ls.artist, 'album_cover', ls.album_cover
+        ) FROM liked_songs ls WHERE ls.user_id = u.id ORDER BY ls.liked_at DESC LIMIT 1) as last_liked
+      FROM users u
+      JOIN friendships f ON (
+        (f.user_id = $1 AND f.friend_id = u.id) OR 
+        (f.friend_id = $1 AND f.user_id = u.id)
+      )
+      WHERE f.status = 'accepted' AND u.id != $1
+      ORDER BY u.last_login DESC NULLS LAST
+    `, [userId]);
+    return result.rows;
+  },
+  
+  // Lista pedidos de amizade pendentes (recebidos)
+  async getPendingFriendRequests(userId) {
+    if (!pool) return [];
+    const result = await pool.query(`
+      SELECT u.id, u.display_name, u.profile_image, u.spotify_id, f.created_at as requested_at
+      FROM users u
+      JOIN friendships f ON f.user_id = u.id
+      WHERE f.friend_id = $1 AND f.status = 'pending'
+      ORDER BY f.created_at DESC
+    `, [userId]);
+    return result.rows;
+  },
+  
+  // Envia pedido de amizade
+  async sendFriendRequest(userId, friendId) {
+    if (!pool) return null;
+    
+    // Verifica se já existe uma relação
+    const existing = await pool.query(`
+      SELECT id, status FROM friendships 
+      WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)
+    `, [userId, friendId]);
+    
+    if (existing.rowCount > 0) {
+      const status = existing.rows[0].status;
+      if (status === 'accepted') {
+        return { success: false, message: 'Vocês já são amigos!' };
+      }
+      if (status === 'pending') {
+        // Se o outro já mandou pedido, aceita automaticamente
+        const check = await pool.query(`
+          SELECT id FROM friendships WHERE user_id = $2 AND friend_id = $1 AND status = 'pending'
+        `, [userId, friendId]);
+        if (check.rowCount > 0) {
+          await pool.query(`
+            UPDATE friendships SET status = 'accepted', accepted_at = CURRENT_TIMESTAMP 
+            WHERE user_id = $2 AND friend_id = $1
+          `, [userId, friendId]);
+          return { success: true, message: 'Amizade confirmada!', status: 'accepted' };
+        }
+        return { success: false, message: 'Pedido já enviado' };
+      }
+    }
+    
+    // Cria novo pedido
+    await pool.query(`
+      INSERT INTO friendships (user_id, friend_id, status) VALUES ($1, $2, 'pending')
+      ON CONFLICT (user_id, friend_id) DO UPDATE SET status = 'pending', created_at = CURRENT_TIMESTAMP
+    `, [userId, friendId]);
+    
+    return { success: true, message: 'Pedido de amizade enviado!', status: 'pending' };
+  },
+  
+  // Aceita pedido de amizade
+  async acceptFriendRequest(userId, friendId) {
+    if (!pool) return null;
+    const result = await pool.query(`
+      UPDATE friendships SET status = 'accepted', accepted_at = CURRENT_TIMESTAMP
+      WHERE user_id = $1 AND friend_id = $2 AND status = 'pending'
+      RETURNING *
+    `, [friendId, userId]);
+    
+    if (result.rowCount > 0) {
+      return { success: true, message: 'Amizade aceita!' };
+    }
+    return { success: false, message: 'Pedido não encontrado' };
+  },
+  
+  // Remove amizade ou recusa pedido
+  async removeFriend(userId, friendId) {
+    if (!pool) return false;
+    const result = await pool.query(`
+      DELETE FROM friendships 
+      WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)
+    `, [userId, friendId]);
+    return result.rowCount > 0;
+  },
+  
+  // Verifica se são amigos
+  async areFriends(userId, friendId) {
+    if (!pool) return false;
+    const result = await pool.query(`
+      SELECT id FROM friendships 
+      WHERE ((user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1))
+        AND status = 'accepted'
+    `, [userId, friendId]);
+    return result.rowCount > 0;
+  },
+  
+  // Status de amizade entre dois usuários
+  async getFriendshipStatus(userId, friendId) {
+    if (!pool) return 'none';
+    const result = await pool.query(`
+      SELECT status, user_id FROM friendships 
+      WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)
+    `, [userId, friendId]);
+    if (result.rowCount === 0) return 'none';
+    const row = result.rows[0];
+    if (row.status === 'accepted') return 'friends';
+    if (row.status === 'pending' && row.user_id === userId) return 'pending_sent';
+    if (row.status === 'pending' && row.user_id === friendId) return 'pending_received';
+    return 'none';
+  },
+  
+  // Atividade recente de um usuário
+  async getUserActivity(userId) {
+    if (!pool) return { recentPlays: [], likedSongs: [], stats: {} };
+    
+    // Últimas músicas ouvidas
+    const plays = await pool.query(`
+      SELECT s.title, s.artist, s.album_cover, ph.played_at
+      FROM play_history ph
+      JOIN songs s ON s.id = ph.song_id
+      WHERE ph.user_id = $1
+      ORDER BY ph.played_at DESC
+      LIMIT 10
+    `, [userId]);
+    
+    // Músicas curtidas recentes
+    const liked = await pool.query(`
+      SELECT title, artist, album_cover, liked_at
+      FROM liked_songs
+      WHERE user_id = $1
+      ORDER BY liked_at DESC
+      LIMIT 10
+    `, [userId]);
+    
+    // Estatísticas
+    const stats = await pool.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM play_history WHERE user_id = $1) as total_plays,
+        (SELECT COUNT(*) FROM liked_songs WHERE user_id = $1) as total_likes,
+        (SELECT COUNT(DISTINCT song_id) FROM play_history WHERE user_id = $1) as unique_songs
+    `, [userId]);
+    
+    return {
+      recentPlays: plays.rows,
+      likedSongs: liked.rows,
+      stats: stats.rows[0] || {}
+    };
   }
 };
 const authRoutes = require('./routes/auth-routes')(db);
@@ -627,13 +924,13 @@ let songs = [
     id: 'audioslave-cochise',
     title: 'Cochise',
     artist: 'Audioslave',
-    audioUrl: 'https://res.cloudinary.com/dzwfuzxxw/video/upload/v1748878548/Audioslave_-_Cochise_HD_YymwGlbqzIc_lz8zjk.mp3',
+    audioUrl: '', // Usa Spotify
     albumCover: 'https://res.cloudinary.com/dzwfuzxxw/image/upload/v1748897363/Audioslave-2002-capa-album-min_iicsnx.webp',
     album: 'Audioslave',
     year: 2002,
     votes: 5,
     addedAt: new Date('2024-01-01').toISOString(),
-    spotifyUrl: 'https://open.spotify.com/track/1ng36571Iyov4HBxUClySn',
+    spotifyUrl: 'https://open.spotify.com/track/4OCzAGgyWsUKpdWufYywZm', // ID correto do Cochise
     duration_ms: 222000
   },
   {
@@ -654,7 +951,7 @@ let songs = [
     title: 'The Bronze',
     artist: 'Queens of the Stone Age',
     audioUrl: 'https://res.cloudinary.com/dzwfuzxxw/video/upload/v1748879302/Queens_Of_The_Stone_Age_The_Bronze_P3kM58n2ceE_x9m9kx.mp3',
-    albumCover: 'https://upload.wikimedia.org/wikipedia/en/5/5d/Queens_of_the_Stone_Age_%28Queens_of_the_Stone_Age_album_-_cover_art%29.jpg',
+    albumCover: 'https://i.scdn.co/image/ab67616d0000b273e8dd4db47e7177c63b031a23',
     album: 'Queens of the Stone Age',
     year: 1998,
     votes: 3,
@@ -685,7 +982,7 @@ let songs = [
     year: 1991,
     votes: 2,
     addedAt: new Date('2024-01-05').toISOString(),
-    spotifyUrl: 'https://open.spotify.com/track/5sICkBXVmaCQk5aISGR3x1',
+    spotifyUrl: 'https://open.spotify.com/track/3t365tTYiwszqaXZb2LajN', // ID correto do Outshined
     duration_ms: 311000
   },
   {
@@ -693,7 +990,7 @@ let songs = [
     title: 'Avon',
     artist: 'Queens of the Stone Age',
     audioUrl: 'https://res.cloudinary.com/dzwfuzxxw/video/upload/v1748893838/Queens_of_the_Stone_Age_-_Avon_Official_Audio_aimHMr-Ee4o_ay6jsw.mp3',
-    albumCover: 'https://upload.wikimedia.org/wikipedia/en/5/5d/Queens_of_the_Stone_Age_%28Queens_of_the_Stone_Age_album_-_cover_art%29.jpg',
+    albumCover: 'https://i.scdn.co/image/ab67616d0000b273e8dd4db47e7177c63b031a23',
     album: 'Queens of the Stone Age',
     year: 2005,
     votes: 4,
@@ -704,7 +1001,7 @@ let songs = [
     title: 'If Only',
     artist: 'Queens of the Stone Age',
     audioUrl: 'https://res.cloudinary.com/dzwfuzxxw/video/upload/v1748893839/Queens_of_the_Stone_Age_-_If_Only_Official_Audio_1HqTh0nd9GE_rojfrl.mp3',
-    albumCover: 'https://upload.wikimedia.org/wikipedia/en/5/5d/Queens_of_the_Stone_Age_%28Queens_of_the_Stone_Age_album_-_cover_art%29.jpg',
+    albumCover: 'https://i.scdn.co/image/ab67616d0000b273e8dd4db47e7177c63b031a23',
     album: 'Queens of the Stone Age',
     year: 2005,
     votes: 1,
@@ -802,6 +1099,21 @@ const bootstrapSongsFromDatabase = async () => {
     });
 
     songs = Array.from(currentSongsMap.values());
+    
+    // Correções de spotifyUrl incorretos
+    const corrections = [
+      { id: 'audioslave-cochise', title: 'Cochise', artist: 'Audioslave', correctUrl: 'https://open.spotify.com/track/4OCzAGgyWsUKpdWufYywZm' },
+      { id: 'soundgarden-outshined', title: 'Outshined', artist: 'Soundgarden', correctUrl: 'https://open.spotify.com/track/3t365tTYiwszqaXZb2LajN' }
+    ];
+    
+    corrections.forEach(({ id, title, artist, correctUrl }) => {
+      const song = songs.find(s => s.id === id || (s.title === title && s.artist === artist));
+      if (song && song.spotifyUrl !== correctUrl) {
+        song.spotifyUrl = correctUrl;
+        console.log(`🔧 Corrigido spotifyUrl de "${title}"`);
+      }
+    });
+    
     voteManager.currentHighestVoted = voteManager.getHighestVotedSong();
 
     console.log(`💾 ${mappedSongs.length} música(s) sincronizadas do banco de dados (total atual: ${songs.length}).`);
@@ -991,6 +1303,23 @@ app.post('/api/super-vote', (req, res) => {
       error: 'Erro interno do servidor ao processar super voto', 
       success: false 
     });
+  }
+});
+
+// Rota para corrigir URL de áudio incorreta
+app.post('/api/fix-audio-url', (req, res) => {
+  try {
+    const { songId, audioUrl } = req.body;
+    const song = songs.find(s => s.id === songId);
+    if (song) {
+      song.audioUrl = audioUrl || '';
+      console.log(`🔧 URL de áudio corrigida para: "${song.title}"`);
+      res.json({ success: true, song });
+    } else {
+      res.status(404).json({ error: 'Música não encontrada' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

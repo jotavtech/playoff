@@ -41,7 +41,7 @@
           
           <button 
             class="vote-btn" 
-            @click="$emit('vote-for-song', song.id)"
+            @click="$emit('vote-for-song', song)"
             :title="`Votar em ${song.title}`"
           >
             <i class="fas fa-heart"></i> Vote

@@ -29,13 +29,13 @@
       </div>
 
       <!-- Estatísticas -->
-      <div class="profile-stats" v-if="user?.stats">
+      <div class="profile-stats">
         <div class="stat-card">
           <div class="stat-icon">
             <i class="fas fa-play-circle"></i>
           </div>
           <div class="stat-info">
-            <span class="stat-value">{{ user.stats.total_plays || 0 }}</span>
+            <span class="stat-value">{{ user?.stats?.total_plays || stats.total_plays || 0 }}</span>
             <span class="stat-label">Reproduções</span>
           </div>
         </div>
@@ -45,7 +45,7 @@
             <i class="fas fa-music"></i>
           </div>
           <div class="stat-info">
-            <span class="stat-value">{{ user.stats.unique_songs || 0 }}</span>
+            <span class="stat-value">{{ user?.stats?.unique_songs || stats.unique_songs || 0 }}</span>
             <span class="stat-label">Músicas</span>
           </div>
         </div>
@@ -55,7 +55,7 @@
             <i class="fas fa-clock"></i>
           </div>
           <div class="stat-info">
-            <span class="stat-value">{{ formatTime(user.stats.total_listening_time) }}</span>
+            <span class="stat-value">{{ formatTime(user?.stats?.total_listening_time || stats.total_listening_time || 0) }}</span>
             <span class="stat-label">Tempo Ouvindo</span>
           </div>
         </div>
@@ -96,6 +96,48 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Músicas Curtidas -->
+      <div class="liked-songs-section" v-if="likedSongs.length > 0">
+        <h3 class="section-title">
+          <i class="fas fa-heart"></i>
+          Músicas Curtidas
+        </h3>
+
+        <div class="top-songs-list">
+          <div 
+            v-for="song in likedSongs.slice(0, 10)" 
+            :key="song.id"
+            class="top-song-item liked-song-item"
+            @click="$emit('play-song', formatLikedSong(song))"
+          >
+            <img 
+              :src="song.album_cover || '/default-album.jpg'" 
+              :alt="song.title"
+              class="song-cover"
+            />
+
+            <div class="song-info">
+              <span class="song-title">{{ song.title }}</span>
+              <span class="song-artist">{{ song.artist }}</span>
+            </div>
+
+            <div class="song-actions">
+              <button 
+                class="unlike-btn" 
+                @click.stop="handleUnlike(song)"
+                title="Descurtir"
+              >
+                <i class="fas fa-heart-broken"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <p class="liked-count" v-if="likedSongs.length > 10">
+          + {{ likedSongs.length - 10 }} músicas curtidas
+        </p>
       </div>
 
       <!-- Músicas Adicionadas -->
@@ -177,12 +219,14 @@ const props = defineProps({
   user: Object
 })
 
-const emit = defineEmits(['close', 'logout', 'play-song'])
+const emit = defineEmits(['close', 'logout', 'play-song', 'unlike'])
 
 const topSongs = ref([])
 const addedSongs = ref([])
+const likedSongs = ref([])
 const history = ref([])
 const isLoading = ref(false)
+const stats = ref({ total_plays: 0, unique_songs: 0, total_listening_time: 0 })
 
 // Formata tempo em horas e minutos
 const formatTime = (ms) => {
@@ -234,13 +278,46 @@ const getFireConfig = (count) => {
   if (n >= 10) return { color: '#00BFFF', showFire: true, shadow: '0 0 10px #00BFFF' } // Fogo azul
   if (n >= 5) return { color: '#FFD700', showFire: true, shadow: '0 0 10px #FFD700' } // Fogo amarelo
   
-  return { color: '#ff6b6b', showFire: false, shadow: 'none' }
+  return { color: 'var(--accent-rgb)', showFire: false, shadow: 'none' }
 }
 
 // Logout
 const handleLogout = () => {
   emit('logout')
   emit('close')
+}
+
+// Formata música curtida para o formato do player
+const formatLikedSong = (song) => {
+  return {
+    id: song.spotify_track_id,
+    title: song.title,
+    artist: song.artist,
+    album: song.album,
+    albumCover: song.album_cover,
+    spotifyUrl: song.spotify_url,
+    duration_ms: song.duration_ms
+  }
+}
+
+// Descurtir música
+const handleUnlike = async (song) => {
+  try {
+    const response = await fetch(`/auth/me/like/${encodeURIComponent(song.spotify_track_id)}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('spotify_id')}`
+      }
+    })
+
+    if (response.ok) {
+      likedSongs.value = likedSongs.value.filter(s => s.id !== song.id)
+      emit('unlike', song.spotify_track_id)
+      console.log(`💔 Descurtiu: ${song.title}`)
+    }
+  } catch (error) {
+    console.error('Erro ao descurtir:', error)
+  }
 }
 
 // Detecta a porta correta da API
@@ -254,11 +331,30 @@ onMounted(async () => {
   const API_URL = getApiUrl()
 
   try {
+    // Busca estatísticas/perfil completo
+    const meResponse = await fetch(`${API_URL}/auth/me`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('spotify_id')}`,
+        'X-Spotify-Token': localStorage.getItem('spotify_access_token') || ''
+      }
+    })
+    
+    if (meResponse.ok) {
+      const userData = await meResponse.json()
+      if (userData.stats) {
+        stats.value = userData.stats
+      }
+    }
+
+    // Headers comuns para todas as requisições
+    const authHeaders = {
+      'Authorization': `Bearer ${localStorage.getItem('spotify_id')}`,
+      'X-Spotify-Token': localStorage.getItem('spotify_access_token') || ''
+    }
+
     // Busca top músicas
     const topResponse = await fetch(`${API_URL}/auth/me/top-songs?limit=10`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('spotify_id')}`
-      }
+      headers: authHeaders
     })
     
     if (topResponse.ok) {
@@ -267,9 +363,7 @@ onMounted(async () => {
 
     // Busca músicas adicionadas
     const addedResponse = await fetch(`${API_URL}/auth/me/added-songs`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('spotify_id')}`
-      }
+      headers: authHeaders
     })
     
     if (addedResponse.ok) {
@@ -278,13 +372,20 @@ onMounted(async () => {
 
     // Busca histórico
     const historyResponse = await fetch(`${API_URL}/auth/me/history?limit=10`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('spotify_id')}`
-      }
+      headers: authHeaders
     })
     
     if (historyResponse.ok) {
       history.value = await historyResponse.json()
+    }
+
+    // Busca músicas curtidas
+    const likedResponse = await fetch(`${API_URL}/auth/me/liked?limit=50`, {
+      headers: authHeaders
+    })
+    
+    if (likedResponse.ok) {
+      likedSongs.value = await likedResponse.json()
     }
   } catch (error) {
     console.error('Erro ao carregar dados do perfil:', error)
@@ -328,8 +429,9 @@ onMounted(async () => {
   position: relative;
   transform: skewX(-1deg);
   box-shadow: 
-    8px 8px 0 #ff6b6b,
-    0 0 40px rgba(255, 107, 107, 0.5);
+    8px 8px 0 var(--accent-rgb),
+    0 0 40px var(--glow-color);
+  transition: box-shadow var(--color-transition);
   animation: slideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
@@ -364,8 +466,8 @@ onMounted(async () => {
 }
 
 .close-btn:hover {
-  background: #ff6b6b;
-  border-color: #ff6b6b;
+  background: var(--accent-rgb);
+  border-color: var(--accent-rgb);
   transform: skewX(1deg) rotate(90deg);
 }
 
@@ -416,7 +518,8 @@ onMounted(async () => {
   font-size: 2rem;
   color: #fff;
   margin: 0 0 0.3rem 0;
-  text-shadow: 2px 2px 0 #ff6b6b;
+  text-shadow: 2px 2px 0 var(--accent-rgb);
+  transition: text-shadow var(--color-transition);
 }
 
 .profile-email {
@@ -454,7 +557,7 @@ onMounted(async () => {
 }
 
 .stat-card:hover {
-  border-color: #ff6b6b;
+  border-color: var(--accent-rgb);
   transform: translateY(-2px);
 }
 
@@ -466,8 +569,9 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ff6b6b;
+  color: var(--accent-rgb);
   font-size: 1.2rem;
+  transition: color var(--color-transition);
 }
 
 .stat-info {
@@ -502,13 +606,58 @@ onMounted(async () => {
 }
 
 .section-title i {
-  color: #ff6b6b;
+  color: var(--accent-rgb);
+  transition: color var(--color-transition);
 }
 
 /* Top Songs */
 .top-songs-section,
-.added-songs-section {
+.added-songs-section,
+.liked-songs-section {
   margin-bottom: 2rem;
+}
+
+.liked-songs-section .section-title i {
+  color: #ff4d6d;
+}
+
+.liked-song-item {
+  position: relative;
+}
+
+.song-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.unlike-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 77, 109, 0.5);
+  color: #ff4d6d;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.unlike-btn:hover {
+  background: #ff4d6d;
+  color: #fff;
+  border-color: #ff4d6d;
+  transform: scale(1.1);
+}
+
+.liked-count {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  font-style: italic;
 }
 
 .top-songs-list {
@@ -529,8 +678,8 @@ onMounted(async () => {
 }
 
 .top-song-item:hover {
-  background: rgba(255, 107, 107, 0.1);
-  border-color: #ff6b6b;
+  background: var(--accent-faint);
+  border-color: var(--accent-rgb);
   transform: translateX(5px);
 }
 
@@ -598,8 +747,9 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  color: #ff6b6b;
+  color: var(--accent-rgb);
   font-family: 'Cingire', sans-serif;
+  transition: color var(--color-transition);
   font-size: 0.9rem;
 }
 
@@ -664,8 +814,9 @@ onMounted(async () => {
   width: 100%;
   padding: 1rem;
   background: transparent;
-  border: 2px solid #ff6b6b;
-  color: #ff6b6b;
+  border: 2px solid var(--accent-rgb);
+  color: var(--accent-rgb);
+  transition: all 0.2s, border-color var(--color-transition), color var(--color-transition);
   font-family: 'Cingire', sans-serif;
   font-size: 1rem;
   letter-spacing: 0.1em;
@@ -680,7 +831,7 @@ onMounted(async () => {
 }
 
 .logout-btn:hover {
-  background: #ff6b6b;
+  background: var(--accent-rgb);
   color: #000;
   transform: translate(-2px, -2px);
   box-shadow: 2px 2px 0 #fff;
@@ -696,7 +847,8 @@ onMounted(async () => {
 }
 
 .profile-modal::-webkit-scrollbar-thumb {
-  background: #ff6b6b;
+  background: var(--accent-rgb);
+  transition: background var(--color-transition);
 }
 
 /* Responsive */

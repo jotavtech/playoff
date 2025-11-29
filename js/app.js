@@ -285,7 +285,7 @@ class PlayOffApp {
                 title: 'The Bronze',
                 artist: 'Queens of the Stone Age',
                 audioUrl: 'https://res.cloudinary.com/dzwfuzxxw/video/upload/v1748879302/Queens_Of_The_Stone_Age_The_Bronze_P3kM58n2ceE_x9m9kx.mp3',
-                albumCover: 'https://upload.wikimedia.org/wikipedia/en/5/5d/Queens_of_the_Stone_Age_%28Queens_of_the_Stone_Age_album_-_cover_art%29.jpg',
+                albumCover: 'https://i.scdn.co/image/ab67616d0000b273e8dd4db47e7177c63b031a23',
                 album: 'Queens of the Stone Age',
                 votes: 3
             },

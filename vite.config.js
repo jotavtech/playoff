@@ -4,8 +4,9 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   server: {
-    port: 5173,
-    host: true, // Expõe para rede externa (necessário no Docker)
+    port: 5175,
+    strictPort: true,
+    host: true, // Expõe para todas as interfaces (0.0.0.0) para evitar erro EADDRNOTAVAIL
     proxy: {
       '/api': {
         target: 'http://localhost:3000',

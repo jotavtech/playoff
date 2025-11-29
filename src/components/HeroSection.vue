@@ -65,15 +65,34 @@
           >
             <span class="kanji-icon">水</span>
           </button>
+
+          <button 
+            v-if="currentTrack"
+            class="control-btn like-btn" 
+            :class="{ liked: isLiked }"
+            @click="$emit('toggle-like', currentTrack)"
+            :title="isLiked ? 'Descurtir' : 'Curtir'"
+          >
+            <i :class="isLiked ? 'fas fa-heart' : 'far fa-heart'"></i>
+          </button>
         </div>
 
-        <!-- Barra de Progresso -->
+        <!-- Barra de Progresso Interativa -->
         <div class="progress-section">
           <span class="time-display">{{ formatTime(position) }}</span>
-          <div class="progress-bar">
+          <div 
+            class="progress-bar" 
+            ref="progressBarRef"
+            @mousedown="startSeek"
+            @touchstart.prevent="startSeek"
+          >
             <div 
               class="progress-fill" 
               :style="{ width: progressPercentage + '%' }"
+            ></div>
+            <div 
+              class="progress-thumb"
+              :style="{ left: progressPercentage + '%' }"
             ></div>
           </div>
           <span class="time-display">{{ formatTime(duration) }}</span>
@@ -81,10 +100,10 @@
       </div>
 
       <!-- Disco de Vinil Animado -->
-      <div class="vinyl-container">
+      <div class="vinyl-container" :class="{ 'new-track-animation': isNewTrackAnimating }">
         <div 
           class="vinyl-disc" 
-          :class="{ playing: isPlaying }"
+          :class="{ playing: isPlaying, 'pulse-glow': isNewTrackAnimating }"
         >
           <div class="vinyl-center">
             <img 
@@ -115,8 +134,30 @@
 </template>
 
 <script setup>
-import { computed, watch, ref } from 'vue'
+import { computed, watch, ref, onMounted, onUnmounted } from 'vue'
 import { useCloudinaryAudio } from '../composables/useCloudinaryAudio'
+
+// ============= ANIMAÇÃO DE NOVA MÚSICA =============
+const isNewTrackAnimating = ref(false)
+
+// Escuta evento de nova música para disparar animação
+const handleNewTrackEvent = () => {
+  console.log('🎨 HeroSection: Animação de nova música recebida!')
+  isNewTrackAnimating.value = true
+  
+  // Remove a classe após a animação terminar (1.5s)
+  setTimeout(() => {
+    isNewTrackAnimating.value = false
+  }, 1500)
+}
+
+onMounted(() => {
+  window.addEventListener('new-track-playing', handleNewTrackEvent)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('new-track-playing', handleNewTrackEvent)
+})
 
 // ============= PROPS E EMITS =============
 // Props recebidas do componente pai (App.vue)
@@ -129,13 +170,65 @@ const props = defineProps({
   dominantColor: {
     type: Array,
     default: () => [255, 107, 107]
-  }
+  },
+  isLiked: Boolean          // Se a música atual está curtida
 })
 
 // Eventos emitidos para o componente pai
-const emit = defineEmits(['toggle-playback', 'previous-track', 'next-track', 'seek', 'toggle-lyrics'])
+const emit = defineEmits(['toggle-playback', 'previous-track', 'next-track', 'seek', 'toggle-lyrics', 'toggle-like'])
 
-// Handler de Seek
+// ============= SEEK FUNCTIONALITY =============
+const progressBarRef = ref(null)
+const isSeeking = ref(false)
+
+// Calcula posição do seek baseado no clique/toque
+const calculateSeekPosition = (event) => {
+  if (!progressBarRef.value || !props.duration) return null
+  
+  const rect = progressBarRef.value.getBoundingClientRect()
+  const clientX = event.touches ? event.touches[0].clientX : event.clientX
+  const percentage = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+  return Math.round(percentage * props.duration)
+}
+
+// Inicia o seek (clique ou toque)
+const startSeek = (event) => {
+  isSeeking.value = true
+  const position = calculateSeekPosition(event)
+  if (position !== null) {
+    emit('seek', position)
+  }
+  
+  // Adiciona listeners para drag
+  if (event.type === 'mousedown') {
+    document.addEventListener('mousemove', onSeekMove)
+    document.addEventListener('mouseup', stopSeek)
+  } else {
+    document.addEventListener('touchmove', onSeekMove, { passive: false })
+    document.addEventListener('touchend', stopSeek)
+  }
+}
+
+// Durante o drag
+const onSeekMove = (event) => {
+  if (!isSeeking.value) return
+  event.preventDefault()
+  const position = calculateSeekPosition(event)
+  if (position !== null) {
+    emit('seek', position)
+  }
+}
+
+// Finaliza o seek
+const stopSeek = () => {
+  isSeeking.value = false
+  document.removeEventListener('mousemove', onSeekMove)
+  document.removeEventListener('mouseup', stopSeek)
+  document.removeEventListener('touchmove', onSeekMove)
+  document.removeEventListener('touchend', stopSeek)
+}
+
+// Handler legado de Seek (para input range se usado)
 const handleSeek = (event) => {
   emit('seek', Number(event.target.value))
 }
@@ -176,6 +269,12 @@ const isWhiteAlbum = ref(false)
 // Analisa brilho da imagem para ajustar contraste dos elementos sobrepostos
 const onImageLoad = async (event) => {
   try {
+    // Verifica se o evento e target são válidos
+    if (!event?.target?.src) {
+      console.warn('⚠️ onImageLoad: evento inválido')
+      return
+    }
+    
     console.log('🎨 HeroSection: Capa carregada, analisando brilho...')
     
     // Analiso brilho da imagem carregada
@@ -187,28 +286,60 @@ const onImageLoad = async (event) => {
     console.log(`💡 Brilho detectado: ${brightness.toFixed(2)} - Capa ${isWhiteAlbum.value ? 'clara' : 'escura'}`)
     
     // Aplico classe CSS baseada no brilho para ajustar contraste
-    const vinylCenter = event.target.closest('.vinyl-center')
+    // Usa optional chaining para evitar erro se elemento não existir
+    const vinylCenter = event.target?.closest?.('.vinyl-center')
     if (vinylCenter) {
       if (isWhiteAlbum.value) {
         vinylCenter.classList.add('white-album')
-        console.log('🎨 Aplicando estilo para capa clara')
       } else {
         vinylCenter.classList.remove('white-album')
-        console.log('🎨 Aplicando estilo para capa escura')
       }
     }
     
   } catch (error) {
-    console.error('❌ Erro ao analisar brilho da capa:', error)
-    // Em caso de erro, assumo capa escura (mais seguro)
+    // Silencia o erro - não é crítico
+    console.log('⚠️ Análise de brilho ignorada:', error.message)
     isWhiteAlbum.value = false
   }
 }
 
 // Função chamada quando há erro no carregamento da capa
-// Implementa fallback gracioso para manter funcionalidade
-const onImageError = (event) => {
+// Implementa fallback gracioso com busca no Spotify
+const onImageError = async (event) => {
   console.warn('⚠️ Erro ao carregar capa do álbum:', event.target.src)
+  
+  // Tenta buscar do Spotify antes de usar fallback
+  if (!event.target.dataset.spotifyAttempted && props.currentTrack) {
+    event.target.dataset.spotifyAttempted = 'true'
+    
+    try {
+      const userToken = localStorage.getItem('spotify_access_token')
+      if (userToken && props.currentTrack.artist && props.currentTrack.title) {
+        console.log(`🔍 Buscando capa do Spotify para ${props.currentTrack.title}...`)
+        
+        const cleanArtist = props.currentTrack.artist.replace(/[^\w\s]/gi, '').trim()
+        const cleanTrack = props.currentTrack.title.replace(/[^\w\s]/gi, '').trim()
+        const query = encodeURIComponent(`track:"${cleanTrack}" artist:"${cleanArtist}"`)
+        const url = `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1&market=BR`
+        
+        const response = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${userToken}` }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          if (data.tracks?.items?.[0]?.album?.images?.[0]?.url) {
+            const spotifyCover = data.tracks.items[0].album.images[0].url
+            console.log(`✅ Capa encontrada no Spotify: ${spotifyCover}`)
+            event.target.src = spotifyCover
+            return
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao buscar capa do Spotify:', err)
+    }
+  }
   
   // Tento URL de fallback se não for a padrão
   if (!event.target.src.includes('default-album.jpg')) {
@@ -337,22 +468,27 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 }
 
 .track-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Space Grotesk', sans-serif !important;
   font-size: 3rem;
-  font-weight: bold;
+  font-weight: 700;
   margin-bottom: 0.5rem;
   color: #fff;
   letter-spacing: -0.02em;
+  text-transform: none;
 }
 
 .track-artist {
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 1.4rem;
+  font-weight: 500;
   color: #ff6b6b;
   margin-bottom: 0.3rem;
 }
 
 .track-album {
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 1.1rem;
+  font-weight: 400;
   color: rgba(255, 255, 255, 0.8);
   margin-bottom: 2rem;
 }
@@ -408,28 +544,64 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 }
 
 .play-pause-btn:hover {
-  background: #ff6b6b;
-  border-color: #ff6b6b;
+  background: var(--accent-rgb);
+  border-color: var(--accent-rgb);
   transform: skewX(-5deg) translate(-3px, -3px);
   box-shadow: 3px 3px 0 #fff;
+  transition: all var(--color-transition);
 }
 
 .lyrics-hero-btn {
   font-family: 'Noto Sans JP', sans-serif;
-  background: #ff6b6b; /* Salmon background */
-  border-color: #ff6b6b;
+  background: var(--accent-rgb);
+  border-color: var(--accent-rgb);
+  transition: all var(--color-transition);
 }
 
 .lyrics-hero-btn:hover {
   background: #fff;
-  color: #ff6b6b;
-  box-shadow: 2px 2px 0 #ff6b6b;
+  color: var(--accent-rgb);
+  box-shadow: 2px 2px 0 var(--accent-rgb);
 }
 
 .kanji-icon {
   font-weight: bold;
   line-height: 1;
   font-size: 1.8rem;
+}
+
+/* Botão de Curtir */
+.like-btn {
+  background: transparent;
+  border-color: var(--accent-medium);
+  color: var(--accent-light);
+  transition: all 0.3s ease, border-color var(--color-transition), color var(--color-transition);
+}
+
+.like-btn:hover {
+  background: var(--accent-subtle);
+  border-color: var(--accent-rgb);
+  color: var(--accent-rgb);
+  transform: scale(1.1);
+}
+
+.like-btn.liked {
+  background: var(--accent-rgb);
+  border-color: var(--accent-rgb);
+  color: #fff;
+  animation: heartPulse 0.4s ease;
+}
+
+.like-btn.liked:hover {
+  background: var(--accent-dark-rgb);
+  border-color: var(--accent-dark-rgb);
+  box-shadow: 0 0 15px var(--glow-color);
+}
+
+@keyframes heartPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
 }
 
 .progress-section {
@@ -443,26 +615,125 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   height: 6px;
   background: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
-  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  transition: height 0.15s ease;
+}
+
+.progress-bar:hover {
+  height: 10px;
+}
+
+.progress-bar:hover .progress-thumb {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #ff6b6b, #feca57);
+  background: linear-gradient(90deg, var(--accent-rgb), var(--accent-secondary-rgb));
   border-radius: 3px;
-  transition: width 0.3s ease;
+  transition: background var(--color-transition);
+  pointer-events: none;
+}
+
+.progress-thumb {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translateX(-50%) translateY(-50%) scale(0);
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.progress-bar:active .progress-thumb {
+  transform: translateX(-50%) translateY(-50%) scale(1.2);
+  opacity: 1;
 }
 
 .time-display {
   font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.8);
   min-width: 45px;
+  user-select: none;
 }
 
 .vinyl-container {
   position: relative;
   flex-shrink: 0;
   z-index: 5;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============= ANIMAÇÃO DE NOVA MÚSICA ============= */
+.vinyl-container.new-track-animation {
+  animation: vinylBounceIn 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.vinyl-disc.pulse-glow {
+  animation: discPulseGlow 1.5s ease-out;
+}
+
+/* Borda do disco com cor dinâmica */
+.vinyl-disc {
+  border-color: var(--accent-soft) !important;
+  transition: border-color var(--color-transition);
+}
+
+@keyframes vinylBounceIn {
+  0% {
+    transform: scale(0.8) rotate(-10deg);
+    opacity: 0.7;
+  }
+  30% {
+    transform: scale(1.15) rotate(5deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.95) rotate(-3deg);
+  }
+  70% {
+    transform: scale(1.05) rotate(2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes discPulseGlow {
+  0% {
+    box-shadow: 
+      0 0 0 0 var(--accent-light),
+      0 0 30px var(--glow-color);
+    filter: brightness(1.3);
+  }
+  25% {
+    box-shadow: 
+      0 0 40px 20px var(--accent-medium),
+      0 0 80px 40px var(--accent-soft);
+    filter: brightness(1.5);
+  }
+  50% {
+    box-shadow: 
+      0 0 60px 30px var(--glow-color),
+      0 0 100px 50px var(--accent-subtle);
+    filter: brightness(1.4) saturate(1.2);
+  }
+  75% {
+    box-shadow: 
+      0 0 30px 15px var(--accent-soft),
+      0 0 60px 30px var(--accent-subtle);
+    filter: brightness(1.2);
+  }
+  100% {
+    box-shadow: none;
+    filter: brightness(1);
+  }
 }
 
 /* Responsividade para dispositivos móveis */

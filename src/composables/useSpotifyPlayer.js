@@ -273,42 +273,69 @@ export function useSpotifyPlayer() {
 
     try {
       console.log('')
-      console.log('🔍 Buscando dispositivos Spotify disponíveis...')
-      const devices = await getDevices()
-      console.log(`   Devices encontrados: ${devices.length}`)
-      devices.forEach(d => {
-        console.log(`   - ${d.name} | id=${d.id} | active=${d.is_active} | type=${d.type}`)
-      })
+      console.log('🔍 Garantindo dispositivo ativo antes de tocar...')
+      
+      // Primeiro, garante que há um dispositivo ativo
+      let deviceActivated = await ensureDeviceActive()
+      
+      // Se não conseguiu ativar, tenta buscar dispositivos
+      if (!deviceActivated) {
+        console.log('🔍 Buscando dispositivos Spotify disponíveis...')
+        const devices = await getDevices()
+        console.log(`   Devices encontrados: ${devices.length}`)
+        devices.forEach(d => {
+          console.log(`   - ${d.name} | id=${d.id} | active=${d.is_active} | type=${d.type}`)
+        })
 
-      if (!devices || devices.length === 0) {
-        console.error('❌ Nenhum dispositivo Spotify disponível para este usuário.')
-        error.value = 'Nenhum dispositivo Spotify ativo. Abra o Spotify no celular/desktop ou Web Player e tente novamente.'
-        return false
+        if (!devices || devices.length === 0) {
+          console.error('❌ Nenhum dispositivo Spotify disponível.')
+          error.value = 'Nenhum dispositivo Spotify ativo. O PlayOff Web Player deve aparecer após login.'
+          return false
+        }
       }
-
+      
+      // Busca dispositivos novamente após garantir ativação
+      const devices = await getDevices()
+      
       // Prioridade de escolha do device alvo:
-      // 1) Dispositivo atualmente ativo no Spotify (celular/desktop/etc)
-      // 2) Web Playback SDK deste app, se estiver presente na lista
+      // 1) Dispositivo atualmente ativo no Spotify
+      // 2) Web Playback SDK deste app
       // 3) Primeiro device da lista (fallback)
       let targetDevice = devices.find(d => d.is_active) || null
 
       if (!targetDevice && deviceId.value) {
         const webDevice = devices.find(d => d.id === deviceId.value)
         if (webDevice) {
-          console.log('🎧 Nenhum device ativo, mas Web Playback está disponível na lista. Tentando ativá-lo...')
+          console.log('🎧 Ativando Web Playback como dispositivo principal...')
           await transferPlayback()
-          // Pequeno delay para o Spotify propagar mudança de device ativo
           await new Promise(r => setTimeout(r, 500))
           targetDevice = webDevice
         }
       }
 
-      if (!targetDevice) {
+      if (!targetDevice && devices.length > 0) {
         targetDevice = devices[0]
-        console.log(`🎯 Usando primeiro device da lista como alvo: ${targetDevice.name} (${targetDevice.id})`)
-      } else {
-        console.log(`🎯 Device alvo escolhido: ${targetDevice.name} (${targetDevice.id})`)        
+        console.log(`🎯 Usando primeiro device: ${targetDevice.name}`)
+        
+        // Ativa esse dispositivo
+        await fetch('https://api.spotify.com/v1/me/player', {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ device_ids: [targetDevice.id], play: false })
+        })
+        await new Promise(r => setTimeout(r, 300))
       }
+      
+      if (!targetDevice) {
+        console.error('❌ Nenhum dispositivo disponível')
+        error.value = 'Nenhum dispositivo disponível. Recarregue a página.'
+        return false
+      }
+      
+      console.log(`🎯 Device alvo: ${targetDevice.name} (${targetDevice.id})`)
 
       const apiUrl = `https://api.spotify.com/v1/me/player/play?device_id=${targetDevice.id}`
       console.log('')
@@ -334,6 +361,12 @@ export function useSpotifyPlayer() {
       if (response.status === 204 || response.ok) {
         console.log('✅✅✅ API RETORNOU SUCESSO! ✅✅✅')
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        
+        // IMPORTANTE: Resetar posição imediatamente ao iniciar nova música
+        position.value = 0
+        isPaused.value = false
+        console.log('⏱️ Posição resetada para 0ms')
+        
         error.value = null
         return true
       }
@@ -373,8 +406,8 @@ export function useSpotifyPlayer() {
     }
   }
 
-  // Helper para chamadas de API
-  const callSpotifyApi = async (endpoint, method = 'POST', body = null) => {
+  // Helper para chamadas de API com reconexão automática
+  const callSpotifyApi = async (endpoint, method = 'POST', body = null, retryCount = 0) => {
     const accessToken = localStorage.getItem('spotify_access_token')
     if (!accessToken) return false
 
@@ -393,24 +426,104 @@ export function useSpotifyPlayer() {
       if (response.status === 204 || response.ok) return true
       
       // Tratamento específico para 404 (No Active Device)
-      if (response.status === 404) {
-        // Verifica se é realmente erro de device ou apenas rota não encontrada (improvável na API oficial)
-        const errorData = await response.json().catch(() => ({}))
-        console.warn(`⚠️ Comando ${endpoint} falhou:`, errorData)
+      if (response.status === 404 && retryCount < 2) {
+        console.warn(`⚠️ Dispositivo inativo, tentando reconectar... (tentativa ${retryCount + 1})`)
         
-        if (endpoint === '' && method === 'PUT') {
-           // Transfer playback falhou
-           console.warn('⚠️ Falha ao transferir playback - provável device inativo ou ID inválido')
-        } else {
-           console.warn(`⚠️ Comando ${endpoint} falhou: Nenhum dispositivo ativo`)
-           error.value = 'Nenhum dispositivo Spotify ativo. Dê play no celular/desktop primeiro.'
+        // Tenta reconectar o player
+        const reconnected = await ensureDeviceActive()
+        
+        if (reconnected) {
+          // Espera um pouco e tenta novamente
+          await new Promise(r => setTimeout(r, 500))
+          return await callSpotifyApi(endpoint, method, body, retryCount + 1)
         }
+      }
+      
+      if (response.status === 404) {
+        const errorData = await response.json().catch(() => ({}))
+        console.warn(`⚠️ Comando ${endpoint} falhou após tentativas:`, errorData)
+        error.value = 'Dispositivo Spotify desconectado. Clique em alguma música para reconectar.'
         return false
       }
       
       return false
     } catch (err) {
       console.error(`❌ Erro na API Spotify (${endpoint}):`, err)
+      return false
+    }
+  }
+  
+  // Garante que há um dispositivo ativo
+  const ensureDeviceActive = async () => {
+    const accessToken = localStorage.getItem('spotify_access_token')
+    if (!accessToken) return false
+    
+    try {
+      // 1. Verifica se o Web Player está pronto
+      if (isReady.value && deviceId.value) {
+        console.log('🔌 Ativando Web Player como dispositivo...')
+        const transferred = await transferPlayback()
+        if (transferred) {
+          console.log('✅ Web Player ativado!')
+          return true
+        }
+      }
+      
+      // 2. Tenta reconectar o player se não estiver pronto
+      if (!isReady.value && player.value) {
+        console.log('🔄 Reconectando Web Player...')
+        await player.value.connect()
+        
+        // Espera o player ficar pronto
+        let attempts = 0
+        while (!isReady.value && attempts < 30) {
+          await new Promise(r => setTimeout(r, 100))
+          attempts++
+        }
+        
+        if (isReady.value && deviceId.value) {
+          console.log('✅ Web Player reconectado!')
+          await transferPlayback()
+          return true
+        }
+      }
+      
+      // 3. Verifica se há outro dispositivo ativo
+      const devices = await getDevices()
+      const activeDevice = devices.find(d => d.is_active)
+      
+      if (activeDevice) {
+        console.log(`✅ Dispositivo ativo encontrado: ${activeDevice.name}`)
+        return true
+      }
+      
+      // 4. Se tem dispositivo disponível, ativa o primeiro
+      if (devices.length > 0) {
+        const targetDevice = devices.find(d => d.id === deviceId.value) || devices[0]
+        console.log(`🎯 Ativando dispositivo: ${targetDevice.name}`)
+        
+        const response = await fetch('https://api.spotify.com/v1/me/player', {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            device_ids: [targetDevice.id],
+            play: false
+          })
+        })
+        
+        if (response.status === 204 || response.ok) {
+          await new Promise(r => setTimeout(r, 300))
+          return true
+        }
+      }
+      
+      console.warn('❌ Nenhum dispositivo disponível para ativar')
+      return false
+    } catch (err) {
+      console.error('❌ Erro ao garantir dispositivo ativo:', err)
       return false
     }
   }
@@ -661,6 +774,7 @@ export function useSpotifyPlayer() {
     disconnect,
     getDevices,
     transferPlayback,
+    ensureDeviceActive,
     getCurrentState,
     startRemoteSync,
     stopRemoteSync
