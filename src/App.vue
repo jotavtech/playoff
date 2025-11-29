@@ -1370,10 +1370,132 @@ const startLocalInterpolation = () => {
   }, 30) // 33ms ~ 30fps para UI suave
 }
 
+// ============= MEDIA SESSION API (CONTROLES EM SEGUNDO PLANO) =============
+// Permite controlar a música pela tela de bloqueio, notificações e Central de Controle
+
+const updateMediaSession = () => {
+  if (!('mediaSession' in navigator)) return
+  
+  const track = currentTrack.value
+  if (!track) return
+  
+  try {
+    // Atualiza metadados da música
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.title || 'PlayOff',
+      artist: track.artist || 'Unknown Artist',
+      album: track.album || 'PlayOff Music',
+      artwork: [
+        { src: track.albumCover || '/default-album.jpg', sizes: '96x96', type: 'image/jpeg' },
+        { src: track.albumCover || '/default-album.jpg', sizes: '128x128', type: 'image/jpeg' },
+        { src: track.albumCover || '/default-album.jpg', sizes: '192x192', type: 'image/jpeg' },
+        { src: track.albumCover || '/default-album.jpg', sizes: '256x256', type: 'image/jpeg' },
+        { src: track.albumCover || '/default-album.jpg', sizes: '384x384', type: 'image/jpeg' },
+        { src: track.albumCover || '/default-album.jpg', sizes: '512x512', type: 'image/jpeg' },
+      ]
+    })
+    
+    // Atualiza estado de reprodução
+    navigator.mediaSession.playbackState = isPlaying.value ? 'playing' : 'paused'
+    
+    // Atualiza posição (para a barra de progresso)
+    if ('setPositionState' in navigator.mediaSession) {
+      const duration = currentDuration.value / 1000 // em segundos
+      const position = currentTime.value / 1000 // em segundos
+      
+      if (duration > 0 && position >= 0 && position <= duration) {
+        navigator.mediaSession.setPositionState({
+          duration: duration,
+          playbackRate: 1,
+          position: Math.min(position, duration)
+        })
+      }
+    }
+    
+    console.log('📱 Media Session atualizado:', track.title)
+  } catch (e) {
+    console.warn('⚠️ Erro ao atualizar Media Session:', e)
+  }
+}
+
+const setupMediaSessionHandlers = () => {
+  if (!('mediaSession' in navigator)) {
+    console.log('⚠️ Media Session API não suportada neste navegador')
+    return
+  }
+  
+  console.log('📱 Configurando Media Session API (controles em segundo plano)...')
+  
+  // Handler para Play
+  navigator.mediaSession.setActionHandler('play', () => {
+    console.log('📱 Media Session: Play')
+    handleTogglePlayback()
+  })
+  
+  // Handler para Pause
+  navigator.mediaSession.setActionHandler('pause', () => {
+    console.log('📱 Media Session: Pause')
+    handleTogglePlayback()
+  })
+  
+  // Handler para Próxima
+  navigator.mediaSession.setActionHandler('nexttrack', () => {
+    console.log('📱 Media Session: Next Track')
+    handleNextTrack()
+  })
+  
+  // Handler para Anterior
+  navigator.mediaSession.setActionHandler('previoustrack', () => {
+    console.log('📱 Media Session: Previous Track')
+    handlePreviousTrack()
+  })
+  
+  // Handler para Seek (arrastar a barra de progresso)
+  navigator.mediaSession.setActionHandler('seekto', (details) => {
+    if (details.seekTime !== undefined) {
+      console.log('📱 Media Session: Seek to', details.seekTime)
+      handleSeek(details.seekTime * 1000) // Converte para ms
+    }
+  })
+  
+  // Handler para avançar 10s
+  navigator.mediaSession.setActionHandler('seekforward', (details) => {
+    const skipTime = details.seekOffset || 10
+    const newTime = Math.min(currentTime.value + (skipTime * 1000), currentDuration.value)
+    handleSeek(newTime)
+  })
+  
+  // Handler para voltar 10s
+  navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+    const skipTime = details.seekOffset || 10
+    const newTime = Math.max(currentTime.value - (skipTime * 1000), 0)
+    handleSeek(newTime)
+  })
+  
+  console.log('✅ Media Session handlers configurados!')
+}
+
+// Atualiza Media Session quando a música ou estado muda
+watch([currentTrack, isPlaying], () => {
+  updateMediaSession()
+}, { immediate: true })
+
+// Atualiza posição periodicamente (a cada 1s)
+let mediaSessionInterval = null
+
 // ============= CICLO DE VIDA DO COMPONENTE =============
 
 // Inicialização quando o componente é montado
 onMounted(async () => {
+  // Configura Media Session para controles em segundo plano
+  setupMediaSessionHandlers()
+  
+  // Atualiza posição do Media Session a cada segundo
+  mediaSessionInterval = setInterval(() => {
+    if (isPlaying.value && currentTrack.value) {
+      updateMediaSession()
+    }
+  }, 1000)
   console.log('🚀 App.vue: Iniciando aplicação PlayOff Vue...')
   
   try {
@@ -1512,6 +1634,12 @@ onMounted(async () => {
 // Limpeza quando o componente é desmontado
 onUnmounted(() => {
   console.log('🧹 App.vue: Limpando recursos...')
+  
+  // Limpa intervalo do Media Session
+  if (mediaSessionInterval) {
+    clearInterval(mediaSessionInterval)
+    mediaSessionInterval = null
+  }
   
   // Removo event listeners para evitar memory leaks
   window.removeEventListener('albumColorExtracted', handleAlbumColorExtracted)
