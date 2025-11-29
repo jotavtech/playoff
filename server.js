@@ -916,6 +916,12 @@ app.get('/api/health', (req, res) => {
   console.log('✅ Health check respondido - Sistema funcionando normalmente');
 });
 
+// Rota catch-all para servir o frontend (SPA)
+// Qualquer rota não definida anteriormente será redirecionada para o index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
 // Inicialização do servidor e configuração final
 // Esta seção é responsável por inicializar todo o sistema e configurar
 // o estado inicial da aplicação. É aqui que toda a arquitetura se junta

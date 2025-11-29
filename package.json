@@ -4,11 +4,11 @@
   "description": "Music voting application with enhanced UI, color detection, and API integration - Vue.js version",
   "main": "server.js",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"npm run server\" \"vite\"",
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server.js",
-    "start": "concurrently \"npm run server\" \"npm run dev\""
+    "start": "node server.js"
   },
   "keywords": [
     "music",
