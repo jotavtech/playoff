@@ -1491,8 +1491,26 @@ app.get('*', (req, res) => {
 // Esta seção é responsável por inicializar todo o sistema e configurar
 // o estado inicial da aplicação. É aqui que toda a arquitetura se junta
 const startServer = async () => {
-  // Inicializa o banco de dados PostgreSQL
-  const dbReady = await checkConnection();
+  // Inicializa o banco de dados PostgreSQL com retries
+  let dbReady = false;
+  const maxRetries = 5;
+  
+  console.log('🔄 Iniciando tentativas de conexão com o banco...');
+  
+  for (let i = 1; i <= maxRetries; i++) {
+    dbReady = await checkConnection();
+    if (dbReady) break;
+    
+    if (i < maxRetries) {
+      console.log(`⏳ Tentativa ${i}/${maxRetries} falhou. Aguardando 5s para tentar novamente...`);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
+
+  if (!dbReady) {
+    console.warn('⚠️ AVISO: Não foi possível conectar ao banco de dados após múltiplas tentativas.');
+    console.warn('⚠️ O sistema iniciará usando apenas memória RAM (dados serão perdidos ao reiniciar).');
+  }
   
   // Sincroniza músicas do banco
   if (dbReady) {
