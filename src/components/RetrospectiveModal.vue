@@ -185,8 +185,7 @@ onUnmounted(() => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.9); /* Darker solid fallback */
   z-index: 9999;
   display: flex;
   justify-content: center;
@@ -194,6 +193,13 @@ onUnmounted(() => {
   padding: 4rem 20px;
   padding-bottom: 80vh; /* Espaço extra para permitir rolar a ficha "para fora" */
   overflow-y: auto; /* Habilita rolagem se o conteúdo for grande */
+}
+
+@media (min-width: 769px) {
+  .modal-overlay {
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+  }
 }
 
 .modal-content {
@@ -263,11 +269,19 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  opacity: 0.12; /* Mais ruído */
+  opacity: 0.05; /* Reduced opacity */
   pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  /* Removed heavy SVG filter for mobile/performance default */
+  background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyBAMAAADsEZWCAAAAGFBMVEUAAAA5OTkAAABMTExERERmZmazs7O/v79b/uLzAAAACHRSTlMAMwA1MzMzM7O0s1EAAABWSURBVDjLxZNBCgAgDMT8/3O9CgqC4CU9iMcS2G1RM7u0/iBO5CBO5CBO5CBO5CBO5CBO5CBO5CBO5CBO5CBO5CBO5CBO5CBO5CBO5CBO5CBO5CBO5CBO5M1uF9FGFK612s4AAAAASUVORK5CYII='); /* Simple noise pattern */
   z-index: 1;
   mix-blend-mode: overlay;
+}
+
+@media (min-width: 769px) {
+  .noise-overlay {
+    opacity: 0.12;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  }
 }
 
 .retro-header {
@@ -309,9 +323,15 @@ onUnmounted(() => {
   width: 150px;
   height: 40px;
   background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(5px);
+  /* backdrop-filter: blur(5px); Removed default blur */
   z-index: 5;
   box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+@media (min-width: 769px) {
+  .tape-strip {
+    backdrop-filter: blur(5px);
+  }
 }
 
 .section-title {

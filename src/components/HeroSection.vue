@@ -313,11 +313,17 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   position: relative;
   padding: 2.5rem;
   padding-top: 2rem;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.85); /* Darker, solid fallback */
   border: 2px solid #fff;
   transform: skewX(-3deg);
   box-shadow: 8px 8px 0 rgba(255, 107, 107, 0.8);
+}
+
+@media (min-width: 769px) {
+  .player-card {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+  }
 }
 
 .player-card > * {
@@ -385,11 +391,16 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   width: 100px;
   height: 100px;
   background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border: 4px solid #fff;
   font-size: 2.5rem;
   transform: skewX(-5deg);
+}
+
+@media (min-width: 769px) {
+  .play-pause-btn {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
 }
 
 .play-pause-btn i {

@@ -31,12 +31,12 @@ function generateState() {
 }
 
 // Gera URL de autorização do Spotify
-function getAuthorizationUrl(state) {
+function getAuthorizationUrl(state, redirectUri) {
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: SPOTIFY_CLIENT_ID,
     scope: SCOPES,
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: redirectUri || REDIRECT_URI,
     state: state,
     show_dialog: 'false' // false para não mostrar dialog sempre
   });
@@ -45,7 +45,7 @@ function getAuthorizationUrl(state) {
 }
 
 // Troca o código por access token
-async function exchangeCodeForToken(code) {
+async function exchangeCodeForToken(code, redirectUri) {
   const credentials = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
   
   const response = await fetch('https://accounts.spotify.com/api/token', {
@@ -57,7 +57,7 @@ async function exchangeCodeForToken(code) {
     body: new URLSearchParams({
       grant_type: 'authorization_code',
       code: code,
-      redirect_uri: REDIRECT_URI
+      redirect_uri: redirectUri || REDIRECT_URI
     })
   });
 

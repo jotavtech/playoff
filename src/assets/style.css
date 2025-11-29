@@ -5,36 +5,42 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+  overscroll-behavior: none; /* Prevents pull-to-refresh on mobile */
+}
+
 body {
   font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   /* Default black theme when no music is playing */
-  background: 
-    linear-gradient(135deg, 
-      rgba(15, 15, 15, 0.98) 0%, 
-      rgba(25, 25, 30, 0.96) 25%,
-      rgba(20, 20, 25, 0.97) 50%,
-      rgba(18, 18, 22, 0.95) 75%,
-      rgba(12, 12, 15, 0.99) 100%
-    ),
-    linear-gradient(45deg,
-      rgba(30, 30, 35, 0.4) 0%,
-      rgba(20, 20, 25, 0.3) 50%,
-      rgba(25, 25, 30, 0.35) 100%
-    ),
-    radial-gradient(ellipse at 30% 30%, 
-      rgba(40, 40, 45, 0.15) 0%, 
-      transparent 60%
-    ),
-    radial-gradient(ellipse at 70% 70%, 
-      rgba(30, 30, 35, 0.12) 0%, 
-      transparent 50%
-    );
+  background: #121215; /* Simplified background for performance */
   color: #e2e8f0;
   min-height: 100vh;
+  /* Fallback for older browsers */
+  min-height: 100dvh; 
   overflow-x: hidden;
   position: relative;
-  transition: all 2s ease-in-out;
-  backdrop-filter: blur(20px) saturate(1.1);
+  transition: background-color 0.5s ease;
+}
+
+@media (min-width: 769px) {
+  body {
+    background: 
+      linear-gradient(135deg, 
+        rgba(15, 15, 15, 0.98) 0%, 
+        rgba(25, 25, 30, 0.96) 25%,
+        rgba(20, 20, 25, 0.97) 50%,
+        rgba(18, 18, 22, 0.95) 75%,
+        rgba(12, 12, 15, 0.99) 100%
+      ),
+      linear-gradient(45deg,
+        rgba(30, 30, 35, 0.4) 0%,
+        rgba(20, 20, 25, 0.3) 50%,
+        rgba(25, 25, 30, 0.35) 100%
+      );
+    backdrop-filter: blur(20px) saturate(1.1);
+    transition: all 2s ease-in-out;
+  }
 }
 
 /* Black theme for no music state */
@@ -63,35 +69,29 @@ body.theme-black {
   color: #f1f5f9;
 }
 
-/* Ultra-Fine Frosted Glass Texture */
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: 
-    /* Micro noise pattern for grain */
-    radial-gradient(circle at 20% 20%, rgba(255,255,255,0.008) 0.5px, transparent 0.5px),
-    radial-gradient(circle at 80% 40%, rgba(255,255,255,0.006) 0.5px, transparent 0.5px),
-    radial-gradient(circle at 40% 80%, rgba(255,255,255,0.010) 0.5px, transparent 0.5px),
-    radial-gradient(circle at 60% 30%, rgba(255,255,255,0.004) 0.5px, transparent 0.5px),
-    radial-gradient(circle at 30% 70%, rgba(255,255,255,0.007) 0.5px, transparent 0.5px),
-    /* Subtle gradient overlay */
-    linear-gradient(45deg, 
-      rgba(255,255,255,0.02) 0%, 
-      rgba(248,250,252,0.015) 25%,
-      rgba(255,255,255,0.025) 50%,
-      rgba(250,252,255,0.012) 75%,
-      rgba(255,255,255,0.018) 100%
-    );
-  background-size: 1.5px 1.5px, 2px 2px, 2.5px 2.5px, 3px 3px, 3.5px 3.5px, 100% 100%;
-  background-position: 0 0, 1px 1px, 2px 2px, 3px 3px, 4px 4px, 0 0;
-  opacity: 0.7;
-  z-index: 1;
-  pointer-events: none;
-  animation: subtleGrainFlow 35s linear infinite;
+/* Ultra-Fine Frosted Glass Texture - Desktop Only */
+@media (min-width: 769px) {
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+      /* Micro noise pattern for grain */
+      radial-gradient(circle at 20% 20%, rgba(255,255,255,0.008) 0.5px, transparent 0.5px),
+      radial-gradient(circle at 80% 40%, rgba(255,255,255,0.006) 0.5px, transparent 0.5px),
+      /* Reduced complexity */
+      linear-gradient(45deg, 
+        rgba(255,255,255,0.02) 0%, 
+        rgba(255,255,255,0.018) 100%
+      );
+    background-size: 2px 2px, 3px 3px, 100% 100%;
+    opacity: 0.5;
+    z-index: 1;
+    pointer-events: none;
+  }
 }
 
 @keyframes subtleGrainFlow {
@@ -115,34 +115,44 @@ body::before {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  filter: blur(60px) brightness(0.4) saturate(1.8) contrast(1.2);
-  transform: scale(1.2);
-  transition: opacity 2s ease, background-image 2s ease;
+  /* Simplified filters for mobile */
+  filter: brightness(0.3);
+  transition: opacity 0.5s ease;
   z-index: 0;
   opacity: 0;
-  will-change: opacity, background-image;
   contain: strict;
+}
+
+@media (min-width: 769px) {
+  .dynamic-background {
+    filter: blur(60px) brightness(0.4) saturate(1.8) contrast(1.2);
+    transform: scale(1.2);
+    transition: opacity 2s ease, background-image 2s ease;
+    will-change: opacity, background-image;
+  }
 }
 
 .dynamic-background.active {
   opacity: 0.8;
 }
 
-/* Enhanced granulated overlay on top of dynamic background */
-.dynamic-background::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: 
-    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.02) 1px, transparent 1px),
-    radial-gradient(circle at 70% 70%, rgba(255,255,255,0.01) 1px, transparent 1px);
-  background-size: 3px 3px, 5px 5px;
-  background-position: 0 0, 2px 2px;
-  animation: grainOverlay 20s linear infinite;
-  backdrop-filter: blur(1px);
+/* Enhanced granulated overlay - Desktop Only */
+@media (min-width: 769px) {
+  .dynamic-background::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+      radial-gradient(circle at 30% 30%, rgba(255,255,255,0.02) 1px, transparent 1px),
+      radial-gradient(circle at 70% 70%, rgba(255,255,255,0.01) 1px, transparent 1px);
+    background-size: 3px 3px, 5px 5px;
+    background-position: 0 0, 2px 2px;
+    animation: grainOverlay 20s linear infinite;
+    backdrop-filter: blur(1px);
+  }
 }
 
 @keyframes grainOverlay {
@@ -153,6 +163,7 @@ body::before {
 #app {
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   z-index: 2;
 }
@@ -164,6 +175,7 @@ body::before {
   align-items: center;
   padding: 2rem;
   min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   overflow: hidden;
   backdrop-filter: blur(2px);
@@ -281,6 +293,7 @@ body::before {
   top: 0;
   width: 1200px;
   height: 100vh;
+  height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -292,26 +305,33 @@ body::before {
   position: relative;
   width: 100vh;
   height: 100vh;
-  background: 
-    radial-gradient(circle, rgba(45, 55, 72, 0.8) 20%, rgba(26, 32, 44, 0.9) 40%, rgba(45, 55, 72, 0.8) 60%, rgba(26, 32, 44, 0.9) 80%),
-    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+  background: #2d3748; /* Solid fallback */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   border-radius: 50%;
   transform-origin: center center;
   border: 8px solid rgba(45, 55, 72, 0.8);
-  box-shadow: 
-    inset 0 0 60px rgba(0, 0, 0, 0.4),
-    inset 0 0 100px rgba(255, 255, 255, 0.05),
-    0 0 0 12px rgba(45, 55, 72, 0.6),
-    0 0 0 20px rgba(45, 55, 72, 0.4),
-    0 0 40px rgba(45, 55, 72, 0.5),
-    0 0 80px rgba(45, 55, 72, 0.3);
-  transition: box-shadow 1s ease, border-color 1s ease;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
   opacity: 0.85;
   will-change: transform;
   contain: layout style paint;
+}
+
+@media (min-width: 769px) {
+  .vinyl-disc {
+    background: 
+      radial-gradient(circle, rgba(45, 55, 72, 0.8) 20%, rgba(26, 32, 44, 0.9) 40%, rgba(45, 55, 72, 0.8) 60%, rgba(26, 32, 44, 0.9) 80%),
+      radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+    box-shadow: 
+      inset 0 0 60px rgba(0, 0, 0, 0.4),
+      inset 0 0 100px rgba(255, 255, 255, 0.05),
+      0 0 0 12px rgba(45, 55, 72, 0.6),
+      0 0 0 20px rgba(45, 55, 72, 0.4),
+      0 0 40px rgba(45, 55, 72, 0.5),
+      0 0 80px rgba(45, 55, 72, 0.3);
+    transition: box-shadow 1s ease, border-color 1s ease;
+  }
 }
 
 .vinyl-disc::before {
@@ -603,15 +623,17 @@ body::before {
     0 8px 25px rgba(0, 0, 0, 0.05),
     0 4px 10px rgba(0, 0, 0, 0.03),
     inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Smoother transition curve */
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
   cursor: pointer;
 }
 
 .song-item:hover {
-  transform: translateY(-3px) scale(1.02);
+  /* Reduced movement and scale for subtlety */
+  transform: translateY(-2px) scale(1.01);
   box-shadow: 
-    0 15px 35px rgba(0, 0, 0, 0.08),
-    0 8px 15px rgba(0, 0, 0, 0.04),
+    0 12px 30px rgba(0, 0, 0, 0.07),
+    0 6px 12px rgba(0, 0, 0, 0.03),
     inset 0 1px 0 rgba(255, 255, 255, 0.5);
   background: rgba(255, 255, 255, 0.18);
 }

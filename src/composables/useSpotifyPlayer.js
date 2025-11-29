@@ -43,6 +43,24 @@ export function useSpotifyPlayer() {
       return false
     }
 
+    // Função auxiliar para injetar o script do SDK
+    const injectSdkScript = () => {
+      if (document.getElementById('spotify-player-script')) {
+        // Se já existe, mas callback não foi chamado, tenta chamar
+        if (window.Spotify) {
+          window.onSpotifyWebPlaybackSDKReady()
+        }
+        return
+      }
+
+      const script = document.createElement('script')
+      script.id = 'spotify-player-script'
+      script.src = 'https://sdk.scdn.co/spotify-player.js'
+      script.async = true
+      document.body.appendChild(script)
+      console.log('📦 Injetando script do Spotify SDK...')
+    }
+
     // Tenta criar imediatamente se SDK já carregou
     if (tryCreatePlayer()) {
       return
@@ -55,6 +73,9 @@ export function useSpotifyPlayer() {
       console.log('📦 Spotify SDK carregou via callback!')
       tryCreatePlayer()
     }
+
+    // Injeta o script agora que o callback está pronto
+    injectSdkScript()
 
     // Fallback: polling caso o callback já tenha sido chamado antes
     let attempts = 0

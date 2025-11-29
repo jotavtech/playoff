@@ -36,16 +36,28 @@ const requireAuth = (req, res, next) => {
 // Inicia processo de login com Spotify
 router.get('/login', (req, res) => {
   const state = spotifyAuth.generateState();
-  states.set(state, Date.now());
+  
+  // Constrói a redirect URI baseada no host que fez a requisição
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.get('host');
+  const redirectUri = `${protocol}://${host}/auth/spotify/callback`;
+  
+  console.log(`🔐 Iniciando login via: ${redirectUri}`);
+
+  // Armazena state e a redirect URI usada para validação no callback
+  states.set(state, { 
+    timestamp: Date.now(),
+    redirectUri: redirectUri
+  });
   
   // Limpa states antigos (mais de 10 minutos)
-  for (const [key, timestamp] of states.entries()) {
-    if (Date.now() - timestamp > 600000) {
+  for (const [key, data] of states.entries()) {
+    if (Date.now() - data.timestamp > 600000) {
       states.delete(key);
     }
   }
 
-  const authUrl = spotifyAuth.getAuthorizationUrl(state);
+  const authUrl = spotifyAuth.getAuthorizationUrl(state, redirectUri);
   res.json({ authUrl, state });
 });
 
@@ -58,15 +70,16 @@ router.get('/spotify/callback', async (req, res) => {
   }
 
   // Valida state para prevenir CSRF
-  if (!state || !states.has(state)) {
+  const stateData = states.get(state);
+  if (!state || !stateData) {
     return res.redirect('/?error=invalid_state');
   }
 
   states.delete(state);
 
   try {
-    // Troca código por tokens
-    const tokenData = await spotifyAuth.exchangeCodeForToken(code);
+    // Troca código por tokens usando a mesma redirect URI do login
+    const tokenData = await spotifyAuth.exchangeCodeForToken(code, stateData.redirectUri);
     
     // Busca perfil do usuário
     const profile = await spotifyAuth.getUserProfile(tokenData.access_token);

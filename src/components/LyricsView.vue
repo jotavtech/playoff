@@ -1,6 +1,6 @@
 <template>
   <div class="lyrics-view" @click.self="$emit('close')">
-    <div class="lyrics-container" ref="lyricsContainer">
+    <div class="lyrics-container" ref="lyricsContainer" @scroll.passive="handleScroll">
       <div v-if="isLoading" class="loading-state">
         <i class="fas fa-bolt fa-spin" :style="{ color: dominantColor || '#fff' }"></i>
         <p>Sintonizando frequência...</p>
@@ -207,25 +207,26 @@ const seekTo = (time) => {
   emit('seek', time)
 }
 
+const handleScroll = () => {
+  // Optional: Add logic if needed, but keeping it passive helps performance
+}
+
 const scrollToActiveLine = () => {
   const container = lyricsContainer.value
   if (!container) return
 
-  // Busca o wrapper ativo (ou fallback pelo índice)
-  let targetElement = container.querySelector('.lyric-wrapper.active-wrapper')
-  
-  if (!targetElement) {
-    const wrappers = container.querySelectorAll('.lyric-wrapper')
-    targetElement = wrappers[props.currentLineIndex]
-  }
+  // Cache selectors if possible or use ID-based lookup for speed
+  // For now, we optimize by not querying if we don't need to
+  const wrappers = container.children[0]?.children // Accessing direct children of .lyrics-lines
+  if (!wrappers) return
+
+  const targetElement = wrappers[props.currentLineIndex]
 
   if (targetElement) {
-    // Cálculo manual do centro para maior precisão com transforms 3D
     const containerHeight = container.clientHeight
     const elementTop = targetElement.offsetTop
     const elementHeight = targetElement.clientHeight
     
-    // Posição de scroll para centralizar o elemento
     const targetScrollTop = elementTop - (containerHeight / 2) + (elementHeight / 2)
     
     container.scrollTo({
@@ -258,18 +259,29 @@ onMounted(() => {
   left: 0;
   width: 100%;
   height: 100vh;
+  height: 100dvh;
   z-index: 15;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: rgba(0, 0, 0, 0.95);
-  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.98); /* Darker background, less alpha */
+  /* Removed backdrop-filter for performance */
+}
+
+@supports (backdrop-filter: blur(10px)) {
+  @media (min-width: 769px) {
+    .lyrics-view {
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(10px);
+    }
+  }
 }
 
 .lyrics-container {
   width: 100%;
   height: 100vh;
+  height: 100dvh;
   overflow-y: auto;
   padding: 2rem;
   display: flex;
@@ -296,11 +308,12 @@ onMounted(() => {
   justify-content: flex-end; 
   gap: 30px;
   width: 100%;
-  /* Reduzido tempo de transição para resposta mais rápida */
-  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease; /* Optimized transition properties */
   transform-origin: right center;
   opacity: 0.3;
+  /* Default (Desktop) Transforms */
   transform: translateX(50px) scale(0.8) rotateY(-10deg);
+  will-change: transform, opacity; /* Hint for browser */
 }
 
 /* Wrapper do conteúdo da linha (texto + timer) */
@@ -410,15 +423,11 @@ onMounted(() => {
   font-size: 5rem;
   background: rgba(0, 0, 0, 0.6);
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  max-width: 85vw; /* Garante que não estoure a tela ativa */
-  
-  /* Borda Itálica Grossa */
-  border: none;
-  border-bottom: 8px solid currentColor; /* Usa a cor definida no style inline */
-  border-radius: 0;
-  transform: skewX(-10deg); /* Itálico na caixa */
-  padding-bottom: 0.5rem;
+  /* Simplificado para mobile */
+  box-shadow: none;
+  border-bottom: 4px solid currentColor;
+  transform: none; /* Remove skew/transform on active line mobile/perf */
+  padding-bottom: 0.2rem;
 }
 
 .active-wrapper .lyric-line.long-text {
@@ -472,11 +481,40 @@ onMounted(() => {
 .close-lyrics-radical:hover .x-stroke { background-color: #ff0000; }
 
 @media (max-width: 768px) {
-  .lyric-line { font-size: 1.8rem; }
-  .active-wrapper .lyric-line { font-size: 2.8rem; }
-  .tribal-decor { height: 80px; }
-  .lyric-wrapper { transform: none !important; opacity: 1 !important; justify-content: center; }
-  .lyrics-lines { align-items: center; padding: 50vh 1rem; }
-  .future-wrapper, .past-wrapper { opacity: 0.5 !important; filter: none; }
+  .lyric-line { 
+    font-size: 1.8rem; 
+    text-shadow: none !important; /* Remove text shadow on mobile */
+  }
+  .active-wrapper .lyric-line { 
+    font-size: 2.4rem; /* Slightly smaller */
+    box-shadow: none !important;
+    transform: none !important;
+    border-bottom-width: 4px !important;
+  }
+  .tribal-decor { height: 60px; opacity: 0.5; } /* Smaller images */
+  
+  .lyric-wrapper { 
+    transform: none !important; 
+    opacity: 1 !important; 
+    justify-content: center; 
+    transition: opacity 0.3s ease; /* Simpler transition */
+  }
+  
+  .lyrics-lines { 
+    align-items: center; 
+    padding: 50vh 1rem; 
+    gap: 1.5rem; /* More space */
+  }
+  
+  .future-wrapper, .past-wrapper { 
+    opacity: 0.4 !important; 
+    filter: none !important; 
+    transform: scale(0.95) !important; /* Simple scale instead of 3D */
+  }
+  
+  /* Disable heavy animations */
+  .timer-bar {
+    box-shadow: none !important;
+  }
 }
 </style>
