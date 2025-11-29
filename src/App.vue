@@ -1380,19 +1380,37 @@ const updateMediaSession = () => {
   if (!track) return
   
   try {
+    // Determina a URL da capa (usa logo do PlayOff como fallback)
+    const playoffLogo = 'https://res.cloudinary.com/dzwfuzxxw/image/upload/v1764087001/playoff_2_yvagtx.png'
+    
+    // Prioridade: capa do álbum > logo do PlayOff
+    let artworkUrl = playoffLogo
+    
+    if (track?.albumCover && !track.albumCover.includes('default-album')) {
+      // Garante que URLs usem HTTPS
+      if (track.albumCover.startsWith('http')) {
+        artworkUrl = track.albumCover.replace('http://', 'https://')
+      } else {
+        artworkUrl = track.albumCover
+      }
+    }
+    
+    // Cria artworks em múltiplos tamanhos
+    const artworks = [
+      { src: artworkUrl, sizes: '96x96', type: 'image/png' },
+      { src: artworkUrl, sizes: '128x128', type: 'image/png' },
+      { src: artworkUrl, sizes: '192x192', type: 'image/png' },
+      { src: artworkUrl, sizes: '256x256', type: 'image/png' },
+      { src: artworkUrl, sizes: '384x384', type: 'image/png' },
+      { src: artworkUrl, sizes: '512x512', type: 'image/png' },
+    ]
+    
     // Atualiza metadados da música
     navigator.mediaSession.metadata = new MediaMetadata({
       title: track.title || 'PlayOff',
       artist: track.artist || 'Unknown Artist',
       album: track.album || 'PlayOff Music',
-      artwork: [
-        { src: track.albumCover || '/default-album.jpg', sizes: '96x96', type: 'image/jpeg' },
-        { src: track.albumCover || '/default-album.jpg', sizes: '128x128', type: 'image/jpeg' },
-        { src: track.albumCover || '/default-album.jpg', sizes: '192x192', type: 'image/jpeg' },
-        { src: track.albumCover || '/default-album.jpg', sizes: '256x256', type: 'image/jpeg' },
-        { src: track.albumCover || '/default-album.jpg', sizes: '384x384', type: 'image/jpeg' },
-        { src: track.albumCover || '/default-album.jpg', sizes: '512x512', type: 'image/jpeg' },
-      ]
+      artwork: artworks
     })
     
     // Atualiza estado de reprodução
@@ -1412,7 +1430,7 @@ const updateMediaSession = () => {
       }
     }
     
-    console.log('📱 Media Session atualizado:', track.title)
+    console.log('📱 Media Session atualizado:', track.title, '| Artwork:', artworkUrl)
   } catch (e) {
     console.warn('⚠️ Erro ao atualizar Media Session:', e)
   }
