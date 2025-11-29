@@ -2,19 +2,199 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const Database = require('better-sqlite3');
 
-// DEBUG RAILWAY
-console.log('📂 Current directory:', process.cwd());
-console.log('📂 Directory contents:', fs.readdirSync('.'));
+// ============= DATABASE SETUP (INLINED) =============
+// Integrado diretamente no server.js para evitar erros de deploy no Railway
+
+// Caminho do banco de dados (na raiz do app)
+const DB_PATH = path.join(__dirname, 'playoff.db');
+
+// Schema do banco de dados
+const DB_SCHEMA = `
+-- Tabela de Usuários
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  spotify_id VARCHAR(255) UNIQUE NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  display_name VARCHAR(255),
+  profile_image VARCHAR(500),
+  country VARCHAR(10),
+  spotify_access_token TEXT,
+  spotify_refresh_token TEXT,
+  token_expires_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  last_login DATETIME DEFAULT CURRENT_TIMESTAMP,
+  total_plays INTEGER DEFAULT 0
+);
+
+-- Tabela de Músicas (catálogo)
+CREATE TABLE IF NOT EXISTS songs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  spotify_id VARCHAR(255) UNIQUE,
+  title VARCHAR(255) NOT NULL,
+  artist VARCHAR(255) NOT NULL,
+  album VARCHAR(255),
+  album_cover TEXT,
+  audio_url TEXT,
+  preview_url TEXT,
+  spotify_url TEXT,
+  duration_ms INTEGER,
+  release_date VARCHAR(50),
+  popularity INTEGER,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  total_plays INTEGER DEFAULT 0,
+  unique_listeners INTEGER DEFAULT 0,
+  added_by_user_id INTEGER,
+  FOREIGN KEY (added_by_user_id) REFERENCES users(id)
+);
+
+-- Tabela de Histórico de Reprodução
+CREATE TABLE IF NOT EXISTS play_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  song_id INTEGER NOT NULL,
+  played_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  play_duration_ms INTEGER,
+  completed BOOLEAN DEFAULT 0,
+  source VARCHAR(50) DEFAULT 'playoff',
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE
+);
+
+-- Tabela de Votos (sistema de votação)
+CREATE TABLE IF NOT EXISTS votes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  song_id INTEGER NOT NULL,
+  votes INTEGER DEFAULT 1,
+  voted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE,
+  UNIQUE(user_id, song_id)
+);
+
+-- Tabela de Estatísticas de Usuários por Música
+CREATE TABLE IF NOT EXISTS user_song_stats (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  song_id INTEGER NOT NULL,
+  play_count INTEGER DEFAULT 0,
+  total_duration_ms INTEGER DEFAULT 0,
+  last_played_at DATETIME,
+  first_played_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE,
+  UNIQUE(user_id, song_id)
+);
+`;
+
+// Inicializa conexão com SQLite
+const dbConnection = new Database(DB_PATH, { 
+  verbose: console.log,
+  fileMustExist: false 
+});
+
+// Habilita foreign keys e WAL mode
+dbConnection.pragma('foreign_keys = ON');
+dbConnection.pragma('journal_mode = WAL');
+
+console.log('📊 Banco de dados SQLite conectado:', DB_PATH);
+
+// Inicializa o schema
 try {
-  console.log('📂 Database folder contents:', fs.readdirSync('./database'));
-} catch (e) {
-  console.log('❌ Cannot read database folder:', e.message);
+  dbConnection.exec(DB_SCHEMA);
+  console.log('✅ Schema do banco de dados inicializado com sucesso');
+} catch (error) {
+  console.error('❌ Erro ao inicializar schema:', error);
 }
 
-// Importação dos novos módulos de autenticação e banco de dados
-const db = require('./database/db');
-const authRoutes = require('./routes/auth-routes');
+// Prepared Statements
+const userQueries = {
+  upsertUser: dbConnection.prepare(`
+    INSERT INTO users (spotify_id, email, display_name, profile_image, country, spotify_access_token, spotify_refresh_token, token_expires_at, last_login) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(spotify_id) DO UPDATE SET
+      email = excluded.email, display_name = excluded.display_name, profile_image = excluded.profile_image,
+      spotify_access_token = excluded.spotify_access_token, spotify_refresh_token = excluded.spotify_refresh_token,
+      token_expires_at = excluded.token_expires_at, last_login = CURRENT_TIMESTAMP
+  `),
+  getUserBySpotifyId: dbConnection.prepare(`SELECT * FROM users WHERE spotify_id = ?`),
+  getUserById: dbConnection.prepare(`SELECT * FROM users WHERE id = ?`),
+  updateUserTokens: dbConnection.prepare(`UPDATE users SET spotify_access_token = ?, spotify_refresh_token = ?, token_expires_at = ? WHERE id = ?`),
+  incrementUserPlays: dbConnection.prepare(`UPDATE users SET total_plays = total_plays + 1 WHERE id = ?`)
+};
+
+const songQueries = {
+  upsertSong: dbConnection.prepare(`
+    INSERT INTO songs (spotify_id, title, artist, album, album_cover, audio_url, preview_url, spotify_url, duration_ms, release_date, popularity, added_by_user_id) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(spotify_id) DO UPDATE SET
+      album_cover = excluded.album_cover, preview_url = excluded.preview_url, spotify_url = excluded.spotify_url,
+      popularity = excluded.popularity, added_by_user_id = COALESCE(songs.added_by_user_id, excluded.added_by_user_id)
+    RETURNING *
+  `),
+  getSongById: dbConnection.prepare(`SELECT * FROM songs WHERE id = ?`),
+  getSongBySpotifyId: dbConnection.prepare(`SELECT * FROM songs WHERE spotify_id = ?`),
+  getAllSongs: dbConnection.prepare(`SELECT * FROM songs ORDER BY created_at DESC`),
+  incrementSongPlays: dbConnection.prepare(`UPDATE songs SET total_plays = total_plays + 1 WHERE id = ?`),
+  getTopSongs: dbConnection.prepare(`SELECT * FROM songs ORDER BY total_plays DESC, popularity DESC LIMIT ?`),
+  getUserAddedSongs: dbConnection.prepare(`SELECT * FROM songs WHERE added_by_user_id = ? ORDER BY created_at DESC`)
+};
+
+const historyQueries = {
+  addPlayHistory: dbConnection.prepare(`INSERT INTO play_history (user_id, song_id, play_duration_ms, completed, source) VALUES (?, ?, ?, ?, ?)`),
+  getUserHistory: dbConnection.prepare(`SELECT ph.*, s.title, s.artist, s.album, s.album_cover FROM play_history ph JOIN songs s ON ph.song_id = s.id WHERE ph.user_id = ? ORDER BY ph.played_at DESC LIMIT ?`),
+  getRecentPlays: dbConnection.prepare(`SELECT ph.*, s.title, s.artist, s.album_cover, u.display_name as user_name FROM play_history ph JOIN songs s ON ph.song_id = s.id JOIN users u ON ph.user_id = u.id ORDER BY ph.played_at DESC LIMIT ?`)
+};
+
+const statsQueries = {
+  incrementUserSongStats: dbConnection.prepare(`
+    INSERT INTO user_song_stats (user_id, song_id, play_count, total_duration_ms, last_played_at) VALUES (?, ?, 1, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(user_id, song_id) DO UPDATE SET play_count = play_count + 1, total_duration_ms = total_duration_ms + excluded.total_duration_ms, last_played_at = CURRENT_TIMESTAMP
+  `),
+  getUserTopSongs: dbConnection.prepare(`SELECT s.*, uss.play_count, uss.total_duration_ms, uss.last_played_at FROM user_song_stats uss JOIN songs s ON uss.song_id = s.id WHERE uss.user_id = ? ORDER BY uss.play_count DESC, uss.last_played_at DESC LIMIT ?`),
+  getUserStats: dbConnection.prepare(`SELECT COUNT(DISTINCT song_id) as unique_songs, SUM(play_count) as total_plays, SUM(total_duration_ms) as total_listening_time FROM user_song_stats WHERE user_id = ?`)
+};
+
+const voteQueries = {
+  addVote: dbConnection.prepare(`INSERT INTO votes (user_id, song_id, votes) VALUES (?, ?, 1) ON CONFLICT(user_id, song_id) DO UPDATE SET votes = votes + 1, voted_at = CURRENT_TIMESTAMP`),
+  getUserVotes: dbConnection.prepare(`SELECT v.*, s.title, s.artist, s.album_cover FROM votes v JOIN songs s ON v.song_id = s.id WHERE v.user_id = ? ORDER BY v.votes DESC`),
+  getSongVotes: dbConnection.prepare(`SELECT COALESCE(SUM(votes), 0) as total_votes FROM votes WHERE song_id = ?`)
+};
+
+// Objeto db exportado para uso interno
+const db = {
+  db: dbConnection,
+  upsertUser: (d) => userQueries.upsertUser.run(d.spotify_id, d.email, d.display_name, d.profile_image, d.country, d.access_token, d.refresh_token, d.token_expires_at),
+  getUserBySpotifyId: (id) => userQueries.getUserBySpotifyId.get(id),
+  getUserById: (id) => userQueries.getUserById.get(id),
+  updateUserTokens: (at, rt, exp, id) => userQueries.updateUserTokens.run(at, rt, exp, id),
+  incrementUserPlays: (id) => userQueries.incrementUserPlays.run(id),
+  upsertSong: (d) => {
+    try {
+      const r = songQueries.upsertSong.get(d.spotify_id, d.title, d.artist, d.album, d.album_cover, d.audio_url, d.preview_url, d.spotify_url, d.duration_ms, d.release_date, d.popularity, d.added_by_user_id || null);
+      return r || songQueries.getSongBySpotifyId.get(d.spotify_id);
+    } catch (e) { console.error(e); throw e; }
+  },
+  getSongById: (id) => songQueries.getSongById.get(id),
+  getSongBySpotifyId: (id) => songQueries.getSongBySpotifyId.get(id),
+  getAllSongs: () => songQueries.getAllSongs.all(),
+  incrementSongPlays: (id) => songQueries.incrementSongPlays.run(id),
+  getTopSongs: (limit) => songQueries.getTopSongs.all(limit),
+  getUserAddedSongs: (id) => songQueries.getUserAddedSongs.all(id),
+  addPlayHistory: (uid, sid, dur, comp, src='playoff') => historyQueries.addPlayHistory.run(uid, sid, dur, comp?1:0, src),
+  getUserHistory: (uid, limit) => historyQueries.getUserHistory.all(uid, limit),
+  getRecentPlays: (limit) => historyQueries.getRecentPlays.all(limit),
+  incrementUserSongStats: (uid, sid, dur) => statsQueries.incrementUserSongStats.run(uid, sid, dur),
+  getUserTopSongs: (uid, limit) => statsQueries.getUserTopSongs.all(uid, limit),
+  getUserStats: (uid) => statsQueries.getUserStats.get(uid),
+  addVote: (uid, sid) => voteQueries.addVote.run(uid, sid),
+  getUserVotes: (uid) => voteQueries.getUserVotes.all(uid),
+  getSongVotes: (sid) => voteQueries.getSongVotes.get(sid),
+  transaction: (fn) => dbConnection.transaction(fn)
+};
+const authRoutes = require('./routes/auth-routes')(db);
 
 // Importação do fetch para versões do Node.js que não possuem suporte nativo
 // Isso garante compatibilidade com APIs externas independente da versão do Node
