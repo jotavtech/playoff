@@ -974,9 +974,6 @@ export function useCloudinaryAudio() {
       console.log('▶️ Tentando reproduzir...')
       console.log(`🔗 Source: ${audioPlayer.value.src}`)
       
-      // IMPORTANTE: Atualiza Media Session ANTES de tocar (necessário para iOS)
-      updateMediaSessionForIOS(songData)
-      
       await audioPlayer.value.play()
       
       console.log('✅ Reprodução iniciada com sucesso!')
@@ -986,8 +983,8 @@ export function useCloudinaryAudio() {
       console.log(`👤 Artista: ${currentTrack.value?.artist}`)
       console.log(`⏱️ Duração: ${formatTime(audioPlayer.value.duration * 1000)}`)
       
-      // Atualiza Media Session novamente depois de tocar (para garantir)
-      updateMediaSessionForIOS(songData)
+      // Atualiza Media Session DEPOIS de tocar com sucesso (iOS)
+      setTimeout(() => updateMediaSessionForIOS(songData), 100)
       
       // Update dynamic background and extract colors
       console.log(`🎨 Iniciando atualização do fundo dinâmico...`)

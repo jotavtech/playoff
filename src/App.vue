@@ -1144,7 +1144,20 @@ const fetchSimilarTrack = async (seedTrack) => {
   }
 }
 
+// Flag e timestamp para evitar loops no handleNextTrack
+let isNavigatingTrack = false
+let lastTrackNavigation = 0
+
 const handleNextTrack = async () => {
+  // Proteção anti-loop: evita navegação muito frequente
+  const now = Date.now()
+  if (isNavigatingTrack || (now - lastTrackNavigation < 1500)) {
+    console.log('⚠️ handleNextTrack ignorado (anti-loop)')
+    return
+  }
+  isNavigatingTrack = true
+  lastTrackNavigation = now
+  
   try {
     console.log('⏭️ App.vue: Navegando para próxima música...')
     
@@ -1202,6 +1215,11 @@ const handleNextTrack = async () => {
   } catch (error) {
     console.error('❌ Erro ao navegar para próxima música:', error)
     showNotification('Erro ao navegar para próxima música', 'error')
+  } finally {
+    // Libera a flag após 500ms para permitir nova navegação
+    setTimeout(() => {
+      isNavigatingTrack = false
+    }, 500)
   }
 }
 
@@ -1436,6 +1454,9 @@ const updateMediaSession = () => {
   }
 }
 
+// Flag para evitar loops de Media Session
+let mediaSessionLock = false
+
 const setupMediaSessionHandlers = () => {
   if (!('mediaSession' in navigator)) {
     console.log('⚠️ Media Session API não suportada neste navegador')
@@ -1444,61 +1465,63 @@ const setupMediaSessionHandlers = () => {
   
   console.log('📱 Configurando Media Session API (controles em segundo plano)...')
   
-  // Handler para Play
-  navigator.mediaSession.setActionHandler('play', () => {
+  // Handler para Play - apenas controla play/pause, não muda música
+  navigator.mediaSession.setActionHandler('play', async () => {
+    if (mediaSessionLock) return
+    mediaSessionLock = true
     console.log('📱 Media Session: Play')
-    handleTogglePlayback()
-  })
-  
-  // Handler para Pause
-  navigator.mediaSession.setActionHandler('pause', () => {
-    console.log('📱 Media Session: Pause')
-    handleTogglePlayback()
-  })
-  
-  // Handler para Próxima
-  navigator.mediaSession.setActionHandler('nexttrack', () => {
-    console.log('📱 Media Session: Next Track')
-    handleNextTrack()
-  })
-  
-  // Handler para Anterior
-  navigator.mediaSession.setActionHandler('previoustrack', () => {
-    console.log('📱 Media Session: Previous Track')
-    handlePreviousTrack()
-  })
-  
-  // Handler para Seek (arrastar a barra de progresso)
-  navigator.mediaSession.setActionHandler('seekto', (details) => {
-    if (details.seekTime !== undefined) {
-      console.log('📱 Media Session: Seek to', details.seekTime)
-      handleSeek(details.seekTime * 1000) // Converte para ms
+    
+    try {
+      // Apenas resume playback se já tem uma música carregada
+      if (currentTrack.value && !isPlaying.value) {
+        await handleTogglePlayback()
+      }
+    } finally {
+      setTimeout(() => { mediaSessionLock = false }, 300)
     }
   })
   
-  // Handler para avançar 10s
-  navigator.mediaSession.setActionHandler('seekforward', (details) => {
-    const skipTime = details.seekOffset || 10
-    const newTime = Math.min(currentTime.value + (skipTime * 1000), currentDuration.value)
-    handleSeek(newTime)
+  // Handler para Pause
+  navigator.mediaSession.setActionHandler('pause', async () => {
+    if (mediaSessionLock) return
+    mediaSessionLock = true
+    console.log('📱 Media Session: Pause')
+    
+    try {
+      if (isPlaying.value) {
+        await handleTogglePlayback()
+      }
+    } finally {
+      setTimeout(() => { mediaSessionLock = false }, 300)
+    }
   })
   
-  // Handler para voltar 10s
-  navigator.mediaSession.setActionHandler('seekbackward', (details) => {
-    const skipTime = details.seekOffset || 10
-    const newTime = Math.max(currentTime.value - (skipTime * 1000), 0)
-    handleSeek(newTime)
-  })
+  // Handler para Próxima - DESABILITADO para evitar loops no iOS
+  // O usuário deve usar os controles do site
+  navigator.mediaSession.setActionHandler('nexttrack', null)
   
-  console.log('✅ Media Session handlers configurados!')
+  // Handler para Anterior - DESABILITADO para evitar loops no iOS
+  navigator.mediaSession.setActionHandler('previoustrack', null)
+  
+  // Handler para Seek - DESABILITADO (pode causar problemas)
+  navigator.mediaSession.setActionHandler('seekto', null)
+  navigator.mediaSession.setActionHandler('seekforward', null)
+  navigator.mediaSession.setActionHandler('seekbackward', null)
+  
+  console.log('✅ Media Session handlers configurados (apenas play/pause)!')
 }
 
-// Atualiza Media Session quando a música ou estado muda
+// Atualiza Media Session quando a música ou estado muda (com debounce)
+let lastMediaSessionUpdate = 0
 watch([currentTrack, isPlaying], () => {
+  const now = Date.now()
+  // Evita atualizações muito frequentes (mínimo 500ms entre elas)
+  if (now - lastMediaSessionUpdate < 500) return
+  lastMediaSessionUpdate = now
   updateMediaSession()
-}, { immediate: true })
+}, { immediate: false }) // NÃO executa imediatamente para evitar loops na inicialização
 
-// Atualiza posição periodicamente (a cada 1s)
+// Atualiza posição periodicamente (a cada 2s, não 1s)
 let mediaSessionInterval = null
 
 // ============= CICLO DE VIDA DO COMPONENTE =============
@@ -1508,12 +1531,25 @@ onMounted(async () => {
   // Configura Media Session para controles em segundo plano
   setupMediaSessionHandlers()
   
-  // Atualiza posição do Media Session a cada segundo
+  // Atualiza posição do Media Session a cada 3 segundos (evita overhead)
   mediaSessionInterval = setInterval(() => {
-    if (isPlaying.value && currentTrack.value) {
-      updateMediaSession()
+    if (isPlaying.value && currentTrack.value && !mediaSessionLock) {
+      // Só atualiza a posição, não os metadados completos
+      if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
+        try {
+          const duration = currentDuration.value / 1000
+          const position = currentTime.value / 1000
+          if (duration > 0 && position >= 0 && position <= duration) {
+            navigator.mediaSession.setPositionState({
+              duration: duration,
+              playbackRate: 1,
+              position: Math.min(position, duration)
+            })
+          }
+        } catch (e) { /* silencioso */ }
+      }
     }
-  }, 1000)
+  }, 3000)
   console.log('🚀 App.vue: Iniciando aplicação PlayOff Vue...')
   
   try {
@@ -1606,14 +1642,30 @@ onMounted(async () => {
     console.log('🎨 4/4: Configurando listeners de eventos...')
     // Escuto eventos de extração de cor das capas de álbum
     window.addEventListener('albumColorExtracted', handleAlbumColorExtracted)
-    // Escuto evento de fim de música HTML5
+    // Escuto evento de fim de música HTML5 (com proteção anti-loop)
+    let lastAudioEndedTime = 0
     window.addEventListener('audio-ended', () => {
+      const now = Date.now()
+      
+      // Evita loops: ignora se o evento foi disparado há menos de 2 segundos
+      if (now - lastAudioEndedTime < 2000) {
+        console.log('⚠️ Ignorando audio-ended (anti-loop)')
+        return
+      }
+      lastAudioEndedTime = now
+      
       console.log('🏁 App.vue: Áudio HTML5 acabou')
       
       // Se está tocando preview, NÃO avança automaticamente
       if (isPlayingPreview.value) {
         console.log('⏸️ Preview finalizado - NÃO avançando automaticamente')
         isPlayingPreview.value = false
+        return
+      }
+      
+      // Se não está tocando nada, ignora
+      if (!isPlaying.value && !currentTrack.value) {
+        console.log('⚠️ Nenhuma música ativa - ignorando audio-ended')
         return
       }
       
