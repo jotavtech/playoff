@@ -92,17 +92,28 @@ module.exports = (db) => {
   router.get('/login', (req, res) => {
     const state = spotifyAuth.generateState();
     
-    // Usa variável de ambiente se disponível, senão constrói dinamicamente
-    let redirectUri = process.env.SPOTIFY_REDIRECT_URI;
+    // Usa variável de ambiente se disponível, removendo espaços
+    let redirectUri = process.env.SPOTIFY_REDIRECT_URI ? process.env.SPOTIFY_REDIRECT_URI.trim() : null;
     
+    // Se não houver variável, tenta construir dinamicamente
     if (!redirectUri) {
-      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      let protocol = req.headers['x-forwarded-proto'] || req.protocol;
       const host = req.get('host');
+      
+      // Força HTTPS se não for localhost
+      if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+        protocol = 'https';
+      }
+      
       redirectUri = `${protocol}://${host}/auth/spotify/callback`;
     }
     
-    console.log(`🔐 Iniciando login via: ${redirectUri}`);
-    console.log(`🔐 URI enviada para o Spotify: ${encodeURIComponent(redirectUri)}`); // Debug log
+    console.log('--- DEBUG SPOTIFY AUTH ---');
+    console.log(`1. Host: ${req.get('host')}`);
+    console.log(`2. Protocol detectado: ${req.headers['x-forwarded-proto'] || req.protocol}`);
+    console.log(`3. URI Final enviada para Spotify: [${redirectUri}]`);
+    console.log(`4. Variável de ambiente definida? ${!!process.env.SPOTIFY_REDIRECT_URI}`);
+    console.log('--------------------------');
 
     // Armazena state e a redirect URI usada para validação no callback
     states.set(state, { 
