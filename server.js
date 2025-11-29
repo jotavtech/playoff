@@ -1,6 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+
+// DEBUG RAILWAY
+console.log('📂 Current directory:', process.cwd());
+console.log('📂 Directory contents:', fs.readdirSync('.'));
+try {
+  console.log('📂 Database folder contents:', fs.readdirSync('./database'));
+} catch (e) {
+  console.log('❌ Cannot read database folder:', e.message);
+}
 
 // Importação dos novos módulos de autenticação e banco de dados
 const db = require('./database/db');
