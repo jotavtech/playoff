@@ -68,6 +68,8 @@ COPY --from=builder --chown=playoff:nodejs /app/dist ./dist
 COPY --from=builder --chown=playoff:nodejs /app/server.js ./
 COPY --from=builder --chown=playoff:nodejs /app/package.json ./
 COPY --from=builder --chown=playoff:nodejs /app/public ./public
+COPY --from=builder --chown=playoff:nodejs /app/routes ./routes
+COPY --from=builder --chown=playoff:nodejs /app/auth ./auth
 COPY --from=deps --chown=playoff:nodejs /app/node_modules ./node_modules
 
 USER playoff
