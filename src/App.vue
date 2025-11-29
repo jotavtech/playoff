@@ -1289,6 +1289,8 @@ onUnmounted(() => {
 /* Estilos do componente principal */
 .app {
   width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   position: relative;
 }
 
@@ -1472,14 +1474,51 @@ onUnmounted(() => {
   text-overflow: ellipsis;
 }
 
+.retrospective-btn,
+.about-btn {
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #fff;
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  transform: skewX(-5deg);
+}
+
+.retrospective-btn:hover,
+.about-btn:hover {
+  background: #fff;
+  color: #000;
+  transform: skewX(-5deg) translate(-2px, -2px);
+  box-shadow: 2px 2px 0 #ff6b6b;
+}
+
 @media (max-width: 768px) {
   .user-section {
     top: 0.5rem;
     right: 0.5rem;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    max-width: 50%;
+    justify-content: flex-end;
+  }
+  
+  .queue-toggle-btn,
+  .retrospective-btn,
+  .about-btn,
+  .reconnect-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
   }
   
   .login-btn {
-    padding: 0.6rem 0.8rem;
+    padding: 0.5rem 0.6rem;
     font-size: 0.85rem;
   }
   

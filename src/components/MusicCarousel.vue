@@ -661,59 +661,179 @@ watch(() => props.songs, () => {
   z-index: 100;
 }
 
-/* Mobile Optimizations */
-@media (max-width: 768px) {
-  .cover-panel {
-    transform: none !important; /* Remove skew on mobile */
-    margin: 10px 0 !important; /* Spacing instead of negative margin overlap */
-    height: 250px;
-    border-width: 2px;
-    box-shadow: none !important;
-    animation: none !important;
-    flex: none !important; /* Remove flex resizing on mobile */
-    width: 100%;
-  }
-  
-  .cover-image {
-    transform: none !important; /* Remove skew/scale */
-    width: 100%;
-    margin-left: 0;
-  }
-  
-  .cover-overlay {
-    transform: none !important;
-    background: linear-gradient(transparent, #000); /* Simpler gradient */
-  }
+  /* Mobile Optimizations */
+  @media (max-width: 768px) {
+    .music-carousel {
+      overflow: visible;
+      padding: 0;
+    }
 
-  .playing-badge {
-    transform: translate(-50%, -50%) !important;
-    backdrop-filter: none !important;
-    background: rgba(0,0,0,0.9);
-    box-shadow: none !important;
-    animation: none !important;
-  }
+    .carousel-header {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      padding: 0;
+      margin-bottom: 0;
+      z-index: 10;
+    }
 
-  /* Disable hover effects on mobile */
-  .cover-panel:hover {
-    transform: none !important;
-    z-index: 1;
-  }
-  
-  .cover-panel:hover .cover-image {
-    transform: none !important;
-  }
+    .title-container {
+      transform: skewX(-8deg);
+      padding: 0.5rem 1rem;
+      border-width: 2px;
+      box-shadow: 2px 2px 0 rgba(255, 107, 107, 0.8);
+    }
 
-  /* Lyrics Mode Mobile */
-  .covers-container.lyrics-mode .cover-panel {
-    transform: scale(0.9) !important;
-    opacity: 0.2;
-    filter: grayscale(1);
-  }
+    .carousel-title {
+      font-size: 1.5rem;
+      transform: skewX(8deg);
+    }
 
-  .covers-container.lyrics-mode .cover-panel.playing {
-    transform: scale(1) !important;
-    opacity: 1;
-    z-index: 5;
+    .nav-arrow {
+      display: flex; /* Show arrows on mobile */
+      width: 50px;
+      height: 50px;
+      font-size: 1.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 100;
+    }
+    
+    .nav-prev { left: 0.5rem; }
+    .nav-next { right: 0.5rem; }
+
+    .covers-container {
+      flex-direction: column !important;
+      height: auto !important;
+      min-height: 600px !important; /* Ensure enough space for stacked cards */
+      padding: 4rem 3.5rem 2rem !important; /* Space for header and arrows */
+      gap: 10px !important; /* Small gap instead of overlap */
+    }
+
+    .cover-panel {
+      transform: skewX(-5deg) !important;
+      margin: 0 !important; /* No negative margin, no overlap */
+      height: 160px;
+      min-height: 160px;
+      border-width: 2px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
+      animation: none !important;
+      flex: none !important;
+      width: 100% !important;
+      border-radius: 0; /* Sharper edges for punk feel */
+      overflow: hidden;
+      transition: transform 0.3s ease;
+    }
+    
+    /* First and last adjustments */
+    .cover-panel.panel-first { margin-top: 0 !important; }
+    .cover-panel.panel-last { margin-bottom: 0 !important; }
+    
+    .cover-image {
+      transform: skewX(5deg) scale(1.1) !important;
+      width: 120%;
+      height: 100%;
+      margin-left: -10%;
+      filter: contrast(1.05) saturate(1.1);
+    }
+    
+    .cover-overlay {
+      transform: skewX(5deg) !important;
+      background: linear-gradient(transparent 20%, rgba(0,0,0,0.9));
+      padding: 1rem;
+      justify-content: flex-end;
+    }
+
+    .cover-info {
+      padding-left: 0;
+      margin-bottom: 0.5rem;
+    }
+
+    .cover-title {
+      font-size: 1.2rem;
+      letter-spacing: 0.05em;
+      text-shadow: 2px 2px 0 #000;
+    }
+
+    .cover-artist {
+      font-size: 0.9rem;
+      text-shadow: 1px 1px 0 #000;
+    }
+
+    .cover-votes {
+      font-size: 0.9rem;
+      padding: 0.2rem 0.5rem;
+      margin-top: 0.2rem;
+    }
+
+    .cover-actions {
+      opacity: 1; /* Always visible on mobile */
+      padding-left: 0;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .vote-btn, .super-btn, .queue-btn, .preview-btn, .lyrics-btn {
+      width: 36px;
+      height: 36px;
+      font-size: 0.9rem;
+      border-width: 2px;
+    }
+
+    .playing-badge {
+      transform: translate(-50%, -50%) skewX(5deg) !important;
+      backdrop-filter: none !important;
+      background: rgba(0,0,0,0.9);
+      box-shadow: none !important;
+      animation: none !important;
+      padding: 0.4rem 0.8rem;
+      border-width: 2px;
+    }
+
+    .playing-badge span {
+      font-size: 0.9rem;
+      letter-spacing: 0.15em;
+    }
+
+    /* Active/Playing state on mobile */
+    .cover-panel.playing {
+      transform: skewX(-5deg) scale(1.05) !important;
+      z-index: 10;
+      box-shadow: 0 0 15px var(--panel-color) !important;
+      border-color: #fff !important;
+      margin: 0 !important; /* Keep spacing consistent */
+    }
+
+    .page-indicator {
+      display: none;
+    }
+
+    .lyrics-play-btn {
+      right: 5px;
+      width: 45px;
+      height: 45px;
+      font-size: 1.2rem;
+      border-width: 3px;
+    }
+
+    /* Lyrics Mode Mobile */
+    .covers-container.lyrics-mode .cover-panel {
+      transform: skewX(-5deg) scale(0.95) !important;
+      height: 80px;
+      min-height: 80px;
+      opacity: 0.3;
+      filter: grayscale(1);
+      margin: 0 !important;
+    }
+
+    .covers-container.lyrics-mode .cover-panel.playing {
+      transform: skewX(-5deg) scale(1.05) !important;
+      height: 140px;
+      min-height: 140px;
+      opacity: 1;
+      filter: none;
+      z-index: 20;
+      margin: 0 !important;
+    }
   }
-}
 </style> 
