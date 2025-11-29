@@ -830,14 +830,14 @@ watch(() => props.songs.length, (newLength, oldLength) => {
       height: auto !important;
       min-height: 600px !important; /* Ensure enough space for stacked cards */
       padding: 4rem 3.5rem 2rem !important; /* Space for header and arrows */
-      gap: 10px !important; /* Small gap instead of overlap */
+      gap: 15px !important; /* Aumentado gap para separar melhor */
     }
 
     .cover-panel {
       transform: skewX(-5deg) !important;
       margin: 0 !important; /* No negative margin, no overlap */
-      height: 160px;
-      min-height: 160px;
+      height: 240px; /* Aumentado de 160px para 240px */
+      min-height: 240px;
       border-width: 2px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
       animation: none !important;
@@ -862,25 +862,33 @@ watch(() => props.songs.length, (newLength, oldLength) => {
     
     .cover-overlay {
       transform: skewX(5deg) !important;
-      background: linear-gradient(transparent 20%, rgba(0,0,0,0.9));
+      /* Gradiente mais forte para garantir leitura do texto */
+      background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 50%, transparent 100%);
       padding: 1rem;
       justify-content: flex-end;
+      display: flex !important; /* Força display flex */
+      opacity: 1 !important; /* Sempre visível no mobile */
     }
 
     .cover-info {
       padding-left: 0;
       margin-bottom: 0.5rem;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8); /* Sombra forte para contraste */
     }
 
     .cover-title {
-      font-size: 1.2rem;
+      font-size: 1.4rem; /* Aumentado */
       letter-spacing: 0.05em;
       text-shadow: 2px 2px 0 #000;
+      display: block !important; /* Garante visibilidade */
+      white-space: normal; /* Permite quebra de linha */
     }
 
     .cover-artist {
-      font-size: 0.9rem;
+      font-size: 1.1rem; /* Aumentado */
       text-shadow: 1px 1px 0 #000;
+      color: rgba(255, 255, 255, 0.9);
+      display: block !important;
     }
 
     .cover-votes {
