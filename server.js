@@ -2,19 +2,25 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const Database = require('better-sqlite3');
+const { Pool } = require('pg');
 
-// ============= DATABASE SETUP (INLINED) =============
-// Integrado diretamente no server.js para evitar erros de deploy no Railway
+// ============= DATABASE SETUP (PostgreSQL) =============
+// Configurado para Railway PostgreSQL
 
-// Caminho do banco de dados (na raiz do app)
-const DB_PATH = path.join(__dirname, 'playoff.db');
+// URL do banco de dados (Railway fornece automaticamente)
+const DATABASE_URL = process.env.DATABASE_URL;
 
-// Schema do banco de dados
+// Pool de conexões PostgreSQL
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: DATABASE_URL && !DATABASE_URL.includes('localhost') ? { rejectUnauthorized: false } : false
+});
+
+// Schema do banco de dados PostgreSQL
 const DB_SCHEMA = `
 -- Tabela de Usuários
 CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   spotify_id VARCHAR(255) UNIQUE NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
   display_name VARCHAR(255),
@@ -22,15 +28,15 @@ CREATE TABLE IF NOT EXISTS users (
   country VARCHAR(10),
   spotify_access_token TEXT,
   spotify_refresh_token TEXT,
-  token_expires_at DATETIME,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  last_login DATETIME DEFAULT CURRENT_TIMESTAMP,
+  token_expires_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   total_plays INTEGER DEFAULT 0
 );
 
 -- Tabela de Músicas (catálogo)
 CREATE TABLE IF NOT EXISTS songs (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   spotify_id VARCHAR(255) UNIQUE,
   title VARCHAR(255) NOT NULL,
   artist VARCHAR(255) NOT NULL,
@@ -42,157 +48,187 @@ CREATE TABLE IF NOT EXISTS songs (
   duration_ms INTEGER,
   release_date VARCHAR(50),
   popularity INTEGER,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   total_plays INTEGER DEFAULT 0,
   unique_listeners INTEGER DEFAULT 0,
-  added_by_user_id INTEGER,
-  FOREIGN KEY (added_by_user_id) REFERENCES users(id)
+  added_by_user_id INTEGER REFERENCES users(id)
 );
 
 -- Tabela de Histórico de Reprodução
 CREATE TABLE IF NOT EXISTS play_history (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL,
-  song_id INTEGER NOT NULL,
-  played_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  song_id INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+  played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   play_duration_ms INTEGER,
-  completed BOOLEAN DEFAULT 0,
-  source VARCHAR(50) DEFAULT 'playoff',
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE
+  completed BOOLEAN DEFAULT FALSE,
+  source VARCHAR(50) DEFAULT 'playoff'
 );
 
 -- Tabela de Votos (sistema de votação)
 CREATE TABLE IF NOT EXISTS votes (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL,
-  song_id INTEGER NOT NULL,
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  song_id INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
   votes INTEGER DEFAULT 1,
-  voted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE,
+  voted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(user_id, song_id)
 );
 
 -- Tabela de Estatísticas de Usuários por Música
 CREATE TABLE IF NOT EXISTS user_song_stats (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL,
-  song_id INTEGER NOT NULL,
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  song_id INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
   play_count INTEGER DEFAULT 0,
   total_duration_ms INTEGER DEFAULT 0,
-  last_played_at DATETIME,
-  first_played_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE,
+  last_played_at TIMESTAMP,
+  first_played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(user_id, song_id)
 );
 `;
 
-// Inicializa conexão com SQLite
-const dbConnection = new Database(DB_PATH, { 
-  verbose: console.log,
-  fileMustExist: false 
-});
-
-// Habilita foreign keys e WAL mode
-dbConnection.pragma('foreign_keys = ON');
-dbConnection.pragma('journal_mode = WAL');
-
-console.log('📊 Banco de dados SQLite conectado:', DB_PATH);
-
-// Inicializa o schema
-try {
-  dbConnection.exec(DB_SCHEMA);
-  console.log('✅ Schema do banco de dados inicializado com sucesso');
-} catch (error) {
-  console.error('❌ Erro ao inicializar schema:', error);
+// Inicializa o banco de dados
+async function initDatabase() {
+  try {
+    if (!DATABASE_URL) {
+      console.log('⚠️ DATABASE_URL não configurada. Rodando em modo de desenvolvimento sem banco.');
+      return false;
+    }
+    const client = await pool.connect();
+    console.log('📊 Conectado ao PostgreSQL');
+    await client.query(DB_SCHEMA);
+    console.log('✅ Schema do banco de dados inicializado com sucesso');
+    client.release();
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao conectar ao banco:', error.message);
+    return false;
+  }
 }
 
-// Prepared Statements
-const userQueries = {
-  upsertUser: dbConnection.prepare(`
-    INSERT INTO users (spotify_id, email, display_name, profile_image, country, spotify_access_token, spotify_refresh_token, token_expires_at, last_login) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(spotify_id) DO UPDATE SET
-      email = excluded.email, display_name = excluded.display_name, profile_image = excluded.profile_image,
-      spotify_access_token = excluded.spotify_access_token, spotify_refresh_token = excluded.spotify_refresh_token,
-      token_expires_at = excluded.token_expires_at, last_login = CURRENT_TIMESTAMP
-  `),
-  getUserBySpotifyId: dbConnection.prepare(`SELECT * FROM users WHERE spotify_id = ?`),
-  getUserById: dbConnection.prepare(`SELECT * FROM users WHERE id = ?`),
-  updateUserTokens: dbConnection.prepare(`UPDATE users SET spotify_access_token = ?, spotify_refresh_token = ?, token_expires_at = ? WHERE id = ?`),
-  incrementUserPlays: dbConnection.prepare(`UPDATE users SET total_plays = total_plays + 1 WHERE id = ?`)
-};
-
-const songQueries = {
-  upsertSong: dbConnection.prepare(`
-    INSERT INTO songs (spotify_id, title, artist, album, album_cover, audio_url, preview_url, spotify_url, duration_ms, release_date, popularity, added_by_user_id) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(spotify_id) DO UPDATE SET
-      album_cover = excluded.album_cover, preview_url = excluded.preview_url, spotify_url = excluded.spotify_url,
-      popularity = excluded.popularity, added_by_user_id = COALESCE(songs.added_by_user_id, excluded.added_by_user_id)
-    RETURNING *
-  `),
-  getSongById: dbConnection.prepare(`SELECT * FROM songs WHERE id = ?`),
-  getSongBySpotifyId: dbConnection.prepare(`SELECT * FROM songs WHERE spotify_id = ?`),
-  getAllSongs: dbConnection.prepare(`SELECT * FROM songs ORDER BY created_at DESC`),
-  incrementSongPlays: dbConnection.prepare(`UPDATE songs SET total_plays = total_plays + 1 WHERE id = ?`),
-  getTopSongs: dbConnection.prepare(`SELECT * FROM songs ORDER BY total_plays DESC, popularity DESC LIMIT ?`),
-  getUserAddedSongs: dbConnection.prepare(`SELECT * FROM songs WHERE added_by_user_id = ? ORDER BY created_at DESC`)
-};
-
-const historyQueries = {
-  addPlayHistory: dbConnection.prepare(`INSERT INTO play_history (user_id, song_id, play_duration_ms, completed, source) VALUES (?, ?, ?, ?, ?)`),
-  getUserHistory: dbConnection.prepare(`SELECT ph.*, s.title, s.artist, s.album, s.album_cover FROM play_history ph JOIN songs s ON ph.song_id = s.id WHERE ph.user_id = ? ORDER BY ph.played_at DESC LIMIT ?`),
-  getRecentPlays: dbConnection.prepare(`SELECT ph.*, s.title, s.artist, s.album_cover, u.display_name as user_name FROM play_history ph JOIN songs s ON ph.song_id = s.id JOIN users u ON ph.user_id = u.id ORDER BY ph.played_at DESC LIMIT ?`)
-};
-
-const statsQueries = {
-  incrementUserSongStats: dbConnection.prepare(`
-    INSERT INTO user_song_stats (user_id, song_id, play_count, total_duration_ms, last_played_at) VALUES (?, ?, 1, ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(user_id, song_id) DO UPDATE SET play_count = play_count + 1, total_duration_ms = total_duration_ms + excluded.total_duration_ms, last_played_at = CURRENT_TIMESTAMP
-  `),
-  getUserTopSongs: dbConnection.prepare(`SELECT s.*, uss.play_count, uss.total_duration_ms, uss.last_played_at FROM user_song_stats uss JOIN songs s ON uss.song_id = s.id WHERE uss.user_id = ? ORDER BY uss.play_count DESC, uss.last_played_at DESC LIMIT ?`),
-  getUserStats: dbConnection.prepare(`SELECT COUNT(DISTINCT song_id) as unique_songs, SUM(play_count) as total_plays, SUM(total_duration_ms) as total_listening_time FROM user_song_stats WHERE user_id = ?`)
-};
-
-const voteQueries = {
-  addVote: dbConnection.prepare(`INSERT INTO votes (user_id, song_id, votes) VALUES (?, ?, 1) ON CONFLICT(user_id, song_id) DO UPDATE SET votes = votes + 1, voted_at = CURRENT_TIMESTAMP`),
-  getUserVotes: dbConnection.prepare(`SELECT v.*, s.title, s.artist, s.album_cover FROM votes v JOIN songs s ON v.song_id = s.id WHERE v.user_id = ? ORDER BY v.votes DESC`),
-  getSongVotes: dbConnection.prepare(`SELECT COALESCE(SUM(votes), 0) as total_votes FROM votes WHERE song_id = ?`)
-};
-
-// Objeto db exportado para uso interno
+// Objeto db com funções async para PostgreSQL
 const db = {
-  db: dbConnection,
-  upsertUser: (d) => userQueries.upsertUser.run(d.spotify_id, d.email, d.display_name, d.profile_image, d.country, d.access_token, d.refresh_token, d.token_expires_at),
-  getUserBySpotifyId: (id) => userQueries.getUserBySpotifyId.get(id),
-  getUserById: (id) => userQueries.getUserById.get(id),
-  updateUserTokens: (at, rt, exp, id) => userQueries.updateUserTokens.run(at, rt, exp, id),
-  incrementUserPlays: (id) => userQueries.incrementUserPlays.run(id),
-  upsertSong: (d) => {
+  pool,
+  
+  async upsertUser(d) {
+    const query = `
+      INSERT INTO users (spotify_id, email, display_name, profile_image, country, spotify_access_token, spotify_refresh_token, token_expires_at, last_login) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+      ON CONFLICT(spotify_id) DO UPDATE SET
+        email = EXCLUDED.email, display_name = EXCLUDED.display_name, profile_image = EXCLUDED.profile_image,
+        spotify_access_token = EXCLUDED.spotify_access_token, spotify_refresh_token = EXCLUDED.spotify_refresh_token,
+        token_expires_at = EXCLUDED.token_expires_at, last_login = CURRENT_TIMESTAMP
+      RETURNING *`;
+    const result = await pool.query(query, [d.spotify_id, d.email, d.display_name, d.profile_image, d.country, d.access_token, d.refresh_token, d.token_expires_at]);
+    return result.rows[0];
+  },
+  
+  async getUserBySpotifyId(id) {
+    const result = await pool.query('SELECT * FROM users WHERE spotify_id = $1', [id]);
+    return result.rows[0];
+  },
+  
+  async getUserById(id) {
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    return result.rows[0];
+  },
+  
+  async updateUserTokens(at, rt, exp, id) {
+    await pool.query('UPDATE users SET spotify_access_token = $1, spotify_refresh_token = $2, token_expires_at = $3 WHERE id = $4', [at, rt, exp, id]);
+  },
+  
+  async incrementUserPlays(id) {
+    await pool.query('UPDATE users SET total_plays = total_plays + 1 WHERE id = $1', [id]);
+  },
+  
+  async upsertSong(d) {
+    const query = `
+      INSERT INTO songs (spotify_id, title, artist, album, album_cover, audio_url, preview_url, spotify_url, duration_ms, release_date, popularity, added_by_user_id) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ON CONFLICT(spotify_id) DO UPDATE SET
+        album_cover = EXCLUDED.album_cover, preview_url = EXCLUDED.preview_url, spotify_url = EXCLUDED.spotify_url,
+        popularity = EXCLUDED.popularity, added_by_user_id = COALESCE(songs.added_by_user_id, EXCLUDED.added_by_user_id)
+      RETURNING *`;
     try {
-      const r = songQueries.upsertSong.get(d.spotify_id, d.title, d.artist, d.album, d.album_cover, d.audio_url, d.preview_url, d.spotify_url, d.duration_ms, d.release_date, d.popularity, d.added_by_user_id || null);
-      return r || songQueries.getSongBySpotifyId.get(d.spotify_id);
+      const result = await pool.query(query, [d.spotify_id, d.title, d.artist, d.album, d.album_cover, d.audio_url, d.preview_url, d.spotify_url, d.duration_ms, d.release_date, d.popularity, d.added_by_user_id || null]);
+      return result.rows[0];
     } catch (e) { console.error(e); throw e; }
   },
-  getSongById: (id) => songQueries.getSongById.get(id),
-  getSongBySpotifyId: (id) => songQueries.getSongBySpotifyId.get(id),
-  getAllSongs: () => songQueries.getAllSongs.all(),
-  incrementSongPlays: (id) => songQueries.incrementSongPlays.run(id),
-  getTopSongs: (limit) => songQueries.getTopSongs.all(limit),
-  getUserAddedSongs: (id) => songQueries.getUserAddedSongs.all(id),
-  addPlayHistory: (uid, sid, dur, comp, src='playoff') => historyQueries.addPlayHistory.run(uid, sid, dur, comp?1:0, src),
-  getUserHistory: (uid, limit) => historyQueries.getUserHistory.all(uid, limit),
-  getRecentPlays: (limit) => historyQueries.getRecentPlays.all(limit),
-  incrementUserSongStats: (uid, sid, dur) => statsQueries.incrementUserSongStats.run(uid, sid, dur),
-  getUserTopSongs: (uid, limit) => statsQueries.getUserTopSongs.all(uid, limit),
-  getUserStats: (uid) => statsQueries.getUserStats.get(uid),
-  addVote: (uid, sid) => voteQueries.addVote.run(uid, sid),
-  getUserVotes: (uid) => voteQueries.getUserVotes.all(uid),
-  getSongVotes: (sid) => voteQueries.getSongVotes.get(sid),
-  transaction: (fn) => dbConnection.transaction(fn)
+  
+  async getSongById(id) {
+    const result = await pool.query('SELECT * FROM songs WHERE id = $1', [id]);
+    return result.rows[0];
+  },
+  
+  async getSongBySpotifyId(id) {
+    const result = await pool.query('SELECT * FROM songs WHERE spotify_id = $1', [id]);
+    return result.rows[0];
+  },
+  
+  async getAllSongs() {
+    const result = await pool.query('SELECT * FROM songs ORDER BY created_at DESC');
+    return result.rows;
+  },
+  
+  async incrementSongPlays(id) {
+    await pool.query('UPDATE songs SET total_plays = total_plays + 1 WHERE id = $1', [id]);
+  },
+  
+  async getTopSongs(limit) {
+    const result = await pool.query('SELECT * FROM songs ORDER BY total_plays DESC, popularity DESC LIMIT $1', [limit]);
+    return result.rows;
+  },
+  
+  async getUserAddedSongs(id) {
+    const result = await pool.query('SELECT * FROM songs WHERE added_by_user_id = $1 ORDER BY created_at DESC', [id]);
+    return result.rows;
+  },
+  
+  async addPlayHistory(uid, sid, dur, comp, src = 'playoff') {
+    await pool.query('INSERT INTO play_history (user_id, song_id, play_duration_ms, completed, source) VALUES ($1, $2, $3, $4, $5)', [uid, sid, dur, comp, src]);
+  },
+  
+  async getUserHistory(uid, limit) {
+    const result = await pool.query('SELECT ph.*, s.title, s.artist, s.album, s.album_cover FROM play_history ph JOIN songs s ON ph.song_id = s.id WHERE ph.user_id = $1 ORDER BY ph.played_at DESC LIMIT $2', [uid, limit]);
+    return result.rows;
+  },
+  
+  async getRecentPlays(limit) {
+    const result = await pool.query('SELECT ph.*, s.title, s.artist, s.album_cover, u.display_name as user_name FROM play_history ph JOIN songs s ON ph.song_id = s.id JOIN users u ON ph.user_id = u.id ORDER BY ph.played_at DESC LIMIT $1', [limit]);
+    return result.rows;
+  },
+  
+  async incrementUserSongStats(uid, sid, dur) {
+    const query = `
+      INSERT INTO user_song_stats (user_id, song_id, play_count, total_duration_ms, last_played_at) VALUES ($1, $2, 1, $3, CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id, song_id) DO UPDATE SET play_count = user_song_stats.play_count + 1, total_duration_ms = user_song_stats.total_duration_ms + $3, last_played_at = CURRENT_TIMESTAMP`;
+    await pool.query(query, [uid, sid, dur]);
+  },
+  
+  async getUserTopSongs(uid, limit) {
+    const result = await pool.query('SELECT s.*, uss.play_count, uss.total_duration_ms, uss.last_played_at FROM user_song_stats uss JOIN songs s ON uss.song_id = s.id WHERE uss.user_id = $1 ORDER BY uss.play_count DESC, uss.last_played_at DESC LIMIT $2', [uid, limit]);
+    return result.rows;
+  },
+  
+  async getUserStats(uid) {
+    const result = await pool.query('SELECT COUNT(DISTINCT song_id) as unique_songs, SUM(play_count) as total_plays, SUM(total_duration_ms) as total_listening_time FROM user_song_stats WHERE user_id = $1', [uid]);
+    return result.rows[0];
+  },
+  
+  async addVote(uid, sid) {
+    await pool.query('INSERT INTO votes (user_id, song_id, votes) VALUES ($1, $2, 1) ON CONFLICT(user_id, song_id) DO UPDATE SET votes = votes.votes + 1, voted_at = CURRENT_TIMESTAMP', [uid, sid]);
+  },
+  
+  async getUserVotes(uid) {
+    const result = await pool.query('SELECT v.*, s.title, s.artist, s.album_cover FROM votes v JOIN songs s ON v.song_id = s.id WHERE v.user_id = $1 ORDER BY v.votes DESC', [uid]);
+    return result.rows;
+  },
+  
+  async getSongVotes(sid) {
+    const result = await pool.query('SELECT COALESCE(SUM(votes), 0) as total_votes FROM votes WHERE song_id = $1', [sid]);
+    return result.rows[0];
+  }
 };
 const authRoutes = require('./routes/auth-routes')(db);
 
@@ -749,9 +785,9 @@ const mapDbSongToMemory = (dbSong) => {
   };
 };
 
-const bootstrapSongsFromDatabase = () => {
+const bootstrapSongsFromDatabase = async () => {
   try {
-    const storedSongs = db.getAllSongs();
+    const storedSongs = await db.getAllSongs();
 
     if (!storedSongs || storedSongs.length === 0) {
       console.log('📭 Nenhuma música salva no banco. Mantendo apenas o seed em memória.');
@@ -773,8 +809,6 @@ const bootstrapSongsFromDatabase = () => {
     console.error('❌ Erro ao carregar músicas do banco de dados:', error);
   }
 };
-
-bootstrapSongsFromDatabase();
 
 let chatMessages = [
   {
@@ -1115,16 +1149,20 @@ app.get('*', (req, res) => {
 // Inicialização do servidor e configuração final
 // Esta seção é responsável por inicializar todo o sistema e configurar
 // o estado inicial da aplicação. É aqui que toda a arquitetura se junta
-if (require.main === module) {
-  const server = app.listen(PORT, () => {
-    console.log(`📀 Carregadas ${songs.length} músicas com URLs do Cloudinary`);
+const startServer = async () => {
+  // Inicializa o banco de dados PostgreSQL
+  const dbReady = await initDatabase();
+  
+  // Sincroniza músicas do banco
+  if (dbReady) {
+    await bootstrapSongsFromDatabase();
     
     // Persiste músicas iniciais no banco de dados
     console.log('📥 Sincronizando banco de dados com lista de músicas...');
-    songs.forEach(song => {
+    for (const song of songs) {
       try {
-        db.upsertSong({
-          spotify_id: song.id, // Usa ID interno como spotify_id para as demos
+        await db.upsertSong({
+          spotify_id: song.id,
           title: song.title,
           artist: song.artist,
           album: song.album,
@@ -1135,13 +1173,16 @@ if (require.main === module) {
           duration_ms: song.duration_ms || 0,
           release_date: `${song.year}-01-01`,
           popularity: 50,
-          added_by_user_id: null // Sistema
+          added_by_user_id: null
         });
       } catch (err) {
         console.error(`❌ Erro ao persistir música inicial ${song.title}:`, err);
       }
-    });
+    }
+  }
 
+  const server = app.listen(PORT, () => {
+    console.log(`📀 Carregadas ${songs.length} músicas com URLs do Cloudinary`);
     console.log(`🎵 PlayOff Music Voting App - Sistema de Votação Musical`);
     console.log(`📱 Frontend: http://localhost:${PORT}/`);
     console.log(`🎧 Backend com Padrão Observer ativo!`);
@@ -1152,33 +1193,28 @@ if (require.main === module) {
     console.log(`🎵 Music Player: Pronto para reproduzir músicas`);
     console.log(`💬 Sistema de Chat: Pronto para conversas`);
     
-    // Inicializo o VoteManager com a música mais votada atual
-    // Isso garante que o sistema comece com o estado correto
-    // e que o player já saiba qual música deveria estar tocando
     const initialHighestVoted = voteManager.getHighestVotedSong();
     if (initialHighestVoted) {
       voteManager.currentHighestVoted = initialHighestVoted;
       console.log(`👑 Música inicial mais votada: "${initialHighestVoted.title}" por ${initialHighestVoted.artist} (${initialHighestVoted.votes} votos)`);
-      
-      // Aciono a configuração inicial do player de música
-      // Isso faz com que a música mais votada comece a "tocar" automaticamente
       musicPlayer.playTrack(initialHighestVoted);
     }
     
     console.log(`🚀 Sistema pronto para funcionar! Que comecem as votações!`);
   });
 
-  // Gerenciamento de desligamento gracioso do servidor
-  // Implemento um shutdown gracioso para garantir que todas as operações
-  // sejam finalizadas adequadamente antes de encerrar o processo
-  // Isso é especialmente importante em produção para evitar perda de dados
   process.on('SIGTERM', () => {
     console.log('🛑 Servidor sendo desligado graciosamente...');
     server.close(() => {
       console.log('✅ Servidor fechado com sucesso');
       console.log('👋 Até mais! Obrigado por usar o PlayOff!');
+      pool.end();
     });
   });
+};
+
+if (require.main === module) {
+  startServer();
 }
 
 module.exports = app;

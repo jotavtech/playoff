@@ -13,23 +13,27 @@ module.exports = (db) => {
   const states = new Map();
 
   // Middleware para verificar se usuário está autenticado
-  const requireAuth = (req, res, next) => {
+  const requireAuth = async (req, res, next) => {
     const token = req.headers.authorization?.replace('Bearer ', '');
     
     if (!token) {
       return res.status(401).json({ error: 'Não autenticado' });
     }
 
-    // Valida o token e busca usuário
-    // Em produção, usar JWT ou session
-    const user = db.getUserBySpotifyId(token);
-    
-    if (!user) {
-      return res.status(401).json({ error: 'Usuário não encontrado' });
-    }
+    try {
+      // Valida o token e busca usuário
+      const user = await db.getUserBySpotifyId(token);
+      
+      if (!user) {
+        return res.status(401).json({ error: 'Usuário não encontrado' });
+      }
 
-    req.user = user;
-    next();
+      req.user = user;
+      next();
+    } catch (error) {
+      console.error('Erro no middleware de auth:', error);
+      return res.status(500).json({ error: 'Erro de autenticação' });
+    }
   };
 
   // ============= AUTH ROUTES =============
@@ -89,7 +93,7 @@ module.exports = (db) => {
       const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
       // Salva ou atualiza usuário no banco
-      db.upsertUser({
+      await db.upsertUser({
         spotify_id: profile.id,
         email: profile.email,
         display_name: profile.display_name,
@@ -117,7 +121,7 @@ module.exports = (db) => {
     }
 
     try {
-      const user = db.getUserBySpotifyId(spotify_id);
+      const user = await db.getUserBySpotifyId(spotify_id);
       
       if (!user || !user.spotify_refresh_token) {
         return res.status(404).json({ error: 'Usuário não encontrado' });
@@ -126,7 +130,7 @@ module.exports = (db) => {
       const tokenData = await spotifyAuth.refreshAccessToken(user.spotify_refresh_token);
       const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
-      db.updateUserTokens(
+      await db.updateUserTokens(
         tokenData.access_token,
         tokenData.refresh_token || user.spotify_refresh_token,
         expiresAt.toISOString(),
@@ -152,25 +156,35 @@ module.exports = (db) => {
   // ============= USER ROUTES =============
 
   // Busca perfil do usuário atual
-  router.get('/me', requireAuth, (req, res) => {
-    const stats = db.getUserStats(req.user.id);
-    res.json({
-      ...req.user,
-      stats
-    });
+  router.get('/me', requireAuth, async (req, res) => {
+    try {
+      const stats = await db.getUserStats(req.user.id);
+      res.json({
+        ...req.user,
+        stats
+      });
+    } catch (error) {
+      console.error('Erro ao buscar perfil:', error);
+      res.status(500).json({ error: 'Erro ao buscar perfil' });
+    }
   });
 
   // Top músicas do usuário
-  router.get('/me/top-songs', requireAuth, (req, res) => {
-    const limit = parseInt(req.query.limit) || 20;
-    const topSongs = db.getUserTopSongs(req.user.id, limit);
-    res.json(topSongs);
+  router.get('/me/top-songs', requireAuth, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit) || 20;
+      const topSongs = await db.getUserTopSongs(req.user.id, limit);
+      res.json(topSongs);
+    } catch (error) {
+      console.error('Erro ao buscar top songs:', error);
+      res.status(500).json({ error: 'Erro ao buscar top songs' });
+    }
   });
 
   // Músicas adicionadas pelo usuário
-  router.get('/me/added-songs', requireAuth, (req, res) => {
+  router.get('/me/added-songs', requireAuth, async (req, res) => {
     try {
-      const songs = db.getUserAddedSongs(req.user.id);
+      const songs = await db.getUserAddedSongs(req.user.id);
       res.json(songs);
     } catch (error) {
       console.error('Erro ao buscar músicas adicionadas:', error);
@@ -179,10 +193,15 @@ module.exports = (db) => {
   });
 
   // Histórico de reprodução do usuário
-  router.get('/me/history', requireAuth, (req, res) => {
-    const limit = parseInt(req.query.limit) || 50;
-    const history = db.getUserHistory(req.user.id, limit);
-    res.json(history);
+  router.get('/me/history', requireAuth, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit) || 50;
+      const history = await db.getUserHistory(req.user.id, limit);
+      res.json(history);
+    } catch (error) {
+      console.error('Erro ao buscar histórico:', error);
+      res.status(500).json({ error: 'Erro ao buscar histórico' });
+    }
   });
 
   // ============= PLAYBACK ROUTES =============
@@ -196,7 +215,7 @@ module.exports = (db) => {
 
       // Se forneceu spotify_id, busca ou cria a música
       if (spotify_id && !song_id) {
-        let song = db.getSongBySpotifyId(spotify_id);
+        let song = await db.getSongBySpotifyId(spotify_id);
         
         if (!song) {
           // Busca informações da música no Spotify
@@ -207,7 +226,7 @@ module.exports = (db) => {
 
           if (response.ok) {
             const trackData = await response.json();
-            song = db.upsertSong({
+            song = await db.upsertSong({
               spotify_id: trackData.id,
               title: trackData.name,
               artist: trackData.artists[0]?.name,
@@ -231,12 +250,12 @@ module.exports = (db) => {
       }
 
       // Registra reprodução
-      db.addPlayHistory(req.user.id, songId, duration_ms || 0, completed || false, source || 'playoff');
+      await db.addPlayHistory(req.user.id, songId, duration_ms || 0, completed || false, source || 'playoff');
       
       // Atualiza estatísticas
-      db.incrementSongPlays(songId);
-      db.incrementUserPlays(req.user.id);
-      db.incrementUserSongStats(req.user.id, songId, duration_ms || 0);
+      await db.incrementSongPlays(songId);
+      await db.incrementUserPlays(req.user.id);
+      await db.incrementUserSongStats(req.user.id, songId, duration_ms || 0);
 
       res.json({ success: true });
     } catch (error) {
@@ -299,16 +318,26 @@ module.exports = (db) => {
   // ============= SONG ROUTES =============
 
   // Lista todas as músicas
-  router.get('/songs', (req, res) => {
-    const songs = db.getAllSongs();
-    res.json({ songs });
+  router.get('/songs', async (req, res) => {
+    try {
+      const songs = await db.getAllSongs();
+      res.json({ songs });
+    } catch (error) {
+      console.error('Erro ao listar músicas:', error);
+      res.status(500).json({ error: 'Erro ao listar músicas' });
+    }
   });
 
   // Top músicas globais
-  router.get('/songs/top', (req, res) => {
-    const limit = parseInt(req.query.limit) || 50;
-    const topSongs = db.getTopSongs(limit);
-    res.json(topSongs);
+  router.get('/songs/top', async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit) || 50;
+      const topSongs = await db.getTopSongs(limit);
+      res.json(topSongs);
+    } catch (error) {
+      console.error('Erro ao buscar top songs:', error);
+      res.status(500).json({ error: 'Erro ao buscar top songs' });
+    }
   });
 
   return { router, requireAuth };
