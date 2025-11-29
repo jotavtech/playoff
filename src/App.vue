@@ -475,6 +475,12 @@ const handleSuperVote = async (song) => {
     if (superVotedSong) {
       console.log(`⚡ Super voto executado: "${superVotedSong.title}" agora tem ${superVotedSong.votes} votos`)
       
+      // Rola suavemente para o topo para mostrar o player
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      })
+
       // Reproduzo imediatamente (característica do super voto)
       const played = await handlePlaySong(song)
       
