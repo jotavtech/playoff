@@ -1492,7 +1492,7 @@ app.get('*', (req, res) => {
 // o estado inicial da aplicação. É aqui que toda a arquitetura se junta
 const startServer = async () => {
   // Inicializa o banco de dados PostgreSQL
-  const dbReady = await initDatabase();
+  const dbReady = await checkConnection();
   
   // Sincroniza músicas do banco
   if (dbReady) {

@@ -464,13 +464,15 @@ watch(() => currentTime.value, (newPos) => {
 watch(currentTrack, (newTrack, oldTrack) => {
   // Se a música mudou, ativa modo de transição
   if (newTrack?.id !== oldTrack?.id) {
+    console.log('🔄 Mudança de música detectada - Estabilizando barra de progresso...')
     isTrackTransitioning.value = true
     seekingPosition.value = 0
     
-    // Desativa após um tempo para o player estabilizar
+    // Desativa após um tempo maior para o player estabilizar (Spotify pode demorar a responder)
     setTimeout(() => {
       isTrackTransitioning.value = false
-    }, 500)
+      console.log('✅ Barra de progresso liberada')
+    }, 1500)
   }
   
   // Atualiza lyrics automaticamente quando a música trocar

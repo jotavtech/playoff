@@ -668,6 +668,48 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   flex-shrink: 0;
   z-index: 5;
   transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Ajuste para laptops */
+  transform: scale(0.9); 
+  margin-left: -20px;
+}
+
+@media (min-width: 1500px) {
+  .vinyl-container {
+    transform: scale(1);
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 1400px) {
+  .hero-section {
+    padding: 1rem;
+    gap: 1rem;
+    justify-content: center;
+  }
+
+  .player-card {
+    width: 450px; /* Reduzido de 500+ */
+    padding: 2rem;
+  }
+  
+  .track-title {
+    font-size: 2.2rem !important;
+  }
+  
+  .vinyl-container {
+    transform: scale(0.75);
+    margin-left: -40px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .vinyl-container {
+    display: none; /* Esconde disco em telas menores que 1200px */
+  }
+  
+  .hero-content {
+    justify-content: center;
+  }
 }
 
 /* ============= ANIMAÇÃO DE NOVA MÚSICA ============= */
