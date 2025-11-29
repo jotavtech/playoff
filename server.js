@@ -13,9 +13,18 @@ const DATABASE_URL = process.env.DATABASE_URL;
 let pool = null;
 if (DATABASE_URL) {
   const { Pool } = require('pg');
+  console.log('📊 Tentando configurar Pool PostgreSQL...');
+  console.log(`   URL presente? ${!!DATABASE_URL}`);
+  
+  // Configuração SSL robusta para produção
+  const sslConfig = !DATABASE_URL.includes('localhost') 
+    ? { rejectUnauthorized: false } 
+    : false;
+
   pool = new Pool({
     connectionString: DATABASE_URL,
-    ssl: !DATABASE_URL.includes('localhost') ? { rejectUnauthorized: false } : false
+    ssl: sslConfig,
+    connectionTimeoutMillis: 5000, // Timeout de 5s para conexão
   });
   console.log('📊 Pool PostgreSQL configurado');
 } else {
@@ -129,20 +138,23 @@ CREATE INDEX IF NOT EXISTS idx_friendships_status ON friendships(status);
 `;
 
 // Inicializa o banco de dados
-async function initDatabase() {
+async function checkConnection() {
+  if (!pool) return false;
   try {
-    if (!DATABASE_URL) {
-      console.log('⚠️ DATABASE_URL não configurada. Rodando em modo de desenvolvimento sem banco.');
-      return false;
-    }
     const client = await pool.connect();
-    console.log('📊 Conectado ao PostgreSQL');
+    console.log('📊 Conectado ao PostgreSQL com sucesso!');
+    
+    // Inicializa schema se necessário
     await client.query(DB_SCHEMA);
-    console.log('✅ Schema do banco de dados inicializado com sucesso');
+    console.log('✅ Schema do banco de dados verificado/inicializado');
+    
     client.release();
     return true;
   } catch (error) {
-    console.error('❌ Erro ao conectar ao banco:', error.message);
+    console.error('❌ CRÍTICO: Erro ao conectar ao banco de dados!');
+    console.error('   Mensagem:', error.message);
+    console.error('   Stack:', error.stack);
+    if (error.code) console.error('   Code:', error.code);
     return false;
   }
 }
