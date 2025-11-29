@@ -42,10 +42,14 @@ module.exports = (db) => {
   router.get('/login', (req, res) => {
     const state = spotifyAuth.generateState();
     
-    // Constrói a redirect URI baseada no host que fez a requisição
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-    const host = req.get('host');
-    const redirectUri = `${protocol}://${host}/auth/spotify/callback`;
+    // Usa variável de ambiente se disponível, senão constrói dinamicamente
+    let redirectUri = process.env.SPOTIFY_REDIRECT_URI;
+    
+    if (!redirectUri) {
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      const host = req.get('host');
+      redirectUri = `${protocol}://${host}/auth/spotify/callback`;
+    }
     
     console.log(`🔐 Iniciando login via: ${redirectUri}`);
 

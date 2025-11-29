@@ -900,9 +900,9 @@ const handleAlbumColorExtracted = (event) => {
 // Observadores que reagem a mudanças de estado e mantêm sincronização
 
 // Inicializa o player do Spotify quando o usuário faz login ou o token muda
-watch(() => spotifyAccessToken.value, (newToken) => {
-  if (newToken && isAuthenticated.value && !spotifyPlayerReady.value) {
-    console.log('🎧 Inicializando Spotify Web Player (Token detectado via watcher)...')
+watch([() => spotifyAccessToken.value, () => isAuthenticated.value], ([newToken, isAuth]) => {
+  if (newToken && isAuth && !spotifyPlayerReady.value) {
+    console.log('🎧 Inicializando Spotify Web Player (Token e Auth detectados)...')
     // Passa handleNextTrack para garantir auto-play
     initSpotifyPlayer(handleNextTrack)
   }
