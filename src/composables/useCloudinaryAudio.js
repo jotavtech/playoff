@@ -231,7 +231,18 @@ export function useCloudinaryAudio() {
     audioPlayer.value.crossOrigin = 'anonymous' // Permite análise de pixels para cores
     audioPlayer.value.muted = false           // Garante que não está muted
     
+    // IMPORTANTE: Atributos necessários para iOS Safari
+    audioPlayer.value.setAttribute('playsinline', '')        // Necessário para iOS
+    audioPlayer.value.setAttribute('webkit-playsinline', '') // Para Safari antigo
+    audioPlayer.value.setAttribute('x-webkit-airplay', 'allow') // Permite AirPlay
+    
+    // Adiciona o elemento ao DOM (necessário para iOS Control Center)
+    audioPlayer.value.id = 'playoff-audio-player'
+    audioPlayer.value.style.display = 'none'
+    document.body.appendChild(audioPlayer.value)
+    
     console.log(`🔊 Player criado com volume inicial: ${audioPlayer.value.volume}`)
+    console.log('📱 Atributos iOS adicionados: playsinline, webkit-playsinline, x-webkit-airplay')
     
     // Configuro listeners de eventos para monitoramento do playback
     setupAudioEvents()
@@ -781,6 +792,38 @@ export function useCloudinaryAudio() {
     return 'neutral'
   }
   
+  // ============= MEDIA SESSION PARA iOS =============
+  // Atualiza os controles de mídia do sistema (Control Center no iOS, notificações no Android)
+  const updateMediaSessionForIOS = (track) => {
+    if (!('mediaSession' in navigator)) {
+      console.log('⚠️ Media Session API não disponível')
+      return
+    }
+    
+    try {
+      console.log('📱 Atualizando Media Session para:', track?.title)
+      
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: track?.title || 'PlayOff',
+        artist: track?.artist || 'Unknown Artist',
+        album: track?.album || 'PlayOff Music',
+        artwork: [
+          { src: track?.albumCover || '/default-album.jpg', sizes: '96x96', type: 'image/jpeg' },
+          { src: track?.albumCover || '/default-album.jpg', sizes: '128x128', type: 'image/jpeg' },
+          { src: track?.albumCover || '/default-album.jpg', sizes: '192x192', type: 'image/jpeg' },
+          { src: track?.albumCover || '/default-album.jpg', sizes: '256x256', type: 'image/jpeg' },
+          { src: track?.albumCover || '/default-album.jpg', sizes: '384x384', type: 'image/jpeg' },
+          { src: track?.albumCover || '/default-album.jpg', sizes: '512x512', type: 'image/jpeg' },
+        ]
+      })
+      
+      navigator.mediaSession.playbackState = 'playing'
+      console.log('✅ Media Session atualizado com sucesso!')
+    } catch (e) {
+      console.warn('⚠️ Erro ao atualizar Media Session:', e)
+    }
+  }
+
   // Play song with enhanced album cover and color detection
   const playSong = async (songData) => {
     try {
@@ -910,6 +953,9 @@ export function useCloudinaryAudio() {
       console.log('▶️ Tentando reproduzir...')
       console.log(`🔗 Source: ${audioPlayer.value.src}`)
       
+      // IMPORTANTE: Atualiza Media Session ANTES de tocar (necessário para iOS)
+      updateMediaSessionForIOS(songData)
+      
       await audioPlayer.value.play()
       
       console.log('✅ Reprodução iniciada com sucesso!')
@@ -918,6 +964,9 @@ export function useCloudinaryAudio() {
       console.log(`🎵 Tocando: ${currentTrack.value?.title}`)
       console.log(`👤 Artista: ${currentTrack.value?.artist}`)
       console.log(`⏱️ Duração: ${formatTime(audioPlayer.value.duration * 1000)}`)
+      
+      // Atualiza Media Session novamente depois de tocar (para garantir)
+      updateMediaSessionForIOS(songData)
       
       // Update dynamic background and extract colors
       console.log(`🎨 Iniciando atualização do fundo dinâmico...`)
