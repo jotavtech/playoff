@@ -919,66 +919,70 @@ app.get('/api/health', (req, res) => {
 // Inicialização do servidor e configuração final
 // Esta seção é responsável por inicializar todo o sistema e configurar
 // o estado inicial da aplicação. É aqui que toda a arquitetura se junta
-const server = app.listen(PORT, () => {
-  console.log(`📀 Carregadas ${songs.length} músicas com URLs do Cloudinary`);
-  
-  // Persiste músicas iniciais no banco de dados
-  console.log('📥 Sincronizando banco de dados com lista de músicas...');
-  songs.forEach(song => {
-    try {
-      db.upsertSong({
-        spotify_id: song.id, // Usa ID interno como spotify_id para as demos
-        title: song.title,
-        artist: song.artist,
-        album: song.album,
-        album_cover: song.albumCover,
-        audio_url: song.audioUrl,
-        preview_url: null,
-        spotify_url: song.spotifyUrl || null,
-        duration_ms: song.duration_ms || 0,
-        release_date: `${song.year}-01-01`,
-        popularity: 50,
-        added_by_user_id: null // Sistema
-      });
-    } catch (err) {
-      console.error(`❌ Erro ao persistir música inicial ${song.title}:`, err);
-    }
-  });
-
-  console.log(`🎵 PlayOff Music Voting App - Sistema de Votação Musical`);
-  console.log(`📱 Frontend: http://localhost:${PORT}/`);
-  console.log(`🎧 Backend com Padrão Observer ativo!`);
-  console.log(`👀 Observadores registrados: ${voteManager.observers.length}`);
-  console.log(`   - ${musicPlayer.constructor.name}: Gerencia reprodução de música`);
-  console.log(`   - ${uiObserver.constructor.name}: Gerencia atualizações de estado da UI`);
-  console.log(`🗳️ Vote Manager: Pronto para receber votos`);
-  console.log(`🎵 Music Player: Pronto para reproduzir músicas`);
-  console.log(`💬 Sistema de Chat: Pronto para conversas`);
-  
-  // Inicializo o VoteManager com a música mais votada atual
-  // Isso garante que o sistema comece com o estado correto
-  // e que o player já saiba qual música deveria estar tocando
-  const initialHighestVoted = voteManager.getHighestVotedSong();
-  if (initialHighestVoted) {
-    voteManager.currentHighestVoted = initialHighestVoted;
-    console.log(`👑 Música inicial mais votada: "${initialHighestVoted.title}" por ${initialHighestVoted.artist} (${initialHighestVoted.votes} votos)`);
+if (require.main === module) {
+  const server = app.listen(PORT, () => {
+    console.log(`📀 Carregadas ${songs.length} músicas com URLs do Cloudinary`);
     
-    // Aciono a configuração inicial do player de música
-    // Isso faz com que a música mais votada comece a "tocar" automaticamente
-    musicPlayer.playTrack(initialHighestVoted);
-  }
-  
-  console.log(`🚀 Sistema pronto para funcionar! Que comecem as votações!`);
-});
+    // Persiste músicas iniciais no banco de dados
+    console.log('📥 Sincronizando banco de dados com lista de músicas...');
+    songs.forEach(song => {
+      try {
+        db.upsertSong({
+          spotify_id: song.id, // Usa ID interno como spotify_id para as demos
+          title: song.title,
+          artist: song.artist,
+          album: song.album,
+          album_cover: song.albumCover,
+          audio_url: song.audioUrl,
+          preview_url: null,
+          spotify_url: song.spotifyUrl || null,
+          duration_ms: song.duration_ms || 0,
+          release_date: `${song.year}-01-01`,
+          popularity: 50,
+          added_by_user_id: null // Sistema
+        });
+      } catch (err) {
+        console.error(`❌ Erro ao persistir música inicial ${song.title}:`, err);
+      }
+    });
 
-// Gerenciamento de desligamento gracioso do servidor
-// Implemento um shutdown gracioso para garantir que todas as operações
-// sejam finalizadas adequadamente antes de encerrar o processo
-// Isso é especialmente importante em produção para evitar perda de dados
-process.on('SIGTERM', () => {
-  console.log('🛑 Servidor sendo desligado graciosamente...');
-  server.close(() => {
-    console.log('✅ Servidor fechado com sucesso');
-    console.log('👋 Até mais! Obrigado por usar o PlayOff!');
+    console.log(`🎵 PlayOff Music Voting App - Sistema de Votação Musical`);
+    console.log(`📱 Frontend: http://localhost:${PORT}/`);
+    console.log(`🎧 Backend com Padrão Observer ativo!`);
+    console.log(`👀 Observadores registrados: ${voteManager.observers.length}`);
+    console.log(`   - ${musicPlayer.constructor.name}: Gerencia reprodução de música`);
+    console.log(`   - ${uiObserver.constructor.name}: Gerencia atualizações de estado da UI`);
+    console.log(`🗳️ Vote Manager: Pronto para receber votos`);
+    console.log(`🎵 Music Player: Pronto para reproduzir músicas`);
+    console.log(`💬 Sistema de Chat: Pronto para conversas`);
+    
+    // Inicializo o VoteManager com a música mais votada atual
+    // Isso garante que o sistema comece com o estado correto
+    // e que o player já saiba qual música deveria estar tocando
+    const initialHighestVoted = voteManager.getHighestVotedSong();
+    if (initialHighestVoted) {
+      voteManager.currentHighestVoted = initialHighestVoted;
+      console.log(`👑 Música inicial mais votada: "${initialHighestVoted.title}" por ${initialHighestVoted.artist} (${initialHighestVoted.votes} votos)`);
+      
+      // Aciono a configuração inicial do player de música
+      // Isso faz com que a música mais votada comece a "tocar" automaticamente
+      musicPlayer.playTrack(initialHighestVoted);
+    }
+    
+    console.log(`🚀 Sistema pronto para funcionar! Que comecem as votações!`);
   });
-});
+
+  // Gerenciamento de desligamento gracioso do servidor
+  // Implemento um shutdown gracioso para garantir que todas as operações
+  // sejam finalizadas adequadamente antes de encerrar o processo
+  // Isso é especialmente importante em produção para evitar perda de dados
+  process.on('SIGTERM', () => {
+    console.log('🛑 Servidor sendo desligado graciosamente...');
+    server.close(() => {
+      console.log('✅ Servidor fechado com sucesso');
+      console.log('👋 Até mais! Obrigado por usar o PlayOff!');
+    });
+  });
+}
+
+module.exports = app;
