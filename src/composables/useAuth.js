@@ -13,12 +13,38 @@ const isLoading = ref(false)
 const error = ref(null)
 const likedSongIds = ref(new Set()) // IDs das músicas curtidas
 const isInitialized = ref(false) // Controla se já foi inicializado
+const callbackProcessed = ref(false) // Controla se callback já foi processado
 
 // Computed derivada do estado global
 const isAuthenticated = computed(() => !!user.value)
 
 // URL base da API - usa caminho relativo para aproveitar proxy do Vite
 const API_URL = ''
+
+// ============= PROCESSAMENTO IMEDIATO DO CALLBACK =============
+// Verifica e salva parâmetros do callback IMEDIATAMENTE quando o módulo carrega
+// Isso evita perda de dados se a URL for limpa antes do onMounted
+;(function processCallbackImmediately() {
+  if (typeof window === 'undefined') return
+  
+  const params = new URLSearchParams(window.location.search)
+  const spotifyId = params.get('spotify_id')
+  const accessToken = params.get('access_token')
+  
+  if (spotifyId && accessToken && !callbackProcessed.value) {
+    console.log('🔐 useAuth: Salvando dados do callback imediatamente...')
+    console.log(`   Spotify ID: ${spotifyId}`)
+    
+    // Salva no localStorage IMEDIATAMENTE
+    localStorage.setItem('spotify_id', spotifyId)
+    localStorage.setItem('spotify_access_token', accessToken)
+    spotifyAccessToken.value = accessToken
+    
+    // Limpa URL para não reprocessar
+    window.history.replaceState({}, '', '/')
+    callbackProcessed.value = true
+  }
+})()
 
 export function useAuth() {
 
@@ -34,14 +60,13 @@ export function useAuth() {
     return headers
   }
 
-  // Verifica se usuário está logado (via URL params após callback)
+  // Verifica se usuário está logado (via localStorage após callback processado)
   const checkAuth = async () => {
     console.log('🔐 useAuth: Verificando autenticação...')
+    
+    // Verifica erros na URL
     const params = new URLSearchParams(window.location.search)
-    const spotifyId = params.get('spotify_id')
-    const accessToken = params.get('access_token')
     const authError = params.get('error')
-
     if (authError) {
       console.error('❌ useAuth: Erro de autenticação:', authError)
       error.value = authError
@@ -49,48 +74,33 @@ export function useAuth() {
       return
     }
 
-    if (spotifyId && accessToken) {
-      console.log('✅ useAuth: Login detectado via URL params')
-      console.log(`   Spotify ID: ${spotifyId}`)
-      
-      // IMPORTANTE: Limpa dados antigos ANTES de salvar novos
-      // Isso garante que um novo login sempre sobrescreva completamente o anterior
-      const oldSpotifyId = localStorage.getItem('spotify_id')
-      if (oldSpotifyId && oldSpotifyId !== spotifyId) {
-        console.log(`🔄 Trocando de conta: ${oldSpotifyId} → ${spotifyId}`)
-        // Limpa dados da conta anterior
+    // Verifica localStorage (dados já salvos pelo processamento imediato ou sessão anterior)
+    const savedSpotifyId = localStorage.getItem('spotify_id')
+    const savedToken = localStorage.getItem('spotify_access_token')
+    
+    console.log('🔍 useAuth: Verificando localStorage...')
+    console.log(`   Spotify ID: ${savedSpotifyId || 'nenhum'}`)
+    console.log(`   Token: ${savedToken ? 'presente' : 'ausente'}`)
+    console.log(`   Callback processado: ${callbackProcessed.value}`)
+    
+    if (savedSpotifyId && savedToken) {
+      // Limpa dados do usuário anterior se for um novo login
+      if (callbackProcessed.value && user.value && user.value.spotify_id !== savedSpotifyId) {
+        console.log('🔄 Novo login detectado, limpando dados anteriores...')
         user.value = null
         likedSongIds.value = new Set()
-        sessionStorage.clear()
       }
       
-      spotifyAccessToken.value = accessToken
-      localStorage.setItem('spotify_id', spotifyId)
-      localStorage.setItem('spotify_access_token', accessToken)
+      spotifyAccessToken.value = savedToken
       
-      // Limpa URL
-      window.history.replaceState({}, '', '/')
-      
-      // Busca perfil completo da NOVA conta
+      // Busca perfil completo
+      console.log('🎵 Buscando perfil do Spotify...')
       await fetchUserProfile()
-      // Recarrega músicas curtidas da nova conta
+      
+      // Recarrega músicas curtidas
       loadLikedSongIds()
     } else {
-      // Tenta recuperar do localStorage
-      const savedSpotifyId = localStorage.getItem('spotify_id')
-      const savedToken = localStorage.getItem('spotify_access_token')
-      
-      console.log('🔍 useAuth: Verificando localStorage...')
-      console.log(`   Spotify ID salvo: ${savedSpotifyId || 'nenhum'}`)
-      console.log(`   Token salvo: ${savedToken ? 'sim' : 'não'}`)
-      
-      if (savedSpotifyId && savedToken) {
-        spotifyAccessToken.value = savedToken
-        await fetchUserProfile()
-        loadLikedSongIds()
-      } else {
-        console.log('⚠️ useAuth: Nenhuma sessão encontrada')
-      }
+      console.log('⚠️ useAuth: Nenhuma sessão encontrada')
     }
   }
 
@@ -429,11 +439,16 @@ export function useAuth() {
     }
   }
 
-  // Inicializa verificação de autenticação (apenas uma vez)
+  // Inicializa verificação de autenticação
   onMounted(() => {
-    if (!isInitialized.value) {
+    // Se callback foi processado (novo login) OU ainda não inicializou
+    if (callbackProcessed.value || !isInitialized.value) {
       isInitialized.value = true
-      checkAuth()
+      
+      // Se ainda não tem usuário carregado, busca o perfil
+      if (!user.value) {
+        checkAuth()
+      }
     }
   })
 
