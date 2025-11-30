@@ -70,10 +70,10 @@
                   @click="showFriendActivity(friend)"
                 >
                   <img 
-                    :src="friend.profile_image || '/default-avatar.svg'" 
+                    :src="friend.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.display_name)}&background=6366f1&color=fff&bold=true&size=64`" 
                     :alt="friend.display_name"
                     class="friend-avatar"
-                    @error="$event.target.src = '/default-avatar.svg'"
+                    @error="handleImageError($event, friend.display_name)"
                   >
                   <div class="friend-info">
                     <h3 class="friend-name">{{ friend.display_name }}</h3>
@@ -129,10 +129,10 @@
                   class="user-card"
                 >
                   <img 
-                    :src="user.profile_image || '/default-avatar.svg'" 
+                    :src="user.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.display_name)}&background=6366f1&color=fff&bold=true&size=64`" 
                     :alt="user.display_name"
                     class="user-avatar"
-                    @error="$event.target.src = '/default-avatar.svg'"
+                    @error="handleImageError($event, user.display_name)"
                   >
                   <div class="user-info">
                     <h3 class="user-name">{{ user.display_name }}</h3>
@@ -183,10 +183,10 @@
                   class="request-card"
                 >
                   <img 
-                    :src="request.profile_image || '/default-avatar.svg'" 
+                    :src="request.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(request.display_name)}&background=6366f1&color=fff&bold=true&size=64`" 
                     :alt="request.display_name"
                     class="request-avatar"
-                    @error="$event.target.src = '/default-avatar.svg'"
+                    @error="handleImageError($event, request.display_name)"
                   >
                   <div class="request-info">
                     <h3 class="request-name">{{ request.display_name }}</h3>
@@ -224,8 +224,9 @@
                   <i class="fas fa-arrow-left"></i>
                 </button>
                 <img 
-                  :src="selectedFriend.profile_image || '/default-avatar.svg'" 
+                  :src="selectedFriend.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedFriend.display_name)}&background=6366f1&color=fff&bold=true&size=64`" 
                   class="activity-avatar"
+                  @error="handleImageError($event, selectedFriend.display_name)"
                 >
                 <h3>{{ selectedFriend.display_name }}</h3>
               </div>
@@ -399,6 +400,12 @@ const formatDate = (dateStr) => {
   if (diff < 3600000) return `${Math.floor(diff / 60000)}min atrás`
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h atrás`
   return date.toLocaleDateString('pt-BR')
+}
+
+// Handler para erro ao carregar imagem de perfil
+const handleImageError = (event, displayName) => {
+  console.warn('⚠️ Erro ao carregar imagem, usando avatar gerado')
+  event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName || 'User')}&background=6366f1&color=fff&bold=true&size=64`
 }
 </script>
 

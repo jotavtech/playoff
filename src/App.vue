@@ -65,7 +65,12 @@
         <span>Entrar</span>
       </button>
       <button v-else @click="showProfileModal = true" class="profile-btn">
-        <img :src="user?.profile_image || '/default-avatar.png'" :alt="user?.display_name" class="user-avatar" />
+        <img 
+          :src="user?.profile_image || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user?.display_name || 'User') + '&background=6366f1&color=fff&bold=true'" 
+          :alt="user?.display_name" 
+          class="user-avatar"
+          @error="handleImageError"
+        />
         <span class="user-name">{{ user?.display_name }}</span>
       </button>
     </div>
@@ -424,6 +429,16 @@ const scrollToPlayerWithAnimation = () => {
   }))
   
   console.log('🎨 Animação de nova música disparada')
+}
+
+// Image Error Handler
+const handleImageError = (event) => {
+  console.warn('⚠️ Erro ao carregar imagem de perfil, usando fallback')
+  if (user.value?.display_name) {
+    event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.value.display_name)}&background=6366f1&color=fff&bold=true`
+  } else {
+    event.target.src = 'https://ui-avatars.com/api/?name=User&background=6366f1&color=fff&bold=true'
+  }
 }
 
 // Lyrics Handlers

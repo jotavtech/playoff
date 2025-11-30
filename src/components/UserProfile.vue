@@ -9,9 +9,10 @@
       <div class="profile-header">
         <div class="profile-image-container">
           <img 
-            :src="user?.profile_image || '/default-avatar.png'" 
+            :src="user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.display_name || 'User')}&background=6366f1&color=fff&bold=true&size=200`" 
             :alt="user?.display_name"
             class="profile-image"
+            @error="handleImageError"
           />
           <div class="spotify-badge">
             <i class="fab fa-spotify"></i>
@@ -237,6 +238,13 @@ const formatTime = (ms) => {
     return `${hours}h ${minutes}min`
   }
   return `${minutes}min`
+}
+
+// Handler para erro ao carregar imagem de perfil
+const handleImageError = (event) => {
+  console.warn('⚠️ Erro ao carregar imagem de perfil no modal, usando fallback')
+  const displayName = props.user?.display_name || 'User'
+  event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=6366f1&color=fff&bold=true&size=200`
 }
 
 // Formata tempo relativo
