@@ -176,6 +176,7 @@
         <DiscoverySection 
           :current-track="currentTrack"
           @play="handleDiscoveryPlay"
+          @add-to-queue="handleDiscoveryAddToQueue"
         />
 
         <!-- Footer Punk -->
@@ -1214,7 +1215,7 @@ const handleDiscoveryPlay = async (track) => {
       const results = await response.json()
       if (results.tracks?.items?.length > 0) {
         const spotifyTrack = results.tracks.items[0]
-        await handlePlayTrack({
+        await handleAutoPlaySong({
           id: spotifyTrack.id,
           title: spotifyTrack.name,
           artist: spotifyTrack.artists?.[0]?.name || track.artist,
@@ -1224,20 +1225,53 @@ const handleDiscoveryPlay = async (track) => {
           duration_ms: spotifyTrack.duration_ms,
           preview_url: spotifyTrack.preview_url
         })
+        showNotification(`▶ ${spotifyTrack.name}`, 'success')
         return
       }
     }
     
-    // Fallback: cria objeto minimal
-    showNotification(`Buscando "${track.name}"...`, 'info')
-    await handlePlayTrack({
-      title: track.name,
-      artist: track.artist,
-      source: 'lastfm'
-    })
+    // Música não encontrada no Spotify
+    showNotification(`"${track.name}" não encontrada no Spotify`, 'error')
   } catch (error) {
     console.error('Erro ao tocar música do Discovery:', error)
     showNotification('Erro ao tocar música', 'error')
+  }
+}
+
+// Função para adicionar músicas do Discovery à fila
+const handleDiscoveryAddToQueue = async (track) => {
+  console.log('📋 Discovery: Adicionando à fila:', track.name, '-', track.artist)
+  
+  try {
+    const searchQuery = `${track.name} ${track.artist}`
+    const response = await fetch(`/auth/spotify/search?q=${encodeURIComponent(searchQuery)}&limit=1`)
+    
+    if (response.ok) {
+      const results = await response.json()
+      if (results.tracks?.items?.length > 0) {
+        const spotifyTrack = results.tracks.items[0]
+        const songData = {
+          id: spotifyTrack.id,
+          title: spotifyTrack.name,
+          artist: spotifyTrack.artists?.[0]?.name || track.artist,
+          album: spotifyTrack.album?.name,
+          albumCover: spotifyTrack.album?.images?.[0]?.url,
+          spotify_url: spotifyTrack.external_urls?.spotify,
+          duration_ms: spotifyTrack.duration_ms,
+          preview_url: spotifyTrack.preview_url
+        }
+        
+        // Adiciona à fila
+        queue.value.push(songData)
+        showNotification(`"${songData.title}" adicionada à fila`, 'success')
+        return
+      }
+    }
+    
+    showNotification(`"${track.name}" não encontrada no Spotify`, 'error')
+  } catch (error) {
+    console.error('Erro ao adicionar à fila:', error)
+    showNotification('Erro ao adicionar à fila', 'error')
   }
 }
 

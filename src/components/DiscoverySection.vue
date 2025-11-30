@@ -30,10 +30,9 @@
         v-for="(track, index) in topTracks" 
         :key="index"
         class="track-card"
-        @click="playTrack(track)"
       >
         <div class="track-rank">{{ index + 1 }}</div>
-        <div class="track-image">
+        <div class="track-image" @click="playTrack(track)">
           <img 
             :src="track.image || defaultImage" 
             :alt="track.name"
@@ -46,10 +45,15 @@
         <div class="track-info">
           <h4 class="track-name">{{ track.name }}</h4>
           <p class="track-artist">{{ track.artist }}</p>
-          <span class="track-plays">
-            <i class="fas fa-headphones"></i>
-            {{ formatNumber(track.playcount) }}
-          </span>
+          <div class="track-actions">
+            <span class="track-plays">
+              <i class="fas fa-headphones"></i>
+              {{ formatNumber(track.playcount) }}
+            </span>
+            <button class="add-queue-btn" @click.stop="addToQueue(track)" title="Adicionar à fila">
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -71,10 +75,9 @@
           v-for="(track, index) in genreTracks" 
           :key="index"
           class="track-card"
-          @click="playTrack(track)"
         >
           <div class="track-rank">{{ index + 1 }}</div>
-          <div class="track-image">
+          <div class="track-image" @click="playTrack(track)">
             <img 
               :src="track.image || defaultImage" 
               :alt="track.name"
@@ -87,6 +90,9 @@
           <div class="track-info">
             <h4 class="track-name">{{ track.name }}</h4>
             <p class="track-artist">{{ track.artist }}</p>
+            <button class="add-queue-btn" @click.stop="addToQueue(track)" title="Adicionar à fila">
+              <i class="fas fa-plus"></i>
+            </button>
           </div>
         </div>
       </div>
@@ -108,9 +114,8 @@
           v-for="(track, index) in recommendations" 
           :key="index"
           class="track-card recommendation"
-          @click="playTrack(track)"
         >
-          <div class="track-image">
+          <div class="track-image" @click="playTrack(track)">
             <img 
               :src="track.image || defaultImage" 
               :alt="track.name"
@@ -123,7 +128,12 @@
           <div class="track-info">
             <h4 class="track-name">{{ track.name }}</h4>
             <p class="track-artist">{{ track.artist }}</p>
-            <span v-if="track.reason" class="track-reason">{{ track.reason }}</span>
+            <div class="track-actions">
+              <span v-if="track.reason" class="track-reason">{{ track.reason }}</span>
+              <button class="add-queue-btn" @click.stop="addToQueue(track)" title="Adicionar à fila">
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -140,9 +150,8 @@
           v-for="(track, index) in similarTracks" 
           :key="index"
           class="track-card"
-          @click="playTrack(track)"
         >
-          <div class="track-image">
+          <div class="track-image" @click="playTrack(track)">
             <img 
               :src="track.image || defaultImage" 
               :alt="track.name"
@@ -155,8 +164,13 @@
           <div class="track-info">
             <h4 class="track-name">{{ track.name }}</h4>
             <p class="track-artist">{{ track.artist }}</p>
-            <div class="match-bar">
-              <div class="match-fill" :style="{ width: (track.match * 100) + '%' }"></div>
+            <div class="track-actions">
+              <div class="match-bar">
+                <div class="match-fill" :style="{ width: (track.match * 100) + '%' }"></div>
+              </div>
+              <button class="add-queue-btn" @click.stop="addToQueue(track)" title="Adicionar à fila">
+                <i class="fas fa-plus"></i>
+              </button>
             </div>
           </div>
         </div>
@@ -173,7 +187,7 @@ const props = defineProps({
   currentTrack: Object
 })
 
-const emit = defineEmits(['play'])
+const emit = defineEmits(['play', 'add-to-queue'])
 
 const { 
   isConnected, 
@@ -216,6 +230,15 @@ const handleImageError = (e) => {
 
 const playTrack = (track) => {
   emit('play', {
+    name: track.name,
+    artist: track.artist,
+    title: track.name,
+    source: 'lastfm'
+  })
+}
+
+const addToQueue = (track) => {
+  emit('add-to-queue', {
     name: track.name,
     artist: track.artist,
     title: track.name,
@@ -445,6 +468,39 @@ onMounted(() => {
   align-items: center;
   gap: 0.3rem;
   margin-top: 0.3rem;
+}
+
+.track-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.3rem;
+  gap: 0.5rem;
+}
+
+.add-queue-btn {
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 107, 107, 0.2);
+  border: 1px solid #ff6b6b;
+  color: #ff6b6b;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.add-queue-btn:hover {
+  background: #ff6b6b;
+  color: #000;
+  transform: scale(1.1);
+}
+
+.add-queue-btn i {
+  font-size: 0.7rem;
 }
 
 .track-reason {
