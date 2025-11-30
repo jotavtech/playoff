@@ -29,21 +29,13 @@
           </div>
         </div>
 
-        <button 
-          class="spotify-login-btn" 
-          @click="handleSpotifyLogin"
-          :disabled="isLoading"
-        >
+        <button class="spotify-login-btn" @click="handleSpotifyLogin" :disabled="isLoading">
           <i v-if="isLoading && activeProvider === 'spotify'" class="fas fa-spinner fa-spin"></i>
           <i v-else class="fab fa-spotify"></i>
           <span>{{ isLoading && activeProvider === 'spotify' ? 'Conectando...' : 'Entrar com Spotify' }}</span>
         </button>
 
-        <button 
-          class="youtube-login-btn" 
-          @click="handleGoogleLogin"
-          :disabled="isLoading"
-        >
+        <button class="youtube-login-btn" @click="handleGoogleLogin" :disabled="isLoading">
           <i v-if="isLoading && activeProvider === 'google'" class="fas fa-spinner fa-spin"></i>
           <i v-else class="fab fa-youtube"></i>
           <span>{{ isLoading && activeProvider === 'google' ? 'Conectando...' : 'Entrar com YouTube' }}</span>
@@ -109,21 +101,14 @@ const handleGoogleLogin = async () => {
   left: 0;
   width: 100%;
   height: 100%;
-  height: 100dvh;
   background: rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  animation: fadeIn 0.3s ease;
   overflow-y: auto;
   padding: 1rem;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 .login-modal {
@@ -135,24 +120,10 @@ const handleGoogleLogin = async () => {
   margin: auto;
   position: relative;
   transform: skewX(-2deg);
-  box-shadow: 
-    8px 8px 0 #ff6b6b,
-    0 0 40px rgba(255, 107, 107, 0.6);
-  animation: slideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  box-shadow: 8px 8px 0 #ff6b6b, 0 0 40px rgba(255, 107, 107, 0.6);
 }
 
-@keyframes slideIn {
-  from {
-    transform: skewX(-2deg) translateY(-50px);
-    opacity: 0;
-  }
-  to {
-    transform: skewX(-2deg) translateY(0);
-    opacity: 1;
-  }
-}
-
-.login-modal > * {
+.login-modal .login-content {
   transform: skewX(2deg);
 }
 
@@ -167,13 +138,12 @@ const handleGoogleLogin = async () => {
   height: 40px;
   font-size: 1.2rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transform: skewX(2deg);
 }
 
 .close-btn:hover {
   background: #ff6b6b;
   border-color: #ff6b6b;
-  transform: skewX(2deg) rotate(90deg);
 }
 
 .login-content {
@@ -188,13 +158,7 @@ const handleGoogleLogin = async () => {
   font-size: 3rem;
   color: #fff;
   margin-bottom: 1rem;
-  animation: pulse 2s infinite;
   text-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
 }
 
 .login-title {
@@ -248,7 +212,6 @@ const handleGoogleLogin = async () => {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.3s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -256,7 +219,7 @@ const handleGoogleLogin = async () => {
   margin: 2rem 0 1rem 0;
 }
 
-.spotify-login-btn:hover:not(:disabled) {
+.spotify-login-btn:hover {
   background: #fff;
   color: #1DB954;
   transform: translate(-3px, -3px);
@@ -279,7 +242,6 @@ const handleGoogleLogin = async () => {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.3s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -287,7 +249,7 @@ const handleGoogleLogin = async () => {
   margin: 0 0 2rem 0;
 }
 
-.youtube-login-btn:hover:not(:disabled) {
+.youtube-login-btn:hover {
   background: #fff;
   color: #FF0000;
   transform: translate(-3px, -3px);
