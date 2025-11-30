@@ -164,7 +164,7 @@ module.exports = (db) => {
       // Calcula quando o token expira
       const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
-      // Tenta salvar no banco, mas NÃO falha se o banco não estiver disponível
+      // Tenta salvar no banco
       try {
         await db.upsertUser({
           spotify_id: profile.id,
@@ -181,9 +181,11 @@ module.exports = (db) => {
         console.warn('⚠️ Banco de dados indisponível, continuando sem persistência:', dbError.message);
       }
 
-      console.log('✅ Redirecionando para frontend com token...');
-      // Redireciona com token (em produção, usar cookie httpOnly ou session)
-      res.redirect(`/?spotify_id=${profile.id}&access_token=${tokenData.access_token}`);
+      const redirectUrl = `/?spotify_id=${profile.id}&access_token=${tokenData.access_token}`;
+      console.log(`✅ Redirecionando para frontend: ${redirectUrl}`);
+      
+      // Redireciona com token
+      res.redirect(redirectUrl);
     } catch (error) {
       console.error('❌ Erro fatal no callback:', error);
       res.redirect(`/?error=auth_failed`);
