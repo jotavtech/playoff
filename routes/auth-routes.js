@@ -745,8 +745,8 @@ module.exports = (db) => {
 
   // ============= LAST.FM ROUTES =============
 
-  // Conectar conta Last.fm
-  router.get('/lastfm/connect', requireAuth, (req, res) => {
+  // Conectar conta Last.fm (não requer auth - é independente)
+  router.get('/lastfm/connect', (req, res) => {
     const callbackUrl = `${req.protocol}://${req.get('host')}/auth/lastfm/callback`;
     const authUrl = lastfmAuth.getAuthUrl(callbackUrl);
     res.json({ authUrl });
