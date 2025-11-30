@@ -120,8 +120,6 @@ const handleGoogleLogin = async () => {
 </script>
 
 <style scoped>
-/* ... (estilos existentes) ... */
-
 .youtube-login-btn {
   width: 100%;
   padding: 1.2rem 2rem;
