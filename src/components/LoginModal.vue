@@ -84,10 +84,28 @@ const handleGoogleLogin = async () => {
   try {
     const response = await fetch('/auth/google/login')
     const data = await response.json()
+    
+    if (!response.ok || data.error) {
+      console.error('Erro do servidor:', data.error || 'Resposta inválida')
+      alert('Erro ao conectar com YouTube: ' + (data.error || 'Tente novamente'))
+      isLoading.value = false
+      activeProvider.value = null
+      return
+    }
+    
+    if (!data.authUrl) {
+      console.error('authUrl não recebido:', data)
+      alert('Erro: URL de autenticação não recebida')
+      isLoading.value = false
+      activeProvider.value = null
+      return
+    }
+    
     localStorage.setItem('google_auth_state', data.state)
     window.location.href = data.authUrl
   } catch (error) {
     console.error('Erro ao iniciar login Google:', error)
+    alert('Erro de conexão. Verifique se o servidor está rodando.')
     isLoading.value = false
     activeProvider.value = null
   }

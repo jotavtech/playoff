@@ -8,6 +8,13 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://127.0.0.1:5175/auth/google/callback';
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
+// Log de debug para verificar se as credenciais estão carregadas
+console.log('🔑 Google Auth Config:');
+console.log(`   Client ID: ${GOOGLE_CLIENT_ID ? '✅ Configurado' : '❌ FALTANDO'}`);
+console.log(`   Client Secret: ${GOOGLE_CLIENT_SECRET ? '✅ Configurado' : '❌ FALTANDO'}`);
+console.log(`   Redirect URI: ${GOOGLE_REDIRECT_URI}`);
+console.log(`   YouTube API Key: ${YOUTUBE_API_KEY ? '✅ Configurado' : '❌ FALTANDO'}`);
+
 // Scopes para YouTube Data API
 const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.profile',
