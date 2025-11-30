@@ -151,6 +151,9 @@ export function useAuth() {
 
   // Busca perfil do Backend (para Google/Genérico)
   const fetchProfileFromBackend = async () => {
+    const spotifyId = localStorage.getItem('spotify_id')
+    const savedToken = localStorage.getItem('spotify_access_token')
+    
     try {
       const response = await fetch(`${API_URL}/auth/me`, {
         headers: getAuthHeaders()
@@ -161,10 +164,62 @@ export function useAuth() {
         user.value = profile
         console.log('✅ Perfil carregado do Backend:', user.value.display_name)
       } else {
-        console.warn('⚠️ Falha ao buscar perfil do backend')
+        console.warn('⚠️ Falha ao buscar perfil do backend, tentando Google API...')
+        // Fallback: busca direto da API do Google
+        await fetchProfileFromGoogle(savedToken, spotifyId)
       }
     } catch (err) {
       console.error('❌ Erro ao buscar perfil do backend:', err)
+      // Fallback: busca direto da API do Google
+      await fetchProfileFromGoogle(savedToken, spotifyId)
+    }
+  }
+
+  // Busca perfil diretamente da API do Google
+  const fetchProfileFromGoogle = async (token, odlId) => {
+    if (!token) {
+      console.error('❌ Sem token para buscar perfil do Google')
+      return
+    }
+
+    try {
+      console.log('🔴 Buscando perfil diretamente da Google API...')
+      const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const profile = await response.json()
+        user.value = {
+          spotify_id: odlId || `google:${profile.id}`,
+          display_name: profile.name,
+          email: profile.email,
+          profile_image: profile.picture,
+          provider: 'google'
+        }
+        console.log('✅ Perfil carregado do Google:', user.value.display_name)
+        console.log('   Foto de perfil:', user.value.profile_image || 'nenhuma')
+      } else {
+        const errorText = await response.text()
+        console.error('❌ Falha ao buscar perfil do Google:', response.status, errorText)
+        // Último recurso: cria usuário mínimo
+        user.value = {
+          spotify_id: odlId,
+          display_name: 'Usuário YouTube',
+          profile_image: null,
+          provider: 'google'
+        }
+      }
+    } catch (err) {
+      console.error('❌ Erro ao buscar perfil do Google:', err)
+      user.value = {
+        spotify_id: odlId,
+        display_name: 'Usuário YouTube',
+        profile_image: null,
+        provider: 'google'
+      }
     }
   }
 
