@@ -8,6 +8,20 @@ import { ref, computed, onMounted } from 'vue'
 // ============= ESTADO GLOBAL SINGLETON =============
 // Estado compartilhado entre todos os componentes que usam useAuth
 const user = ref(null)
+
+// Watch para debug de alterações no usuário
+import { watch } from 'vue'
+watch(user, (newVal, oldVal) => {
+  console.log(`👤 Estado do usuário alterado:`, {
+    antes: oldVal ? oldVal.display_name : 'null',
+    agora: newVal ? newVal.display_name : 'null',
+    timestamp: new Date().toISOString()
+  })
+  if (oldVal && !newVal) {
+    console.trace('⚠️ Usuário foi deslogado (user setado para null). Stack trace:')
+  }
+})
+
 const spotifyAccessToken = ref(null)
 const isLoading = ref(false)
 const error = ref(null)
@@ -86,8 +100,8 @@ export function useAuth() {
     if (savedSpotifyId && savedToken) {
       // Limpa dados do usuário anterior se for um novo login
       if (callbackProcessed.value && user.value && user.value.spotify_id !== savedSpotifyId) {
-        console.log('🔄 Novo login detectado, limpando dados anteriores...')
-        user.value = null
+        console.log('🔄 Novo login detectado, atualizando dados...')
+        // user.value = null // NÃO limpar aqui para evitar UI flicker/logout temporário
         likedSongIds.value = new Set()
       }
       

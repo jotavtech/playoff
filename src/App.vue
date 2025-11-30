@@ -66,11 +66,15 @@
       </button>
       <button v-else @click="showProfileModal = true" class="profile-btn">
         <img 
-          :src="user?.profile_image || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user?.display_name || 'User') + '&background=6366f1&color=fff&bold=true'" 
+          v-if="!profileImageError"
+          :src="user?.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.display_name || 'User')}&background=6366f1&color=fff&bold=true`" 
           :alt="user?.display_name" 
           class="user-avatar"
           @error="handleImageError"
         />
+        <div v-else class="user-avatar fallback">
+          <span>{{ (user?.display_name || 'U').charAt(0).toUpperCase() }}</span>
+        </div>
         <span class="user-name">{{ user?.display_name }}</span>
       </button>
     </div>
@@ -408,6 +412,7 @@ const lastLocalInteraction = ref(0) // Timestamp da última interação local
 const userHasInteracted = ref(false) // Track if user has clicked on the page
 const isPlayingPreview = ref(false) // Track if currently playing a preview (30s)
 const sdkInitAttempted = ref(false) // Track if SDK initialization was attempted
+const profileImageError = ref(false) // Track profile image loading errors
 
 // Aguarda 5 segundos antes de mostrar banner (dá tempo do SDK carregar)
 setTimeout(() => {
@@ -433,12 +438,8 @@ const scrollToPlayerWithAnimation = () => {
 
 // Image Error Handler
 const handleImageError = (event) => {
-  console.warn('⚠️ Erro ao carregar imagem de perfil, usando fallback')
-  if (user.value?.display_name) {
-    event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.value.display_name)}&background=6366f1&color=fff&bold=true`
-  } else {
-    event.target.src = 'https://ui-avatars.com/api/?name=User&background=6366f1&color=fff&bold=true'
-  }
+  console.warn('⚠️ Erro ao carregar imagem de perfil, ativando fallback nativo')
+  profileImageError.value = true
 }
 
 // Lyrics Handlers

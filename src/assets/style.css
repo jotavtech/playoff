@@ -1629,4 +1629,15 @@ body.theme-neutral .vinyl-disc.playing {
     0 0 100px rgba(169, 169, 169, 0.8),
     0 0 150px rgba(169, 169, 169, 0.6),
     0 0 200px rgba(169, 169, 169, 0.4);
+}
+
+/* User Avatar Fallback */
+.user-avatar.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  font-weight: bold;
+  font-size: 1.2rem;
 } 
