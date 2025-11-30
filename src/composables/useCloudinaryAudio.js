@@ -623,14 +623,18 @@ export function useCloudinaryAudio() {
     return new Promise((resolve) => {
       console.log(`🎨 Iniciando análise de cores para: ${imageUrl}`)
       
-      // ========== FIX: Bloqueia URLs do Spotify ==========
-      const isSpotifyUrl = imageUrl.includes('i.scdn.co') || imageUrl.includes('mosaic.scdn.co')
-      if (isSpotifyUrl) {
-        console.warn('⚠️ Imagem do Spotify - não é possível extrair cores (CORS bloqueado)')
-        resolve(null)
-        return
+      // ========== PROXY CORS para imagens externas ==========
+      let finalUrl = imageUrl
+      const isExternalUrl = imageUrl.includes('i.scdn.co') || 
+                           imageUrl.includes('mosaic.scdn.co') ||
+                           imageUrl.includes('spotify.com')
+      
+      if (isExternalUrl) {
+        // Usa proxy CORS público para contornar restrições
+        finalUrl = `https://corsproxy.io/?${encodeURIComponent(imageUrl)}`
+        console.log('🔄 Usando proxy CORS para imagem do Spotify')
       }
-      // ========== FIM DO FIX ==========
+      // ========== FIM DO PROXY ==========
       
       // Crio elemento de imagem temporário para análise
       const img = new Image()
@@ -716,12 +720,12 @@ export function useCloudinaryAudio() {
       }
       
       img.onerror = () => {
-        console.error('❌ Erro ao carregar imagem para análise de cores:', imageUrl)
+        console.error('❌ Erro ao carregar imagem para análise de cores:', finalUrl)
         resolve(null)
       }
       
-      // Inicio carregamento da imagem
-      img.src = imageUrl
+      // Inicio carregamento da imagem (usando proxy se necessário)
+      img.src = finalUrl
     })
   }
   
