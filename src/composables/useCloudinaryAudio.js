@@ -623,6 +623,15 @@ export function useCloudinaryAudio() {
     return new Promise((resolve) => {
       console.log(`🎨 Iniciando análise de cores para: ${imageUrl}`)
       
+      // ========== FIX: Bloqueia URLs do Spotify ==========
+      const isSpotifyUrl = imageUrl.includes('i.scdn.co') || imageUrl.includes('mosaic.scdn.co')
+      if (isSpotifyUrl) {
+        console.warn('⚠️ Imagem do Spotify - não é possível extrair cores (CORS bloqueado)')
+        resolve(null)
+        return
+      }
+      // ========== FIM DO FIX ==========
+      
       // Crio elemento de imagem temporário para análise
       const img = new Image()
       img.crossOrigin = 'anonymous' // Necessário para análise de pixels
@@ -1019,6 +1028,34 @@ export function useCloudinaryAudio() {
       console.warn('⚠️ Camadas de fundo não encontradas')
       return
     }
+    
+    // ========== FIX: Detecta URLs do Spotify que causam CORS ==========
+    const isSpotifyUrl = albumCoverUrl.includes('i.scdn.co') || albumCoverUrl.includes('mosaic.scdn.co')
+    
+    if (isSpotifyUrl) {
+      console.warn('⚠️ Imagem do Spotify detectada - usando cor sólida ao invés de imagem (evita CORS)')
+      // Usa cor sólida ou gradiente ao invés da imagem
+      layerCurrent.style.backgroundImage = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+      dynamicBackground.classList.add('active')
+      
+      // Ainda tenta extrair cores, mas sem mostrar a imagem
+      try {
+        const colorInfo = await extractDominantColor(albumCoverUrl)
+        if (colorInfo) {
+          applyDynamicTheme(colorInfo.theme)
+          if (colorInfo.dominantColor) {
+            const dominant = [colorInfo.dominantColor.r, colorInfo.dominantColor.g, colorInfo.dominantColor.b]
+            const palette = colorInfo.palette?.map(c => [c.r, c.g, c.b]) || []
+            applyAccentColors(dominant, palette)
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ Não foi possível extrair cores da imagem do Spotify', e)
+      }
+      
+      return
+    }
+    // ========== FIM DO FIX ==========
     
     // Cancela transição pendente se houver
     if (bgTransitionTimeout) {
