@@ -1481,6 +1481,83 @@ app.get('/api/health', (req, res) => {
   console.log('✅ Health check respondido - Sistema funcionando normalmente');
 });
 
+// ============= ROTA DE TESTE TEMPORÁRIA =============
+// Cria usuário de teste e envia pedido de amizade
+app.get('/api/admin/create-test-friend', async (req, res) => {
+  const targetUsername = req.query.target || 'Jotaa';
+  
+  console.log(`🧪 Criando usuário de teste para enviar amizade para: ${targetUsername}`);
+  
+  if (!pool) {
+    return res.status(500).json({ error: 'Banco de dados não conectado' });
+  }
+  
+  try {
+    // 1. Cria usuário de teste
+    const testUser = {
+      spotify_id: 'test_user_' + Date.now(),
+      email: 'testuser@playoff.test',
+      display_name: 'Amigo Teste 🧪',
+      profile_image: 'https://i.pravatar.cc/150?u=testuser',
+      country: 'BR'
+    };
+    
+    const createResult = await pool.query(`
+      INSERT INTO users (spotify_id, email, display_name, profile_image, country)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT(spotify_id) DO UPDATE SET display_name = EXCLUDED.display_name
+      RETURNING *
+    `, [testUser.spotify_id, testUser.email, testUser.display_name, testUser.profile_image, testUser.country]);
+    
+    const newTestUser = createResult.rows[0];
+    console.log(`✅ Usuário de teste criado: ${newTestUser.display_name} (ID: ${newTestUser.id})`);
+    
+    // 2. Busca o usuário alvo pelo display_name
+    const targetResult = await pool.query(`
+      SELECT id, display_name, spotify_id FROM users 
+      WHERE LOWER(display_name) LIKE LOWER($1)
+      LIMIT 1
+    `, [`%${targetUsername}%`]);
+    
+    if (targetResult.rowCount === 0) {
+      return res.status(404).json({ 
+        error: `Usuário "${targetUsername}" não encontrado`,
+        testUserCreated: testUser.display_name
+      });
+    }
+    
+    const targetUser = targetResult.rows[0];
+    console.log(`👤 Usuário alvo encontrado: ${targetUser.display_name} (ID: ${targetUser.id})`);
+    
+    // 3. Envia pedido de amizade
+    await pool.query(`
+      INSERT INTO friendships (user_id, friend_id, status)
+      VALUES ($1, $2, 'pending')
+      ON CONFLICT (user_id, friend_id) DO UPDATE SET status = 'pending', created_at = CURRENT_TIMESTAMP
+    `, [newTestUser.id, targetUser.id]);
+    
+    console.log(`📨 Pedido de amizade enviado de "${newTestUser.display_name}" para "${targetUser.display_name}"`);
+    
+    res.json({
+      success: true,
+      message: `Pedido de amizade enviado!`,
+      testUser: {
+        id: newTestUser.id,
+        display_name: newTestUser.display_name,
+        profile_image: newTestUser.profile_image
+      },
+      targetUser: {
+        id: targetUser.id,
+        display_name: targetUser.display_name
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao criar usuário de teste:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Rota catch-all para servir o frontend (SPA)
 // Qualquer rota não definida anteriormente será redirecionada para o index.html
 app.get('*', (req, res) => {

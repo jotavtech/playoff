@@ -5,16 +5,22 @@
 
 import { ref, computed, onMounted } from 'vue'
 
-export function useAuth() {
-  const user = ref(null)
-  const isAuthenticated = computed(() => !!user.value)
-  const spotifyAccessToken = ref(null)
-  const isLoading = ref(false)
-  const error = ref(null)
-  const likedSongIds = ref(new Set()) // IDs das músicas curtidas
+// ============= ESTADO GLOBAL SINGLETON =============
+// Estado compartilhado entre todos os componentes que usam useAuth
+const user = ref(null)
+const spotifyAccessToken = ref(null)
+const isLoading = ref(false)
+const error = ref(null)
+const likedSongIds = ref(new Set()) // IDs das músicas curtidas
+const isInitialized = ref(false) // Controla se já foi inicializado
 
-  // URL base da API - usa caminho relativo para aproveitar proxy do Vite
-  const API_URL = ''
+// Computed derivada do estado global
+const isAuthenticated = computed(() => !!user.value)
+
+// URL base da API - usa caminho relativo para aproveitar proxy do Vite
+const API_URL = ''
+
+export function useAuth() {
 
   // Função helper para gerar headers de autenticação
   const getAuthHeaders = (includeContentType = false) => {
@@ -29,19 +35,24 @@ export function useAuth() {
   }
 
   // Verifica se usuário está logado (via URL params após callback)
-  const checkAuth = () => {
+  const checkAuth = async () => {
+    console.log('🔐 useAuth: Verificando autenticação...')
     const params = new URLSearchParams(window.location.search)
     const spotifyId = params.get('spotify_id')
     const accessToken = params.get('access_token')
     const authError = params.get('error')
 
     if (authError) {
+      console.error('❌ useAuth: Erro de autenticação:', authError)
       error.value = authError
       window.history.replaceState({}, '', '/')
       return
     }
 
     if (spotifyId && accessToken) {
+      console.log('✅ useAuth: Login detectado via URL params')
+      console.log(`   Spotify ID: ${spotifyId}`)
+      
       // IMPORTANTE: Limpa dados antigos ANTES de salvar novos
       // Isso garante que um novo login sempre sobrescreva completamente o anterior
       const oldSpotifyId = localStorage.getItem('spotify_id')
@@ -61,7 +72,7 @@ export function useAuth() {
       window.history.replaceState({}, '', '/')
       
       // Busca perfil completo da NOVA conta
-      fetchUserProfile()
+      await fetchUserProfile()
       // Recarrega músicas curtidas da nova conta
       loadLikedSongIds()
     } else {
@@ -69,10 +80,16 @@ export function useAuth() {
       const savedSpotifyId = localStorage.getItem('spotify_id')
       const savedToken = localStorage.getItem('spotify_access_token')
       
+      console.log('🔍 useAuth: Verificando localStorage...')
+      console.log(`   Spotify ID salvo: ${savedSpotifyId || 'nenhum'}`)
+      console.log(`   Token salvo: ${savedToken ? 'sim' : 'não'}`)
+      
       if (savedSpotifyId && savedToken) {
         spotifyAccessToken.value = savedToken
-        fetchUserProfile()
+        await fetchUserProfile()
         loadLikedSongIds()
+      } else {
+        console.log('⚠️ useAuth: Nenhuma sessão encontrada')
       }
     }
   }
@@ -129,8 +146,11 @@ export function useAuth() {
           country: profile.country
         }
         console.log('✅ Perfil carregado do Spotify:', user.value.display_name)
+        console.log('   Foto de perfil:', user.value.profile_image || 'nenhuma')
+        console.log('   isAuthenticated:', isAuthenticated.value)
       } else {
-        console.error('❌ Falha ao buscar perfil do Spotify:', response.status)
+        const errorText = await response.text()
+        console.error('❌ Falha ao buscar perfil do Spotify:', response.status, errorText)
         // Último recurso: cria usuário mínimo com spotify_id
         if (spotifyId) {
           user.value = {
@@ -409,9 +429,12 @@ export function useAuth() {
     }
   }
 
-  // Inicializa verificação de autenticação
+  // Inicializa verificação de autenticação (apenas uma vez)
   onMounted(() => {
-    checkAuth()
+    if (!isInitialized.value) {
+      isInitialized.value = true
+      checkAuth()
+    }
   })
 
   return {
