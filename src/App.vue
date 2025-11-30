@@ -2,7 +2,13 @@
   <div class="app">
     <!-- Elementos de Fundo -->
     <div class="background-overlay"></div>
-    <div class="dynamic-background" :class="{ active: currentTrack }"></div>
+    <!-- Fundo dinâmico com crossfade suave, blur, escurecimento e noise -->
+    <div class="dynamic-background" :class="{ active: currentTrack }">
+      <div class="bg-layer layer-current"></div>
+      <div class="bg-layer layer-next"></div>
+      <div class="bg-overlay"></div>
+      <div class="bg-noise"></div>
+    </div>
     
     <!-- Banner de Aviso Spotify Premium -->
     <!-- Removido temporariamente pois está mostrando falso positivo para usuário Premium -->
@@ -245,7 +251,9 @@ const {
   getCurrentState, // Importa função de sync
   seek: spotifySeek,
   error: spotifyError,
-  currentTrack: spotifyCurrentTrack // Track do Spotify (local ou remoto)
+  currentTrack: spotifyCurrentTrack, // Track do Spotify (local ou remoto)
+  disconnect: disconnectSpotifyPlayer, // Desconectar player no logout
+  stopRemoteSync // Parar sync remoto no logout
 } = useSpotifyPlayer()
 
 // ============= SYNC REMOTO (CELULAR → WEB) =============
@@ -1225,8 +1233,24 @@ const handleNextTrack = async () => {
 
 // ============= HANDLER DE LOGOUT =============
 const handleLogout = () => {
+  // 1. Para a sincronização remota com Spotify
+  stopRemoteSync()
+  
+  // 2. Desconecta o Spotify Web Player
+  disconnectSpotifyPlayer()
+  
+  // 3. Para o player de áudio HTML5 (preview) se estiver tocando
+  if (isAudioPlaying.value) {
+    toggleAudioPlayback()
+  }
+  
+  // 4. Limpa estado de autenticação (localStorage, sessão, etc)
   logout()
+  
+  // 5. Limpa estado da UI
   showProfileModal.value = false
+  
+  console.log('🔒 Logout completo - Player desconectado, sessão limpa')
   showNotification('👋 Até logo! Você foi desconectado.', 'info')
 }
 
@@ -1454,8 +1478,10 @@ const updateMediaSession = () => {
   }
 }
 
-// Flag para evitar loops de Media Session
+// Flags para evitar loops de Media Session
 let mediaSessionLock = false
+let lastMediaSessionAction = 0
+const MEDIA_SESSION_DEBOUNCE = 500 // ms entre ações
 
 const setupMediaSessionHandlers = () => {
   if (!('mediaSession' in navigator)) {
@@ -1463,16 +1489,25 @@ const setupMediaSessionHandlers = () => {
     return
   }
   
-  console.log('📱 Configurando Media Session API (controles em segundo plano)...')
+  console.log('📱 Configurando Media Session API (controles completos para iOS)...')
   
-  // Handler para Play - apenas controla play/pause, não muda música
+  // Helper para debounce de ações
+  const canExecuteAction = () => {
+    const now = Date.now()
+    if (mediaSessionLock || (now - lastMediaSessionAction < MEDIA_SESSION_DEBOUNCE)) {
+      return false
+    }
+    lastMediaSessionAction = now
+    return true
+  }
+  
+  // Handler para Play
   navigator.mediaSession.setActionHandler('play', async () => {
-    if (mediaSessionLock) return
+    if (!canExecuteAction()) return
     mediaSessionLock = true
     console.log('📱 Media Session: Play')
     
     try {
-      // Apenas resume playback se já tem uma música carregada
       if (currentTrack.value && !isPlaying.value) {
         await handleTogglePlayback()
       }
@@ -1483,7 +1518,7 @@ const setupMediaSessionHandlers = () => {
   
   // Handler para Pause
   navigator.mediaSession.setActionHandler('pause', async () => {
-    if (mediaSessionLock) return
+    if (!canExecuteAction()) return
     mediaSessionLock = true
     console.log('📱 Media Session: Pause')
     
@@ -1496,19 +1531,98 @@ const setupMediaSessionHandlers = () => {
     }
   })
   
-  // Handler para Próxima - DESABILITADO para evitar loops no iOS
-  // O usuário deve usar os controles do site
-  navigator.mediaSession.setActionHandler('nexttrack', null)
+  // Handler para Próxima Música - FUNCIONAL
+  navigator.mediaSession.setActionHandler('nexttrack', async () => {
+    if (!canExecuteAction()) {
+      console.log('📱 Media Session: Next Track (ignorado - debounce)')
+      return
+    }
+    mediaSessionLock = true
+    console.log('📱 Media Session: Next Track ➡️')
+    
+    try {
+      await handleNextTrack()
+      // Atualiza metadata após trocar
+      setTimeout(() => updateMediaSession(), 500)
+    } finally {
+      setTimeout(() => { mediaSessionLock = false }, 800)
+    }
+  })
   
-  // Handler para Anterior - DESABILITADO para evitar loops no iOS
-  navigator.mediaSession.setActionHandler('previoustrack', null)
+  // Handler para Música Anterior - FUNCIONAL
+  navigator.mediaSession.setActionHandler('previoustrack', async () => {
+    if (!canExecuteAction()) {
+      console.log('📱 Media Session: Previous Track (ignorado - debounce)')
+      return
+    }
+    mediaSessionLock = true
+    console.log('📱 Media Session: Previous Track ⬅️')
+    
+    try {
+      await handlePreviousTrack()
+      // Atualiza metadata após trocar
+      setTimeout(() => updateMediaSession(), 500)
+    } finally {
+      setTimeout(() => { mediaSessionLock = false }, 800)
+    }
+  })
   
-  // Handler para Seek - DESABILITADO (pode causar problemas)
-  navigator.mediaSession.setActionHandler('seekto', null)
-  navigator.mediaSession.setActionHandler('seekforward', null)
-  navigator.mediaSession.setActionHandler('seekbackward', null)
+  // Handler para Seek To (arrastar barra de progresso)
+  navigator.mediaSession.setActionHandler('seekto', (details) => {
+    if (!canExecuteAction()) return
+    console.log('📱 Media Session: Seek To', details.seekTime)
+    
+    try {
+      const seekMs = details.seekTime * 1000
+      handleSeek(seekMs)
+    } catch (e) {
+      console.warn('⚠️ Erro no seek:', e)
+    }
+  })
   
-  console.log('✅ Media Session handlers configurados (apenas play/pause)!')
+  // Handler para Seek Forward (+10s)
+  navigator.mediaSession.setActionHandler('seekforward', (details) => {
+    if (!canExecuteAction()) return
+    const skipTime = details?.seekOffset || 10
+    console.log('📱 Media Session: Seek Forward', skipTime, 's')
+    
+    try {
+      const newPosition = currentTime.value + (skipTime * 1000)
+      const maxPosition = currentDuration.value
+      handleSeek(Math.min(newPosition, maxPosition))
+    } catch (e) {
+      console.warn('⚠️ Erro no seek forward:', e)
+    }
+  })
+  
+  // Handler para Seek Backward (-10s)
+  navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+    if (!canExecuteAction()) return
+    const skipTime = details?.seekOffset || 10
+    console.log('📱 Media Session: Seek Backward', skipTime, 's')
+    
+    try {
+      const newPosition = currentTime.value - (skipTime * 1000)
+      handleSeek(Math.max(newPosition, 0))
+    } catch (e) {
+      console.warn('⚠️ Erro no seek backward:', e)
+    }
+  })
+  
+  // Handler para Stop (alguns sistemas usam)
+  try {
+    navigator.mediaSession.setActionHandler('stop', () => {
+      if (!canExecuteAction()) return
+      console.log('📱 Media Session: Stop')
+      if (isPlaying.value) {
+        handleTogglePlayback()
+      }
+    })
+  } catch (e) {
+    // Alguns browsers não suportam 'stop'
+  }
+  
+  console.log('✅ Media Session handlers configurados (controles completos)!')
 }
 
 // Atualiza Media Session quando a música ou estado muda (com debounce)

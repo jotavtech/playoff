@@ -51,9 +51,9 @@
       <div class="footer-social">
         <h3 class="links-title">CONECTE-SE</h3>
         <div class="social-icons">
-          <a href="#" class="social-btn"><i class="fab fa-spotify"></i></a>
-          <a href="#" class="social-btn"><i class="fab fa-github"></i></a>
-          <a href="#" class="social-btn"><i class="fab fa-instagram"></i></a>
+          <a href="https://open.spotify.com/playlist/42M6rb3j1xWn9IhfmM2MX6" target="_blank" rel="noopener noreferrer" class="social-btn spotify-btn" title="Playlist Oficial do PlayOff"><i class="fab fa-spotify"></i></a>
+          <a href="https://github.com/jotavtech" target="_blank" rel="noopener noreferrer" class="social-btn" title="GitHub"><i class="fab fa-github"></i></a>
+          <a href="https://instagram.com/jotavtech" target="_blank" rel="noopener noreferrer" class="social-btn" title="Instagram"><i class="fab fa-instagram"></i></a>
         </div>
         <div class="footer-credit">
           <p>FEITO COM ⚡ E CÓDIGO</p>
@@ -260,6 +260,14 @@ defineEmits(['open-about'])
   color: #000;
   transform: skewX(-5deg) translate(-3px, -3px);
   box-shadow: 3px 3px 0 #ff6b6b;
+}
+
+/* Botão do Spotify com cor verde característica */
+.social-btn.spotify-btn:hover {
+  background: #1DB954;
+  color: #fff;
+  border-color: #1DB954;
+  box-shadow: 3px 3px 0 #fff;
 }
 
 .footer-credit {

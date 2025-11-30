@@ -218,6 +218,98 @@ const voteQueries = {
   `)
 };
 
+// ============= FRIENDSHIP OPERATIONS =============
+
+const friendshipQueries = {
+  // Busca usuários por nome (para adicionar amigos)
+  searchUsers: db.prepare(`
+    SELECT 
+      u.id, u.display_name, u.profile_image, u.spotify_id,
+      (
+        SELECT status FROM friendships 
+        WHERE (user_id = ? AND friend_id = u.id) 
+           OR (user_id = u.id AND friend_id = ?)
+        LIMIT 1
+      ) as friendship_status
+    FROM users u
+    WHERE u.id != ? 
+      AND (u.display_name LIKE ? OR u.spotify_id LIKE ?)
+    LIMIT 20
+  `),
+
+  // Lista amigos aceitos
+  getFriends: db.prepare(`
+    SELECT 
+      u.id, u.display_name, u.profile_image, u.spotify_id, u.total_plays,
+      f.accepted_at,
+      (SELECT title FROM songs s 
+       JOIN user_song_stats uss ON s.id = uss.song_id 
+       WHERE uss.user_id = u.id 
+       ORDER BY uss.last_played_at DESC LIMIT 1) as last_played_title
+    FROM users u
+    INNER JOIN friendships f ON (
+      (f.user_id = ? AND f.friend_id = u.id) OR 
+      (f.friend_id = ? AND f.user_id = u.id)
+    )
+    WHERE f.status = 'accepted'
+    ORDER BY f.accepted_at DESC
+  `),
+
+  // Lista pedidos de amizade pendentes (recebidos)
+  getPendingRequests: db.prepare(`
+    SELECT 
+      u.id, u.display_name, u.profile_image, u.spotify_id,
+      f.requested_at
+    FROM users u
+    INNER JOIN friendships f ON f.user_id = u.id
+    WHERE f.friend_id = ? AND f.status = 'pending'
+    ORDER BY f.requested_at DESC
+  `),
+
+  // Envia pedido de amizade
+  sendRequest: db.prepare(`
+    INSERT INTO friendships (user_id, friend_id, status)
+    VALUES (?, ?, 'pending')
+    ON CONFLICT(user_id, friend_id) DO UPDATE SET
+      status = CASE 
+        WHEN friendships.status = 'rejected' THEN 'pending'
+        ELSE friendships.status
+      END,
+      requested_at = CASE 
+        WHEN friendships.status = 'rejected' THEN CURRENT_TIMESTAMP
+        ELSE friendships.requested_at
+      END
+  `),
+
+  // Aceita pedido de amizade
+  acceptRequest: db.prepare(`
+    UPDATE friendships 
+    SET status = 'accepted', accepted_at = CURRENT_TIMESTAMP
+    WHERE user_id = ? AND friend_id = ? AND status = 'pending'
+  `),
+
+  // Remove amizade ou rejeita pedido
+  removeFriendship: db.prepare(`
+    DELETE FROM friendships 
+    WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)
+  `),
+
+  // Verifica se são amigos
+  areFriends: db.prepare(`
+    SELECT id FROM friendships 
+    WHERE ((user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?))
+      AND status = 'accepted'
+    LIMIT 1
+  `),
+
+  // Status da amizade entre dois usuários
+  getFriendshipStatus: db.prepare(`
+    SELECT status, user_id, friend_id FROM friendships 
+    WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)
+    LIMIT 1
+  `)
+};
+
 // ============= EXPORTED FUNCTIONS =============
 
 module.exports = {
@@ -288,6 +380,108 @@ module.exports = {
   addVote: (userId, songId) => voteQueries.addVote.run(userId, songId),
   getUserVotes: (userId) => voteQueries.getUserVotes.all(userId),
   getSongVotes: (songId) => voteQueries.getSongVotes.get(songId),
+  
+  // Friendships
+  searchUsers: (query, currentUserId) => {
+    const searchPattern = `%${query}%`
+    return friendshipQueries.searchUsers.all(
+      currentUserId, currentUserId, currentUserId, searchPattern, searchPattern
+    )
+  },
+  
+  getFriends: (userId) => friendshipQueries.getFriends.all(userId, userId),
+  
+  getPendingFriendRequests: (userId) => friendshipQueries.getPendingRequests.all(userId),
+  
+  sendFriendRequest: (userId, friendId) => {
+    try {
+      // Verifica se já existe amizade no sentido inverso
+      const existing = friendshipQueries.getFriendshipStatus.get(userId, friendId, friendId, userId)
+      if (existing?.status === 'accepted') {
+        return { success: false, message: 'Vocês já são amigos', status: 'accepted' }
+      }
+      if (existing?.status === 'pending') {
+        // Se o outro já pediu, aceita automaticamente
+        if (existing.user_id === friendId) {
+          friendshipQueries.acceptRequest.run(friendId, userId)
+          return { success: true, message: 'Amizade aceita!', status: 'accepted' }
+        }
+        return { success: false, message: 'Pedido já enviado', status: 'pending' }
+      }
+      
+      friendshipQueries.sendRequest.run(userId, friendId)
+      return { success: true, message: 'Pedido enviado!', status: 'pending' }
+    } catch (error) {
+      console.error('Erro ao enviar pedido de amizade:', error)
+      return { success: false, message: 'Erro ao enviar pedido' }
+    }
+  },
+  
+  acceptFriendRequest: (userId, friendId) => {
+    try {
+      const result = friendshipQueries.acceptRequest.run(friendId, userId)
+      return { success: result.changes > 0 }
+    } catch (error) {
+      console.error('Erro ao aceitar amizade:', error)
+      return { success: false }
+    }
+  },
+  
+  removeFriend: (userId, friendId) => {
+    try {
+      friendshipQueries.removeFriendship.run(userId, friendId, friendId, userId)
+      return { success: true }
+    } catch (error) {
+      console.error('Erro ao remover amigo:', error)
+      return { success: false }
+    }
+  },
+  
+  areFriends: (userId, friendId) => {
+    const result = friendshipQueries.areFriends.get(userId, friendId, friendId, userId)
+    return !!result
+  },
+  
+  getFriendshipStatus: (userId, friendId) => {
+    const result = friendshipQueries.getFriendshipStatus.get(userId, friendId, friendId, userId)
+    return result?.status || 'none'
+  },
+  
+  // Busca atividade de um usuário (para amigos verem)
+  getUserActivity: (userId) => {
+    try {
+      const stats = statsQueries.getUserStats.get(userId) || { unique_songs: 0, total_plays: 0, total_listening_time: 0 }
+      const recentPlays = historyQueries.getUserHistory.all(userId, 10)
+      
+      // Busca músicas curtidas do amigo (se houver tabela liked_songs)
+      let likedSongs = []
+      try {
+        const likedQuery = db.prepare(`
+          SELECT spotify_track_id, title, artist, album, album_cover
+          FROM liked_songs 
+          WHERE user_id = ? 
+          ORDER BY liked_at DESC 
+          LIMIT 10
+        `)
+        likedSongs = likedQuery.all(userId)
+      } catch (e) {
+        // Tabela liked_songs pode não existir
+      }
+      
+      return {
+        stats: {
+          total_plays: stats.total_plays || 0,
+          total_likes: likedSongs.length,
+          unique_songs: stats.unique_songs || 0
+        },
+        recentPlays,
+        likedSongs
+      }
+    } catch (error) {
+      console.error('Erro ao buscar atividade do usuário:', error)
+      return { stats: { total_plays: 0, total_likes: 0, unique_songs: 0 }, recentPlays: [], likedSongs: [] }
+    }
+  },
   
   // Transaction helper
   transaction: (fn) => db.transaction(fn)

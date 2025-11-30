@@ -42,6 +42,17 @@ export function useAuth() {
     }
 
     if (spotifyId && accessToken) {
+      // IMPORTANTE: Limpa dados antigos ANTES de salvar novos
+      // Isso garante que um novo login sempre sobrescreva completamente o anterior
+      const oldSpotifyId = localStorage.getItem('spotify_id')
+      if (oldSpotifyId && oldSpotifyId !== spotifyId) {
+        console.log(`🔄 Trocando de conta: ${oldSpotifyId} → ${spotifyId}`)
+        // Limpa dados da conta anterior
+        user.value = null
+        likedSongIds.value = new Set()
+        sessionStorage.clear()
+      }
+      
       spotifyAccessToken.value = accessToken
       localStorage.setItem('spotify_id', spotifyId)
       localStorage.setItem('spotify_access_token', accessToken)
@@ -49,8 +60,10 @@ export function useAuth() {
       // Limpa URL
       window.history.replaceState({}, '', '/')
       
-      // Busca perfil completo
+      // Busca perfil completo da NOVA conta
       fetchUserProfile()
+      // Recarrega músicas curtidas da nova conta
+      loadLikedSongIds()
     } else {
       // Tenta recuperar do localStorage
       const savedSpotifyId = localStorage.getItem('spotify_id')
@@ -59,6 +72,7 @@ export function useAuth() {
       if (savedSpotifyId && savedToken) {
         spotifyAccessToken.value = savedToken
         fetchUserProfile()
+        loadLikedSongIds()
       }
     }
   }
@@ -190,14 +204,21 @@ export function useAuth() {
     }
   }
 
-  // Logout
+  // Logout - Limpa completamente a sessão
   const logout = () => {
     user.value = null
     spotifyAccessToken.value = null
+    likedSongIds.value = new Set() // Limpa músicas curtidas também
+    
+    // Limpa TODOS os dados de autenticação do localStorage
     localStorage.removeItem('spotify_id')
     localStorage.removeItem('spotify_access_token')
     localStorage.removeItem('spotify_auth_state')
-    console.log('👋 Usuário deslogado')
+    
+    // Limpa sessionStorage também por segurança
+    sessionStorage.clear()
+    
+    console.log('👋 Usuário deslogado - sessão completamente limpa')
   }
 
   // Busca top músicas do usuário

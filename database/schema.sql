@@ -79,6 +79,24 @@ CREATE TABLE IF NOT EXISTS user_song_stats (
   UNIQUE(user_id, song_id)
 );
 
+-- Tabela de Amizades (sistema social)
+CREATE TABLE IF NOT EXISTS friendships (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  friend_id INTEGER NOT NULL,
+  status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'accepted', 'rejected'
+  requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  accepted_at DATETIME,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (friend_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE(user_id, friend_id)
+);
+
+-- Índices para amizades
+CREATE INDEX IF NOT EXISTS idx_friendships_user ON friendships(user_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_friend ON friendships(friend_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_status ON friendships(status);
+
 -- Índices para melhor performance
 CREATE INDEX IF NOT EXISTS idx_play_history_user ON play_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_play_history_song ON play_history(song_id);

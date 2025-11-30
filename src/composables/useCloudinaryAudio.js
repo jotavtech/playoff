@@ -998,20 +998,70 @@ export function useCloudinaryAudio() {
     }
   }
   
-  // Update dynamic background with enhanced color extraction
+  // Update dynamic background with enhanced color extraction and smooth crossfade
+  let bgTransitionTimeout = null // Controla transições pendentes
+  
   const updateDynamicBackground = async (albumCoverUrl) => {
     if (!albumCoverUrl) return
     
     console.log(`🎨 Atualizando fundo dinâmico com: ${albumCoverUrl}`)
     
-    let dynamicBackground = document.querySelector('.dynamic-background')
+    const dynamicBackground = document.querySelector('.dynamic-background')
     if (!dynamicBackground) {
-      dynamicBackground = document.createElement('div')
-      dynamicBackground.className = 'dynamic-background'
-      document.body.insertBefore(dynamicBackground, document.body.firstChild)
+      console.warn('⚠️ Elemento .dynamic-background não encontrado')
+      return
     }
     
-    dynamicBackground.style.backgroundImage = `url(${albumCoverUrl})`
+    const layerCurrent = dynamicBackground.querySelector('.layer-current')
+    const layerNext = dynamicBackground.querySelector('.layer-next')
+    
+    if (!layerCurrent || !layerNext) {
+      console.warn('⚠️ Camadas de fundo não encontradas')
+      return
+    }
+    
+    // Cancela transição pendente se houver
+    if (bgTransitionTimeout) {
+      clearTimeout(bgTransitionTimeout)
+      bgTransitionTimeout = null
+      // Remove classes de transição imediatamente
+      layerCurrent.classList.remove('transitioning')
+      layerNext.classList.remove('transitioning')
+    }
+    
+    // Se é a primeira imagem ou camada está vazia, define direto
+    const currentBg = layerCurrent.style.backgroundImage
+    if (!currentBg || currentBg === 'none' || currentBg === '') {
+      layerCurrent.style.backgroundImage = `url(${albumCoverUrl})`
+      dynamicBackground.classList.add('active')
+    } else {
+      // Crossfade suave para nova imagem
+      // 1. Prepara a próxima camada com a nova imagem
+      layerNext.style.backgroundImage = `url(${albumCoverUrl})`
+      
+      // 2. Força reflow para garantir que a transição funcione
+      void layerNext.offsetWidth
+      
+      // 3. Inicia transição
+      layerCurrent.classList.add('transitioning')
+      layerNext.classList.add('transitioning')
+      
+      // 4. Após transição, troca as camadas
+      const transitionDuration = window.innerWidth >= 769 ? 1800 : 1200
+      bgTransitionTimeout = setTimeout(() => {
+        // Move a nova imagem para a camada atual
+        layerCurrent.style.backgroundImage = `url(${albumCoverUrl})`
+        
+        // Remove classes de transição
+        layerCurrent.classList.remove('transitioning')
+        layerNext.classList.remove('transitioning')
+        
+        // Limpa a próxima camada
+        layerNext.style.backgroundImage = 'none'
+        bgTransitionTimeout = null
+      }, transitionDuration)
+    }
+    
     dynamicBackground.classList.add('active')
     
     // Extract colors and apply theme

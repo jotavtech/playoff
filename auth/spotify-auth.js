@@ -38,7 +38,7 @@ function getAuthorizationUrl(state, redirectUri) {
     scope: SCOPES,
     redirect_uri: redirectUri || REDIRECT_URI,
     state: state,
-    show_dialog: 'false' // false para não mostrar dialog sempre
+    show_dialog: 'true' // true para SEMPRE mostrar tela de seleção de conta
   });
 
   return `https://accounts.spotify.com/authorize?${params.toString()}`;
