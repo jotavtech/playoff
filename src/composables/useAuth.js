@@ -8,7 +8,6 @@ import { ref, computed, onMounted } from 'vue'
 // ============= ESTADO GLOBAL SINGLETON =============
 // Estado compartilhado entre todos os componentes que usam useAuth
 const user = ref(null)
-
 // Watch para debug de alterações no usuário
 import { watch } from 'vue'
 watch(user, (newVal, oldVal) => {
@@ -17,12 +16,10 @@ watch(user, (newVal, oldVal) => {
     agora: newVal ? newVal.display_name : 'null',
     timestamp: new Date().toISOString()
   })
-  if (oldVal && !newVal) {
-    console.trace('⚠️ Usuário foi deslogado (user setado para null). Stack trace:')
-  }
 })
 
 const spotifyAccessToken = ref(null)
+const authProvider = ref('spotify') // 'spotify' | 'google'
 const isLoading = ref(false)
 const error = ref(null)
 const likedSongIds = ref(new Set()) // IDs das músicas curtidas
@@ -37,22 +34,25 @@ const API_URL = ''
 
 // ============= PROCESSAMENTO IMEDIATO DO CALLBACK =============
 // Verifica e salva parâmetros do callback IMEDIATAMENTE quando o módulo carrega
-// Isso evita perda de dados se a URL for limpa antes do onMounted
 ;(function processCallbackImmediately() {
   if (typeof window === 'undefined') return
   
   const params = new URLSearchParams(window.location.search)
   const spotifyId = params.get('spotify_id')
   const accessToken = params.get('access_token')
+  const provider = params.get('provider') || 'spotify'
   
   if (spotifyId && accessToken && !callbackProcessed.value) {
-    console.log('🔐 useAuth: Salvando dados do callback imediatamente...')
-    console.log(`   Spotify ID: ${spotifyId}`)
+    console.log(`🔐 useAuth: Salvando dados do callback (${provider}) imediatamente...`)
+    console.log(`   ID: ${spotifyId}`)
     
     // Salva no localStorage IMEDIATAMENTE
     localStorage.setItem('spotify_id', spotifyId)
     localStorage.setItem('spotify_access_token', accessToken)
+    localStorage.setItem('auth_provider', provider)
+    
     spotifyAccessToken.value = accessToken
+    authProvider.value = provider
     
     // Limpa URL para não reprocessar
     window.history.replaceState({}, '', '/')
@@ -66,7 +66,8 @@ export function useAuth() {
   const getAuthHeaders = (includeContentType = false) => {
     const headers = {
       'Authorization': `Bearer ${localStorage.getItem('spotify_id')}`,
-      'X-Spotify-Token': localStorage.getItem('spotify_access_token') || ''
+      'X-Spotify-Token': localStorage.getItem('spotify_access_token') || '',
+      'X-Auth-Provider': localStorage.getItem('auth_provider') || 'spotify'
     }
     if (includeContentType) {
       headers['Content-Type'] = 'application/json'
@@ -74,11 +75,10 @@ export function useAuth() {
     return headers
   }
 
-  // Verifica se usuário está logado (via localStorage após callback processado)
+  // Verifica se usuário está logado
   const checkAuth = async () => {
     console.log('🔐 useAuth: Verificando autenticação...')
     
-    // Verifica erros na URL
     const params = new URLSearchParams(window.location.search)
     const authError = params.get('error')
     if (authError) {
@@ -88,62 +88,86 @@ export function useAuth() {
       return
     }
 
-    // Verifica localStorage (dados já salvos pelo processamento imediato ou sessão anterior)
     const savedSpotifyId = localStorage.getItem('spotify_id')
     const savedToken = localStorage.getItem('spotify_access_token')
+    const savedProvider = localStorage.getItem('auth_provider') || 'spotify'
     
+    authProvider.value = savedProvider
+
     console.log('🔍 useAuth: Verificando localStorage...')
-    console.log(`   Spotify ID: ${savedSpotifyId || 'nenhum'}`)
-    console.log(`   Token: ${savedToken ? 'presente' : 'ausente'}`)
-    console.log(`   Callback processado: ${callbackProcessed.value}`)
+    console.log(`   ID: ${savedSpotifyId || 'nenhum'}`)
+    console.log(`   Provider: ${savedProvider}`)
     
     if (savedSpotifyId && savedToken) {
-      // Limpa dados do usuário anterior se for um novo login
       if (callbackProcessed.value && user.value && user.value.spotify_id !== savedSpotifyId) {
         console.log('🔄 Novo login detectado, atualizando dados...')
-        // user.value = null // NÃO limpar aqui para evitar UI flicker/logout temporário
         likedSongIds.value = new Set()
       }
       
       spotifyAccessToken.value = savedToken
       
-      // Busca perfil completo
-      console.log('🎵 Buscando perfil do Spotify...')
+      console.log(`🎵 Buscando perfil do ${savedProvider}...`)
       await fetchUserProfile()
       
-      // Recarrega músicas curtidas
       loadLikedSongIds()
     } else {
       console.log('⚠️ useAuth: Nenhuma sessão encontrada')
     }
   }
 
-  // Busca perfil do usuário - SEMPRE busca direto do Spotify para garantir dados corretos
+  // Busca perfil do usuário
   const fetchUserProfile = async () => {
     isLoading.value = true
     error.value = null
 
     const spotifyId = localStorage.getItem('spotify_id')
     const savedToken = localStorage.getItem('spotify_access_token')
+    const provider = authProvider.value
 
-    // Sempre busca direto do Spotify API para ter dados atualizados
     if (savedToken) {
-      console.log('🎵 Buscando perfil do Spotify API...')
-      await fetchProfileFromSpotify(savedToken, spotifyId)
+      // Se for Spotify, busca da API do Spotify
+      if (provider === 'spotify') {
+        await fetchProfileFromSpotify(savedToken, spotifyId)
+      } 
+      // Se for Google, usamos o perfil local ou endpoint do backend
+      else if (provider === 'google') {
+        // Para Google, buscamos do nosso backend que já salvou os dados
+        await fetchProfileFromBackend()
+      }
     } else {
-      console.error('❌ Sem token para buscar perfil')
       // Fallback mínimo
       if (spotifyId) {
         user.value = {
           spotify_id: spotifyId,
-          display_name: spotifyId,
-          profile_image: null
+          display_name: spotifyId.replace('google:', ''),
+          profile_image: null,
+          provider: provider
         }
       }
     }
     
     isLoading.value = false
   }
+
+  // Busca perfil do Backend (para Google/Genérico)
+  const fetchProfileFromBackend = async () => {
+    try {
+      const response = await fetch(`${API_URL}/auth/me`, {
+        headers: getAuthHeaders()
+      })
+      
+      if (response.ok) {
+        const profile = await response.json()
+        user.value = profile
+        console.log('✅ Perfil carregado do Backend:', user.value.display_name)
+      } else {
+        console.warn('⚠️ Falha ao buscar perfil do backend')
+      }
+    } catch (err) {
+      console.error('❌ Erro ao buscar perfil do backend:', err)
+    }
+  }
+
 
   // Fallback: busca perfil diretamente da API do Spotify
   const fetchProfileFromSpotify = async (token, spotifyId) => {

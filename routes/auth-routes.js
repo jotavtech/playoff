@@ -5,6 +5,7 @@
 
 const express = require('express');
 const spotifyAuth = require('../auth/spotify-auth');
+const googleAuth = require('../auth/google-auth');
 
 module.exports = (db) => {
   const router = express.Router();
@@ -224,6 +225,72 @@ module.exports = (db) => {
     } catch (error) {
       console.error('Erro ao renovar token:', error);
       res.status(500).json({ error: 'Falha ao renovar token' });
+    }
+  });
+
+  // ============= GOOGLE AUTH ROUTES =============
+
+  // Inicia processo de login com Google
+  router.get('/google/login', (req, res) => {
+    const state = spotifyAuth.generateState(); // Reutiliza gerador de state
+    const authUrl = googleAuth.getGoogleAuthUrl(state);
+    
+    if (!authUrl) {
+      // Se não tiver Client ID configurado, retorna erro ou url de teste se quiser
+      return res.status(500).json({ error: 'Google Auth não configurado (Client ID faltando)' });
+    }
+
+    states.set(state, { 
+      timestamp: Date.now(),
+      provider: 'google'
+    });
+    
+    res.json({ authUrl, state });
+  });
+
+  // Callback do Google OAuth
+  router.get('/google/callback', async (req, res) => {
+    console.log('📥 Callback do Google recebido');
+    const { code, state, error } = req.query;
+
+    if (error) {
+      console.error('❌ Erro recebido do Google:', error);
+      return res.redirect(`/?error=${error}`);
+    }
+
+    if (!states.has(state)) {
+      return res.redirect('/?error=invalid_state');
+    }
+    states.delete(state);
+
+    try {
+      const tokenData = await googleAuth.exchangeCodeForToken(code);
+      const profile = await googleAuth.getUserProfile(tokenData.access_token);
+      
+      console.log(`👤 Perfil Google obtido: ${profile.name}`);
+
+      // Salva no banco usando spotify_id como campo genérico (prefixo google:)
+      const googleId = `google:${profile.id}`;
+      
+      try {
+        await db.upsertUser({
+          spotify_id: googleId, 
+          email: profile.email,
+          display_name: profile.name,
+          profile_image: profile.picture,
+          country: profile.locale || 'BR',
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+          token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+        });
+      } catch (dbError) {
+        console.warn('⚠️ Erro ao salvar usuário Google no banco:', dbError);
+      }
+
+      res.redirect(`/?spotify_id=${googleId}&access_token=${tokenData.access_token}&provider=google`);
+    } catch (error) {
+      console.error('❌ Erro no login Google:', error);
+      res.redirect('/?error=google_auth_failed');
     }
   });
 

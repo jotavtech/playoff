@@ -31,9 +31,19 @@
           @click="handleSpotifyLogin"
           :disabled="isLoading"
         >
-          <i v-if="isLoading" class="fas fa-spinner fa-spin"></i>
+          <i v-if="isLoading && activeProvider === 'spotify'" class="fas fa-spinner fa-spin"></i>
           <i v-else class="fab fa-spotify"></i>
-          <span>{{ isLoading ? 'Conectando...' : 'Entrar com Spotify' }}</span>
+          <span>{{ isLoading && activeProvider === 'spotify' ? 'Conectando...' : 'Entrar com Spotify' }}</span>
+        </button>
+
+        <button 
+          class="youtube-login-btn" 
+          @click="handleGoogleLogin"
+          :disabled="isLoading"
+        >
+          <i v-if="isLoading && activeProvider === 'google'" class="fas fa-spinner fa-spin"></i>
+          <i v-else class="fab fa-youtube"></i>
+          <span>{{ isLoading && activeProvider === 'google' ? 'Conectando...' : 'Entrar com YouTube' }}</span>
         </button>
 
         <p class="login-disclaimer">
@@ -54,50 +64,92 @@ defineProps({
 const emit = defineEmits(['close', 'login'])
 
 const isLoading = ref(false)
+const activeProvider = ref(null)
 
 const handleSpotifyLogin = async () => {
   isLoading.value = true
+  activeProvider.value = 'spotify'
   
   try {
-    // Usa URL relativa (proxy do Vite redireciona para porta correta)
     const apiUrl = ''
-    
     console.log('🔌 Tentando conectar em API relativa...')
 
-    // Verifica se o backend está acessível
     try {
       const healthCheck = await fetch(`${apiUrl}/health`)
-      if (!healthCheck.ok) {
-        console.warn('⚠️ Backend health check falhou')
-      } else {
-        console.log('✅ Backend online:', await healthCheck.json())
-      }
+      if (!healthCheck.ok) console.warn('⚠️ Backend health check falhou')
+      else console.log('✅ Backend online:', await healthCheck.json())
     } catch (e) {
       console.warn('⚠️ Backend inacessível:', e)
     }
 
-    // Busca URL de autenticação do backend
     const response = await fetch(`${apiUrl}/auth/login`)
-    
     const contentType = response.headers.get('content-type')
     if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text()
-      console.error('❌ Resposta inválida do servidor (esperado JSON, recebeu HTML):', text.substring(0, 100))
-      throw new Error('Servidor retornou página HTML em vez de dados de login. Verifique a porta da API.')
+      throw new Error('Servidor retornou resposta inválida')
     }
 
     const data = await response.json()
-    
-    // Salva state no localStorage para validação
     localStorage.setItem('spotify_auth_state', data.state)
-    
-    // Redireciona para página de autenticação do Spotify
     window.location.href = data.authUrl
   } catch (error) {
-    console.error('Erro ao iniciar login:', error)
+    console.error('Erro ao iniciar login Spotify:', error)
     isLoading.value = false
+    activeProvider.value = null
   }
 }
+
+const handleGoogleLogin = async () => {
+  isLoading.value = true
+  activeProvider.value = 'google'
+  
+  try {
+    const response = await fetch('/auth/google/login')
+    const data = await response.json()
+    
+    localStorage.setItem('google_auth_state', data.state)
+    window.location.href = data.authUrl
+  } catch (error) {
+    console.error('Erro ao iniciar login Google:', error)
+    isLoading.value = false
+    activeProvider.value = null
+  }
+}
+</script>
+
+<style scoped>
+/* ... (estilos existentes) ... */
+
+.youtube-login-btn {
+  width: 100%;
+  padding: 1.2rem 2rem;
+  background: #FF0000;
+  border: 3px solid #FF0000;
+  color: #fff;
+  font-family: 'Cingire', sans-serif;
+  font-size: 1.3rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin: 0 0 2rem 0;
+}
+
+.youtube-login-btn:hover:not(:disabled) {
+  background: #fff;
+  color: #FF0000;
+  transform: translate(-3px, -3px);
+  box-shadow: 3px 3px 0 #FF0000;
+}
+
+.youtube-login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 </script>
 
 <style scoped>
