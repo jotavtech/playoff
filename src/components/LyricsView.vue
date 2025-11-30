@@ -1,17 +1,28 @@
 <template>
-  <div class="lyrics-view" :class="{ 'video-active': showVideo && videoId }">
+  <div 
+    class="lyrics-view" 
+    :class="{ 'video-active': showVideo && videoId }"
+    :style="{ '--accent-color': dominantColor || '#ff6b6b' }"
+  >
     <!-- Vídeo de Fundo -->
     <div v-if="showVideo && videoId" class="video-background">
       <div id="youtube-player" ref="playerContainer"></div>
       <div class="video-overlay"></div>
     </div>
 
-    <!-- Controles no topo -->
-    <div class="view-controls">
-      <button class="close-btn" @click="handleClose" title="Fechar">
-        <i class="fas fa-times"></i>
-      </button>
-      
+    <!-- Botão fechar no topo -->
+    <button class="close-btn" @click="handleClose" title="Fechar">
+      <i class="fas fa-times"></i>
+    </button>
+
+    <!-- Indicador de fonte de áudio -->
+    <div v-if="showVideo && videoId" class="audio-source">
+      <i class="fab fa-youtube"></i>
+      <span>Áudio do Clipe</span>
+    </div>
+
+    <!-- Controles no centro inferior -->
+    <div class="bottom-controls">
       <div class="mode-toggle">
         <button 
           :class="['mode-btn', { active: !showVideo }]"
@@ -29,12 +40,6 @@
           <i class="fab fa-youtube"></i>
           <span class="mode-label">Clipe</span>
         </button>
-      </div>
-
-      <!-- Indicador de fonte de áudio -->
-      <div v-if="showVideo && videoId" class="audio-source">
-        <i class="fab fa-youtube"></i>
-        <span>Áudio do Clipe</span>
       </div>
     </div>
 
@@ -497,73 +502,34 @@ onMounted(() => {
 }
 
 /* Controles */
-.view-controls {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 2rem;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%);
-}
-
 .close-btn {
+  position: fixed;
+  top: 1.5rem;
+  left: 1.5rem;
   width: 50px;
   height: 50px;
-  background: rgba(255, 107, 107, 0.2);
-  border: 2px solid #ff6b6b;
-  color: #ff6b6b;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--accent-color, #ff6b6b);
+  color: var(--accent-color, #ff6b6b);
   font-size: 1.5rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s;
+  z-index: 100;
 }
 
 .close-btn:hover {
-  background: #ff6b6b;
+  background: var(--accent-color, #ff6b6b);
   color: #000;
   transform: rotate(90deg);
 }
 
-.mode-toggle {
-  display: flex;
-  gap: 0.5rem;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 0.5rem;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-}
-
-.mode-btn {
-  padding: 0.8rem 1.2rem;
-  background: transparent;
-  border: 2px solid transparent;
-  color: rgba(255, 255, 255, 0.6);
-  font-family: 'Cingire', sans-serif;
-  font-size: 0.9rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.3s;
-}
-
-.mode-btn:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.mode-btn.active {
-  background: #ff6b6b;
-  color: #000;
-  border-color: #ff6b6b;
-}
-
 .audio-source {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -573,10 +539,58 @@ onMounted(() => {
   color: #fff;
   font-family: 'Cingire', sans-serif;
   font-size: 0.85rem;
+  z-index: 100;
 }
 
 .audio-source i {
   color: #ff0000;
+}
+
+/* Controles no centro inferior */
+.bottom-controls {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 0.5rem;
+  border: 2px solid var(--accent-color, #ff6b6b);
+  border-radius: 50px;
+  backdrop-filter: blur(10px);
+}
+
+.mode-btn {
+  padding: 0.8rem 1.5rem;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Cingire', sans-serif;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+  border-radius: 50px;
+}
+
+.mode-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.mode-btn.active {
+  background: var(--accent-color, #ff6b6b);
+  color: #000;
 }
 
 /* Container de Letras */
@@ -634,9 +648,11 @@ onMounted(() => {
 .timer-bar {
   height: 100%;
   width: 0%;
+  background: var(--accent-color, #ff6b6b);
   animation-name: timer-progress;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
+  box-shadow: 0 0 10px var(--accent-color, #ff6b6b);
 }
 
 @keyframes timer-progress {
@@ -710,7 +726,9 @@ onMounted(() => {
 .active-wrapper .lyric-line {
   font-size: 3.5rem;
   background: rgba(0, 0, 0, 0.7);
-  border-bottom: 4px solid currentColor;
+  border-bottom: 4px solid var(--accent-color, #ff6b6b);
+  color: #fff;
+  text-shadow: 0 0 20px var(--accent-color, #ff6b6b), 0 0 40px var(--accent-color, #ff6b6b);
   padding-bottom: 0.3rem;
 }
 
