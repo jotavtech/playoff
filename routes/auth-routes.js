@@ -6,6 +6,7 @@
 const express = require('express');
 const spotifyAuth = require('../auth/spotify-auth');
 const googleAuth = require('../auth/google-auth');
+const lastfmAuth = require('../auth/lastfm-auth');
 
 module.exports = (db) => {
   const router = express.Router();
@@ -722,6 +723,275 @@ module.exports = (db) => {
     } catch (error) {
       console.error('Erro ao verificar status:', error);
       res.status(500).json({ error: 'Erro ao verificar status' });
+    }
+  });
+
+  // ============= LAST.FM ROUTES =============
+
+  // Conectar conta Last.fm
+  router.get('/lastfm/connect', requireAuth, (req, res) => {
+    const callbackUrl = `${req.protocol}://${req.get('host')}/auth/lastfm/callback`;
+    const authUrl = lastfmAuth.getAuthUrl(callbackUrl);
+    res.json({ authUrl });
+  });
+
+  // Callback do Last.fm
+  router.get('/lastfm/callback', async (req, res) => {
+    const { token } = req.query;
+    
+    if (!token) {
+      return res.redirect('/?error=lastfm_no_token');
+    }
+
+    try {
+      const session = await lastfmAuth.getSession(token);
+      // Redireciona com os dados da sessão
+      res.redirect(`/?lastfm_user=${session.name}&lastfm_key=${session.key}`);
+    } catch (error) {
+      console.error('❌ Erro no callback Last.fm:', error);
+      res.redirect('/?error=lastfm_auth_failed');
+    }
+  });
+
+  // Top músicas globais
+  router.get('/lastfm/charts/tracks', async (req, res) => {
+    try {
+      const { limit = 20, page = 1 } = req.query;
+      const tracks = await lastfmAuth.getTopTracks(parseInt(limit), parseInt(page));
+      res.json(tracks);
+    } catch (error) {
+      console.error('Erro ao buscar top tracks:', error);
+      res.status(500).json({ error: 'Erro ao buscar charts' });
+    }
+  });
+
+  // Top artistas globais
+  router.get('/lastfm/charts/artists', async (req, res) => {
+    try {
+      const { limit = 20, page = 1 } = req.query;
+      const artists = await lastfmAuth.getTopArtists(parseInt(limit), parseInt(page));
+      res.json(artists);
+    } catch (error) {
+      console.error('Erro ao buscar top artists:', error);
+      res.status(500).json({ error: 'Erro ao buscar charts' });
+    }
+  });
+
+  // Top músicas por gênero/tag
+  router.get('/lastfm/charts/tag/:tag', async (req, res) => {
+    try {
+      const { tag } = req.params;
+      const { limit = 20 } = req.query;
+      const tracks = await lastfmAuth.getTopTracksByTag(tag, parseInt(limit));
+      res.json(tracks);
+    } catch (error) {
+      console.error('Erro ao buscar tracks por tag:', error);
+      res.status(500).json({ error: 'Erro ao buscar por gênero' });
+    }
+  });
+
+  // Artistas similares
+  router.get('/lastfm/similar/artists/:artist', async (req, res) => {
+    try {
+      const { artist } = req.params;
+      const { limit = 10 } = req.query;
+      const similar = await lastfmAuth.getSimilarArtists(decodeURIComponent(artist), parseInt(limit));
+      res.json(similar);
+    } catch (error) {
+      console.error('Erro ao buscar artistas similares:', error);
+      res.status(500).json({ error: 'Erro ao buscar similares' });
+    }
+  });
+
+  // Músicas similares
+  router.get('/lastfm/similar/tracks', async (req, res) => {
+    try {
+      const { artist, track, limit = 10 } = req.query;
+      if (!artist || !track) {
+        return res.status(400).json({ error: 'artist e track são obrigatórios' });
+      }
+      const similar = await lastfmAuth.getSimilarTracks(artist, track, parseInt(limit));
+      res.json(similar);
+    } catch (error) {
+      console.error('Erro ao buscar músicas similares:', error);
+      res.status(500).json({ error: 'Erro ao buscar similares' });
+    }
+  });
+
+  // Info do usuário Last.fm
+  router.get('/lastfm/user/:username', async (req, res) => {
+    try {
+      const { username } = req.params;
+      const info = await lastfmAuth.getUserInfo(username);
+      if (!info) {
+        return res.status(404).json({ error: 'Usuário não encontrado' });
+      }
+      res.json(info);
+    } catch (error) {
+      console.error('Erro ao buscar usuário:', error);
+      res.status(500).json({ error: 'Erro ao buscar usuário' });
+    }
+  });
+
+  // Top músicas do usuário Last.fm
+  router.get('/lastfm/user/:username/top/tracks', async (req, res) => {
+    try {
+      const { username } = req.params;
+      const { period = '7day', limit = 10 } = req.query;
+      const tracks = await lastfmAuth.getUserTopTracks(username, period, parseInt(limit));
+      res.json(tracks);
+    } catch (error) {
+      console.error('Erro ao buscar top tracks do usuário:', error);
+      res.status(500).json({ error: 'Erro ao buscar top tracks' });
+    }
+  });
+
+  // Top artistas do usuário Last.fm
+  router.get('/lastfm/user/:username/top/artists', async (req, res) => {
+    try {
+      const { username } = req.params;
+      const { period = '7day', limit = 10 } = req.query;
+      const artists = await lastfmAuth.getUserTopArtists(username, period, parseInt(limit));
+      res.json(artists);
+    } catch (error) {
+      console.error('Erro ao buscar top artistas do usuário:', error);
+      res.status(500).json({ error: 'Erro ao buscar top artistas' });
+    }
+  });
+
+  // Músicas recentes do usuário
+  router.get('/lastfm/user/:username/recent', async (req, res) => {
+    try {
+      const { username } = req.params;
+      const { limit = 20 } = req.query;
+      const tracks = await lastfmAuth.getUserRecentTracks(username, parseInt(limit));
+      res.json(tracks);
+    } catch (error) {
+      console.error('Erro ao buscar recentes:', error);
+      res.status(500).json({ error: 'Erro ao buscar recentes' });
+    }
+  });
+
+  // Recomendações personalizadas
+  router.get('/lastfm/user/:username/recommendations', async (req, res) => {
+    try {
+      const { username } = req.params;
+      const { limit = 20 } = req.query;
+      const recommendations = await lastfmAuth.getUserRecommendedTracks(username, parseInt(limit));
+      res.json(recommendations);
+    } catch (error) {
+      console.error('Erro ao buscar recomendações:', error);
+      res.status(500).json({ error: 'Erro ao buscar recomendações' });
+    }
+  });
+
+  // Buscar músicas
+  router.get('/lastfm/search/tracks', async (req, res) => {
+    try {
+      const { q, limit = 20 } = req.query;
+      if (!q) {
+        return res.status(400).json({ error: 'Query obrigatória' });
+      }
+      const tracks = await lastfmAuth.searchTracks(q, parseInt(limit));
+      res.json(tracks);
+    } catch (error) {
+      console.error('Erro ao buscar:', error);
+      res.status(500).json({ error: 'Erro na busca' });
+    }
+  });
+
+  // Buscar artistas
+  router.get('/lastfm/search/artists', async (req, res) => {
+    try {
+      const { q, limit = 20 } = req.query;
+      if (!q) {
+        return res.status(400).json({ error: 'Query obrigatória' });
+      }
+      const artists = await lastfmAuth.searchArtists(q, parseInt(limit));
+      res.json(artists);
+    } catch (error) {
+      console.error('Erro ao buscar:', error);
+      res.status(500).json({ error: 'Erro na busca' });
+    }
+  });
+
+  // Info de uma música
+  router.get('/lastfm/track/info', async (req, res) => {
+    try {
+      const { artist, track, username } = req.query;
+      if (!artist || !track) {
+        return res.status(400).json({ error: 'artist e track são obrigatórios' });
+      }
+      const info = await lastfmAuth.getTrackInfo(artist, track, username);
+      if (!info) {
+        return res.status(404).json({ error: 'Música não encontrada' });
+      }
+      res.json(info);
+    } catch (error) {
+      console.error('Erro ao buscar info:', error);
+      res.status(500).json({ error: 'Erro ao buscar info' });
+    }
+  });
+
+  // Scrobble uma música (registra que o usuário ouviu)
+  router.post('/lastfm/scrobble', requireAuth, async (req, res) => {
+    try {
+      const { sessionKey, artist, track, album, duration } = req.body;
+      
+      if (!sessionKey || !artist || !track) {
+        return res.status(400).json({ error: 'sessionKey, artist e track são obrigatórios' });
+      }
+
+      const result = await lastfmAuth.scrobble(
+        sessionKey,
+        artist,
+        track,
+        Date.now(),
+        album,
+        duration
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Erro ao scrobblar:', error);
+      res.status(500).json({ error: 'Erro ao registrar música' });
+    }
+  });
+
+  // Update Now Playing
+  router.post('/lastfm/nowplaying', requireAuth, async (req, res) => {
+    try {
+      const { sessionKey, artist, track, album, duration } = req.body;
+      
+      if (!sessionKey || !artist || !track) {
+        return res.status(400).json({ error: 'sessionKey, artist e track são obrigatórios' });
+      }
+
+      const result = await lastfmAuth.updateNowPlaying(
+        sessionKey,
+        artist,
+        track,
+        album,
+        duration
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Erro ao atualizar now playing:', error);
+      res.status(500).json({ error: 'Erro ao atualizar' });
+    }
+  });
+
+  // Top tracks de um artista
+  router.get('/lastfm/artist/:artist/top', async (req, res) => {
+    try {
+      const { artist } = req.params;
+      const { limit = 10 } = req.query;
+      const tracks = await lastfmAuth.getArtistTopTracks(decodeURIComponent(artist), parseInt(limit));
+      res.json(tracks);
+    } catch (error) {
+      console.error('Erro ao buscar top do artista:', error);
+      res.status(500).json({ error: 'Erro ao buscar' });
     }
   });
 

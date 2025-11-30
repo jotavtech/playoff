@@ -170,6 +170,12 @@
           @seek="handleSeek"
         />
 
+        <!-- Seção de Descoberta Last.fm -->
+        <DiscoverySection 
+          :current-track="currentTrack"
+          @play="handleDiscoveryPlay"
+        />
+
         <!-- Footer Punk -->
         <TheFooter @open-about="showAbout = true" />
       </div>
@@ -184,6 +190,7 @@ import { usePlayOffApp } from './composables/usePlayOffApp'
 import { useAuth } from './composables/useAuth'
 import { useSpotifyPlayer } from './composables/useSpotifyPlayer'
 import { useLyrics } from './composables/useLyrics'
+import { useLastFm } from './composables/useLastFm'
 import HeroSection from './components/HeroSection.vue'
 import MusicCarousel from './components/MusicCarousel.vue'
 import NotificationContainer from './components/NotificationContainer.vue'
@@ -197,6 +204,7 @@ import LyricsView from './components/LyricsView.vue'
 import RetrospectiveModal from './components/RetrospectiveModal.vue'
 import AboutView from './views/AboutView.vue'
 import FriendsModal from './components/FriendsModal.vue'
+import DiscoverySection from './components/DiscoverySection.vue'
 
 // ============= CONFIGURAÇÃO DA API =============
 // Usando URL relativa para aproveitar o proxy do Vite
@@ -253,6 +261,14 @@ const {
   isLiked,            // Verificar se está curtido
   toggleLike          // Toggle like/unlike
 } = useAuth()
+
+// ============= LAST.FM INTEGRATION =============
+const {
+  isConnected: lastfmConnected,
+  processCallback: processLastFmCallback,
+  updateNowPlaying,
+  scrobble
+} = useLastFm()
 
 // ============= SPOTIFY WEB PLAYER =============
 const {
@@ -1178,6 +1194,84 @@ const fetchSimilarTrack = async (seedTrack) => {
   }
 }
 
+// ============= LAST.FM SCROBBLING =============
+// Rastreia tempo de reprodução para scrobbling
+let scrobbleTimeout = null
+let lastScrobbledTrack = null
+
+// Função para tocar músicas do DiscoverySection
+const handleDiscoveryPlay = async (track) => {
+  console.log('🔥 Discovery: Tocando música:', track.name, '-', track.artist)
+  
+  // Busca a música no Spotify para obter dados completos
+  try {
+    const searchQuery = `${track.name} ${track.artist}`
+    const response = await fetch(`/auth/spotify/search?q=${encodeURIComponent(searchQuery)}&limit=1`)
+    
+    if (response.ok) {
+      const results = await response.json()
+      if (results.tracks?.items?.length > 0) {
+        const spotifyTrack = results.tracks.items[0]
+        await handlePlayTrack({
+          id: spotifyTrack.id,
+          title: spotifyTrack.name,
+          artist: spotifyTrack.artists?.[0]?.name || track.artist,
+          album: spotifyTrack.album?.name,
+          albumCover: spotifyTrack.album?.images?.[0]?.url,
+          spotify_url: spotifyTrack.external_urls?.spotify,
+          duration_ms: spotifyTrack.duration_ms,
+          preview_url: spotifyTrack.preview_url
+        })
+        return
+      }
+    }
+    
+    // Fallback: cria objeto minimal
+    showNotification(`Buscando "${track.name}"...`, 'info')
+    await handlePlayTrack({
+      title: track.name,
+      artist: track.artist,
+      source: 'lastfm'
+    })
+  } catch (error) {
+    console.error('Erro ao tocar música do Discovery:', error)
+    showNotification('Erro ao tocar música', 'error')
+  }
+}
+
+// Watch para scrobbling automático
+watch(currentTrack, (newTrack, oldTrack) => {
+  // Limpa timeout anterior
+  if (scrobbleTimeout) {
+    clearTimeout(scrobbleTimeout)
+    scrobbleTimeout = null
+  }
+  
+  // Scrobble a música anterior se ela foi ouvida tempo suficiente
+  if (oldTrack && lastScrobbledTrack !== oldTrack.id && lastfmConnected.value) {
+    // Scrobble imediatamente ao trocar de música (se já passou tempo suficiente)
+    scrobble(oldTrack)
+    lastScrobbledTrack = oldTrack.id
+  }
+  
+  // Update Now Playing para a nova música
+  if (newTrack && lastfmConnected.value) {
+    updateNowPlaying(newTrack)
+    
+    // Agenda scrobble para quando a música tiver tocado pelo menos 50% ou 4 minutos
+    const duration = newTrack.duration_ms || 180000 // 3 min default
+    const scrobbleTime = Math.min(duration * 0.5, 240000) // 50% ou 4 min
+    
+    scrobbleTimeout = setTimeout(() => {
+      if (currentTrack.value?.id === newTrack.id && isPlaying.value) {
+        scrobble(newTrack)
+        lastScrobbledTrack = newTrack.id
+        console.log('🎵 Last.fm: Scrobbled após tempo mínimo')
+      }
+    }, scrobbleTime)
+  }
+})
+
 // Flag e timestamp para evitar loops no handleNextTrack
 let isNavigatingTrack = false
 let lastTrackNavigation = 0
@@ -1670,6 +1764,9 @@ let mediaSessionInterval = null
 onMounted(async () => {
   // Configura Media Session para controles em segundo plano
   setupMediaSessionHandlers()
+  
+  // Processa callback do Last.fm se houver
+  processLastFmCallback()
   
   // Atualiza posição do Media Session a cada 3 segundos (evita overhead)
   mediaSessionInterval = setInterval(() => {
