@@ -17,7 +17,7 @@
         <div class="login-features">
           <div class="feature-item">
             <i class="fas fa-music"></i>
-            <span>Toque músicas do Spotify</span>
+            <span>Toque músicas completas</span>
           </div>
           <div class="feature-item">
             <i class="fas fa-chart-line"></i>
@@ -50,7 +50,7 @@
         </button>
 
         <p class="login-disclaimer">
-          Ao entrar, você concorda em conectar sua conta do Spotify ao PlayOff
+          Ao entrar, você concorda em conectar sua conta ao PlayOff
         </p>
       </div>
     </div>
@@ -74,23 +74,7 @@ const handleSpotifyLogin = async () => {
   activeProvider.value = 'spotify'
   
   try {
-    const apiUrl = ''
-    console.log('🔌 Tentando conectar em API relativa...')
-
-    try {
-      const healthCheck = await fetch(`${apiUrl}/health`)
-      if (!healthCheck.ok) console.warn('⚠️ Backend health check falhou')
-      else console.log('✅ Backend online:', await healthCheck.json())
-    } catch (e) {
-      console.warn('⚠️ Backend inacessível:', e)
-    }
-
-    const response = await fetch(`${apiUrl}/auth/login`)
-    const contentType = response.headers.get('content-type')
-    if (!contentType || !contentType.includes('application/json')) {
-      throw new Error('Servidor retornou resposta inválida')
-    }
-
+    const response = await fetch('/auth/login')
     const data = await response.json()
     localStorage.setItem('spotify_auth_state', data.state)
     window.location.href = data.authUrl
@@ -108,7 +92,6 @@ const handleGoogleLogin = async () => {
   try {
     const response = await fetch('/auth/google/login')
     const data = await response.json()
-    
     localStorage.setItem('google_auth_state', data.state)
     window.location.href = data.authUrl
   } catch (error) {
@@ -120,47 +103,13 @@ const handleGoogleLogin = async () => {
 </script>
 
 <style scoped>
-.youtube-login-btn {
-  width: 100%;
-  padding: 1.2rem 2rem;
-  background: #FF0000;
-  border: 3px solid #FF0000;
-  color: #fff;
-  font-family: 'Cingire', sans-serif;
-  font-size: 1.3rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin: 0 0 2rem 0;
-}
-
-.youtube-login-btn:hover:not(:disabled) {
-  background: #fff;
-  color: #FF0000;
-  transform: translate(-3px, -3px);
-  box-shadow: 3px 3px 0 #FF0000;
-}
-
-.youtube-login-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-</script>
-
-<style scoped>
 .login-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  height: 100dvh; /* Mobile viewport fix */
+  height: 100dvh;
   background: rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(10px);
   display: flex;
@@ -168,7 +117,7 @@ const handleGoogleLogin = async () => {
   justify-content: center;
   z-index: 9999;
   animation: fadeIn 0.3s ease;
-  overflow-y: auto; /* Allow scroll if content is too tall */
+  overflow-y: auto;
   padding: 1rem;
 }
 
@@ -183,7 +132,7 @@ const handleGoogleLogin = async () => {
   padding: 3rem;
   max-width: 500px;
   width: 100%;
-  margin: auto; /* Helps with centering in flex container with scroll */
+  margin: auto;
   position: relative;
   transform: skewX(-2deg);
   box-shadow: 
@@ -244,9 +193,8 @@ const handleGoogleLogin = async () => {
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); }
+  0%, 100% { transform: scale(1); }
   50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
 }
 
 .login-title {
@@ -320,6 +268,37 @@ const handleGoogleLogin = async () => {
   cursor: not-allowed;
 }
 
+.youtube-login-btn {
+  width: 100%;
+  padding: 1.2rem 2rem;
+  background: #FF0000;
+  border: 3px solid #FF0000;
+  color: #fff;
+  font-family: 'Cingire', sans-serif;
+  font-size: 1.3rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin: 0 0 2rem 0;
+}
+
+.youtube-login-btn:hover:not(:disabled) {
+  background: #fff;
+  color: #FF0000;
+  transform: translate(-3px, -3px);
+  box-shadow: 3px 3px 0 #FF0000;
+}
+
+.youtube-login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .login-disclaimer {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.5);
@@ -337,7 +316,8 @@ const handleGoogleLogin = async () => {
     font-size: 2rem;
   }
 
-  .spotify-login-btn {
+  .spotify-login-btn,
+  .youtube-login-btn {
     font-size: 1.1rem;
     padding: 1rem 1.5rem;
   }
