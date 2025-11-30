@@ -7,8 +7,11 @@
 
       <div class="login-content">
         <div class="login-header">
-          <h2 class="login-title">Entrar no PlayOff</h2>
-          <p class="login-subtitle">Conecte sua conta do Spotify para começar</p>
+          <div class="connection-icon">
+            <i class="fas fa-plug"></i>
+          </div>
+          <h2 class="login-title">Conectar</h2>
+          <p class="login-subtitle">Escolha sua plataforma de música</p>
         </div>
 
         <div class="login-features">
@@ -232,6 +235,20 @@ const handleGoogleLogin = async () => {
 
 .login-header {
   margin-bottom: 2rem;
+}
+
+.connection-icon {
+  font-size: 3rem;
+  color: #fff;
+  margin-bottom: 1rem;
+  animation: pulse 2s infinite;
+  text-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 
 .login-title {
