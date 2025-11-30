@@ -61,7 +61,7 @@
       </button>
 
       <button v-if="!isAuthenticated" @click="showLoginModal = true" class="login-btn">
-        <i class="fab fa-spotify"></i>
+        <i class="fas fa-plug"></i>
         <span>Entrar</span>
       </button>
       <button v-else @click="showProfileModal = true" class="profile-btn">
