@@ -295,6 +295,41 @@ module.exports = (db) => {
     }
   });
 
+  // Busca músicas no Spotify
+  router.get('/spotify/search', async (req, res) => {
+    try {
+      const { q, limit = 10 } = req.query;
+      
+      if (!q) {
+        return res.status(400).json({ error: 'Query obrigatória' });
+      }
+
+      // Usa o token do Spotify Auth
+      const token = spotifyAuth.getClientToken ? await spotifyAuth.getClientToken() : null;
+      
+      if (!token) {
+        return res.status(500).json({ error: 'Token Spotify não disponível' });
+      }
+
+      const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=${limit}`;
+      const response = await fetch(searchUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro na API do Spotify');
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error('Erro ao buscar no Spotify:', error);
+      res.status(500).json({ error: 'Erro na busca' });
+    }
+  });
+
   // Busca vídeos no YouTube (para clipes)
   router.get('/youtube/search', async (req, res) => {
     try {
@@ -770,12 +805,45 @@ module.exports = (db) => {
     }
   });
 
+  // Função helper para buscar capa do Spotify
+  const getSpotifyAlbumCover = async (trackName, artistName) => {
+    try {
+      const token = await spotifyAuth.getClientToken();
+      if (!token) return null;
+
+      const query = `track:${trackName} artist:${artistName}`;
+      const response = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.tracks?.items?.[0]?.album?.images?.[0]?.url || null;
+      }
+    } catch (e) {
+      // Silently fail
+    }
+    return null;
+  };
+
   // Top músicas globais
   router.get('/lastfm/charts/tracks', async (req, res) => {
     try {
       const { limit = 20, page = 1 } = req.query;
       const tracks = await lastfmAuth.getTopTracks(parseInt(limit), parseInt(page));
-      res.json(tracks);
+      
+      // Enriquece com capas do Spotify (em paralelo, max 5)
+      const enrichedTracks = await Promise.all(
+        tracks.map(async (track) => {
+          if (!track.image) {
+            track.image = await getSpotifyAlbumCover(track.name, track.artist);
+          }
+          return track;
+        })
+      );
+      
+      res.json(enrichedTracks);
     } catch (error) {
       console.error('Erro ao buscar top tracks:', error);
       res.status(500).json({ error: 'Erro ao buscar charts' });
@@ -800,7 +868,18 @@ module.exports = (db) => {
       const { tag } = req.params;
       const { limit = 20 } = req.query;
       const tracks = await lastfmAuth.getTopTracksByTag(tag, parseInt(limit));
-      res.json(tracks);
+      
+      // Enriquece com capas do Spotify
+      const enrichedTracks = await Promise.all(
+        tracks.map(async (track) => {
+          if (!track.image) {
+            track.image = await getSpotifyAlbumCover(track.name, track.artist);
+          }
+          return track;
+        })
+      );
+      
+      res.json(enrichedTracks);
     } catch (error) {
       console.error('Erro ao buscar tracks por tag:', error);
       res.status(500).json({ error: 'Erro ao buscar por gênero' });
@@ -828,7 +907,18 @@ module.exports = (db) => {
         return res.status(400).json({ error: 'artist e track são obrigatórios' });
       }
       const similar = await lastfmAuth.getSimilarTracks(artist, track, parseInt(limit));
-      res.json(similar);
+      
+      // Enriquece com capas do Spotify
+      const enrichedTracks = await Promise.all(
+        similar.map(async (t) => {
+          if (!t.image) {
+            t.image = await getSpotifyAlbumCover(t.name, t.artist);
+          }
+          return t;
+        })
+      );
+      
+      res.json(enrichedTracks);
     } catch (error) {
       console.error('Erro ao buscar músicas similares:', error);
       res.status(500).json({ error: 'Erro ao buscar similares' });

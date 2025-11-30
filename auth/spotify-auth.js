@@ -202,6 +202,43 @@ async function getCurrentPlayback(accessToken) {
   return await response.json();
 }
 
+// Cache do token de cliente
+let clientToken = null;
+let clientTokenExpiry = 0;
+
+// Obtém token de cliente (Client Credentials Flow) para busca de músicas
+async function getClientToken() {
+  // Retorna token em cache se ainda válido
+  if (clientToken && Date.now() < clientTokenExpiry - 60000) {
+    return clientToken;
+  }
+
+  const credentials = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
+  
+  const response = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${credentials}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials'
+    })
+  });
+
+  if (!response.ok) {
+    console.error('Erro ao obter client token:', await response.text());
+    return null;
+  }
+
+  const data = await response.json();
+  clientToken = data.access_token;
+  clientTokenExpiry = Date.now() + (data.expires_in * 1000);
+  
+  console.log('🎵 Spotify Client Token obtido com sucesso');
+  return clientToken;
+}
+
 module.exports = {
   SPOTIFY_CLIENT_ID,
   REDIRECT_URI,
@@ -215,5 +252,6 @@ module.exports = {
   playTrackOnSpotify,
   pausePlayback,
   resumePlayback,
-  getCurrentPlayback
+  getCurrentPlayback,
+  getClientToken
 };
