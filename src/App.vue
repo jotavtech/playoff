@@ -168,6 +168,8 @@
           :dominant-color="currentDominantColor"
           @close="showLyrics = false"
           @seek="handleSeek"
+          @pauseSpotify="handlePauseForVideo"
+          @resumeSpotify="handleResumeFromVideo"
         />
 
         <!-- Seção de Descoberta Last.fm -->
@@ -1271,6 +1273,30 @@ watch(currentTrack, (newTrack, oldTrack) => {
     }, scrobbleTime)
   }
 })
+
+// ============= VIDEO CLIP CONTROL =============
+// Estado de reprodução antes de abrir o clipe
+let wasPlayingBeforeVideo = false
+
+// Pausa o Spotify quando o clipe começar
+const handlePauseForVideo = async () => {
+  console.log('🎬 Pausando Spotify para mostrar clipe...')
+  wasPlayingBeforeVideo = isPlaying.value
+  
+  if (isPlaying.value) {
+    await handleTogglePlayback()
+  }
+}
+
+// Retoma o Spotify quando o clipe for fechado
+const handleResumeFromVideo = async () => {
+  console.log('🎬 Retomando Spotify após fechar clipe...')
+  
+  if (wasPlayingBeforeVideo && !isPlaying.value) {
+    await handleTogglePlayback()
+  }
+  wasPlayingBeforeVideo = false
+}
 
 // Flag e timestamp para evitar loops no handleNextTrack
 let isNavigatingTrack = false

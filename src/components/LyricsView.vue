@@ -1,158 +1,124 @@
 <template>
-  <div class="lyrics-view" :class="{ 'split-mode': viewMode === 'both' }">
+  <div class="lyrics-view" :class="{ 'video-active': showVideo && videoId }">
+    <!-- Vídeo de Fundo -->
+    <div v-if="showVideo && videoId" class="video-background">
+      <div id="youtube-player" ref="playerContainer"></div>
+      <div class="video-overlay"></div>
+    </div>
+
     <!-- Controles no topo -->
     <div class="view-controls">
-      <button class="close-btn" @click="$emit('close')" title="Fechar">
+      <button class="close-btn" @click="handleClose" title="Fechar">
         <i class="fas fa-times"></i>
       </button>
       
       <div class="mode-toggle">
         <button 
-          :class="['mode-btn', { active: viewMode === 'lyrics' }]"
-          @click="viewMode = 'lyrics'"
+          :class="['mode-btn', { active: !showVideo }]"
+          @click="toggleVideo(false)"
           title="Apenas Letras"
         >
           <i class="fas fa-align-left"></i>
           <span class="mode-label">Letras</span>
         </button>
         <button 
-          :class="['mode-btn', { active: viewMode === 'both' }]"
-          @click="viewMode = 'both'"
+          :class="['mode-btn', { active: showVideo }]"
+          @click="toggleVideo(true)"
           title="Letras + Clipe"
-        >
-          <i class="fas fa-columns"></i>
-          <span class="mode-label">Ambos</span>
-        </button>
-        <button 
-          :class="['mode-btn', { active: viewMode === 'video' }]"
-          @click="viewMode = 'video'"
-          title="Apenas Clipe"
         >
           <i class="fab fa-youtube"></i>
           <span class="mode-label">Clipe</span>
         </button>
       </div>
+
+      <!-- Indicador de fonte de áudio -->
+      <div v-if="showVideo && videoId" class="audio-source">
+        <i class="fab fa-youtube"></i>
+        <span>Áudio do Clipe</span>
+      </div>
     </div>
 
-    <!-- Container Principal -->
-    <div class="content-wrapper">
-      <!-- Seção de Letras -->
-      <div 
-        v-show="viewMode === 'lyrics' || viewMode === 'both'" 
-        class="lyrics-section"
-        :class="{ 'half-width': viewMode === 'both' }"
-      >
-        <div class="lyrics-container" ref="lyricsContainer" @scroll.passive="handleScroll">
-          <div v-if="isLoading" class="loading-state">
-            <i class="fas fa-bolt fa-spin" :style="{ color: dominantColor || '#fff' }"></i>
-            <p>Sintonizando frequência...</p>
-          </div>
+    <!-- Container de Letras -->
+    <div class="lyrics-container" ref="lyricsContainer">
+      <div v-if="isLoading" class="loading-state">
+        <i class="fas fa-bolt fa-spin" :style="{ color: dominantColor || '#fff' }"></i>
+        <p>Sintonizando frequência...</p>
+      </div>
+      
+      <div v-else-if="error" class="error-state">
+        <i class="fas fa-skull-crossbones"></i>
+        <p>Letra não encontrada</p>
+        <p class="error-detail">{{ error }}</p>
+      </div>
+      
+      <div v-else-if="lyrics && lyrics.length > 0" class="lyrics-lines">
+        <div 
+          v-for="(line, index) in lyrics" 
+          :key="index"
+          class="lyric-wrapper"
+          :class="{ 
+            'active-wrapper': index === activeLineIndex,
+            'past-wrapper': index < activeLineIndex,
+            'future-wrapper': index > activeLineIndex
+          }"
+        >
+          <img 
+            v-if="shouldShowDecor(index, 'left')"
+            :src="getLineDecoration(index)"
+            class="tribal-decor left"
+            :style="getDecorStyle(index)"
+            alt=""
+          />
           
-          <div v-else-if="error" class="error-state">
-            <i class="fas fa-skull-crossbones"></i>
-            <p>Letra não encontrada</p>
-            <p class="error-detail">{{ error }}</p>
-          </div>
-          
-          <div v-else-if="lyrics && lyrics.length > 0" class="lyrics-lines">
-            <div 
-              v-for="(line, index) in lyrics" 
-              :key="index"
-              class="lyric-wrapper"
+          <div class="line-content">
+            <p 
+              class="lyric-line"
               :class="{ 
-                'active-wrapper': index === currentLineIndex,
-                'past-wrapper': index < currentLineIndex,
-                'future-wrapper': index > currentLineIndex
+                'active': index === activeLineIndex,
+                'long-text': isLongLine(line.text)
               }"
+              :style="getLineStyle(index)"
+              @click="seekToLine(line.time)"
             >
-              <img 
-                v-if="shouldShowDecor(index, 'left')"
-                :src="getLineDecoration(index)"
-                class="tribal-decor left"
-                :style="getDecorStyle(index)"
-                alt=""
-              />
-              
-              <div class="line-content">
-                <p 
-                  class="lyric-line"
-                  :class="{ 
-                    'active': index === currentLineIndex,
-                    'long-text': isLongLine(line.text)
-                  }"
-                  :style="getLineStyle(index)"
-                  @click="seekTo(line.time)"
-                >
-                  {{ line.text }}
-                </p>
-                
-                <div v-if="index === currentLineIndex" class="sing-timer">
-                  <div 
-                    class="timer-bar" 
-                    :style="{ 
-                      backgroundColor: dominantColor || '#fff',
-                      animationDuration: `${getLineDuration(index)}s`
-                    }"
-                  ></div>
-                </div>
-              </div>
-
-              <img 
-                v-if="shouldShowDecor(index, 'right')"
-                :src="getLineDecoration(index)"
-                class="tribal-decor right"
-                :style="getDecorStyle(index)"
-                alt=""
-              />
+              {{ line.text }}
+            </p>
+            
+            <div v-if="index === activeLineIndex" class="sing-timer">
+              <div 
+                class="timer-bar" 
+                :style="{ 
+                  backgroundColor: dominantColor || '#fff',
+                  animationDuration: `${getLineDuration(index)}s`
+                }"
+              ></div>
             </div>
           </div>
-          
-          <div v-else class="empty-state">
-            <p>INSTRUMENTAL</p>
-          </div>
-        </div>
-      </div>
 
-      <!-- Seção de Vídeo -->
-      <div 
-        v-show="viewMode === 'video' || viewMode === 'both'" 
-        class="video-section"
-        :class="{ 'half-width': viewMode === 'both' }"
-      >
-        <div v-if="isLoadingVideo" class="video-loading">
-          <i class="fas fa-spinner fa-spin"></i>
-          <p>Buscando clipe...</p>
-        </div>
-        
-        <div v-else-if="videoError" class="video-error">
-          <i class="fab fa-youtube"></i>
-          <p>Clipe não encontrado</p>
-          <button class="retry-btn" @click="searchVideo">
-            <i class="fas fa-redo"></i> Tentar novamente
-          </button>
-        </div>
-        
-        <div v-else-if="videoId" class="video-container">
-          <iframe
-            :src="`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`"
-            frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen
-            class="youtube-player"
-          ></iframe>
-        </div>
-        
-        <div v-else class="video-placeholder">
-          <i class="fab fa-youtube"></i>
-          <p>Clique em "Clipe" para buscar o videoclipe</p>
+          <img 
+            v-if="shouldShowDecor(index, 'right')"
+            :src="getLineDecoration(index)"
+            class="tribal-decor right"
+            :style="getDecorStyle(index)"
+            alt=""
+          />
         </div>
       </div>
+      
+      <div v-else class="empty-state">
+        <p>INSTRUMENTAL</p>
+      </div>
+    </div>
+
+    <!-- Loading do vídeo -->
+    <div v-if="isLoadingVideo" class="video-loading-overlay">
+      <i class="fas fa-spinner fa-spin"></i>
+      <p>Buscando clipe...</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, onMounted, nextTick, computed } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 
 const props = defineProps({
   lyrics: {
@@ -181,21 +147,65 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'seek'])
+const emit = defineEmits(['close', 'seek', 'pauseSpotify', 'resumeSpotify'])
 
 // Estado
-const viewMode = ref('lyrics') // 'lyrics' | 'video' | 'both'
+const showVideo = ref(false)
 const videoId = ref(null)
 const isLoadingVideo = ref(false)
-const videoError = ref(false)
 const lyricsContainer = ref(null)
+const playerContainer = ref(null)
+
+// YouTube Player
+let youtubePlayer = null
+let syncInterval = null
+const videoCurrentTime = ref(0)
+
+// Linha ativa - usa do vídeo quando disponível, senão usa a prop
+const activeLineIndex = computed(() => {
+  if (showVideo.value && videoId.value && youtubePlayer) {
+    return calculateLineIndex(videoCurrentTime.value)
+  }
+  return props.currentLineIndex
+})
+
+// Calcula índice da linha baseado no tempo
+const calculateLineIndex = (timeInSeconds) => {
+  if (!props.lyrics || props.lyrics.length === 0) return -1
+  
+  for (let i = props.lyrics.length - 1; i >= 0; i--) {
+    if (props.lyrics[i].time <= timeInSeconds) {
+      return i
+    }
+  }
+  return -1
+}
+
+// Toggle vídeo
+const toggleVideo = async (enable) => {
+  showVideo.value = enable
+  
+  if (enable) {
+    emit('pauseSpotify') // Pausa o Spotify
+    if (!videoId.value) {
+      await searchVideo()
+    } else {
+      // Se já tem vídeo, recria o player
+      await nextTick()
+      initYouTubePlayer()
+    }
+  } else {
+    // Desativa vídeo
+    destroyYouTubePlayer()
+    emit('resumeSpotify') // Retoma o Spotify
+  }
+}
 
 // Busca vídeo no YouTube
 const searchVideo = async () => {
   if (!props.track) return
   
   isLoadingVideo.value = true
-  videoError.value = false
   
   try {
     const query = `${props.track.title || props.track.name} ${props.track.artist} official video`
@@ -205,34 +215,130 @@ const searchVideo = async () => {
       const results = await response.json()
       if (results && results.length > 0) {
         videoId.value = results[0].id
-      } else {
-        videoError.value = true
+        await nextTick()
+        initYouTubePlayer()
       }
-    } else {
-      videoError.value = true
     }
   } catch (error) {
     console.error('Erro ao buscar vídeo:', error)
-    videoError.value = true
   } finally {
     isLoadingVideo.value = false
   }
 }
 
-// Watch viewMode para buscar vídeo quando necessário
-watch(viewMode, (newMode) => {
-  if ((newMode === 'video' || newMode === 'both') && !videoId.value && !isLoadingVideo.value) {
-    searchVideo()
+// Inicializa YouTube Player
+const initYouTubePlayer = () => {
+  if (!videoId.value) return
+  
+  // Carrega a API do YouTube se não estiver carregada
+  if (!window.YT) {
+    const tag = document.createElement('script')
+    tag.src = 'https://www.youtube.com/iframe_api'
+    const firstScriptTag = document.getElementsByTagName('script')[0]
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag)
+    
+    window.onYouTubeIframeAPIReady = () => {
+      createPlayer()
+    }
+  } else {
+    createPlayer()
   }
-})
+}
+
+// Cria o player do YouTube
+const createPlayer = () => {
+  if (youtubePlayer) {
+    youtubePlayer.destroy()
+  }
+  
+  youtubePlayer = new window.YT.Player('youtube-player', {
+    videoId: videoId.value,
+    playerVars: {
+      autoplay: 1,
+      controls: 1,
+      modestbranding: 1,
+      rel: 0,
+      showinfo: 0
+    },
+    events: {
+      onReady: onPlayerReady,
+      onStateChange: onPlayerStateChange
+    }
+  })
+}
+
+// Player pronto
+const onPlayerReady = () => {
+  console.log('🎬 YouTube Player pronto')
+  startTimeSync()
+}
+
+// Mudança de estado do player
+const onPlayerStateChange = (event) => {
+  // YT.PlayerState: PLAYING = 1, PAUSED = 2, ENDED = 0
+  if (event.data === 1) {
+    startTimeSync()
+  } else {
+    stopTimeSync()
+  }
+}
+
+// Sincronização de tempo
+const startTimeSync = () => {
+  stopTimeSync()
+  syncInterval = setInterval(() => {
+    if (youtubePlayer && youtubePlayer.getCurrentTime) {
+      videoCurrentTime.value = youtubePlayer.getCurrentTime()
+    }
+  }, 100) // Atualiza a cada 100ms para sincronização precisa
+}
+
+const stopTimeSync = () => {
+  if (syncInterval) {
+    clearInterval(syncInterval)
+    syncInterval = null
+  }
+}
+
+// Destroi o player
+const destroyYouTubePlayer = () => {
+  stopTimeSync()
+  if (youtubePlayer) {
+    youtubePlayer.destroy()
+    youtubePlayer = null
+  }
+}
+
+// Seek para uma linha específica
+const seekToLine = (time) => {
+  if (showVideo.value && youtubePlayer && youtubePlayer.seekTo) {
+    youtubePlayer.seekTo(time, true)
+  } else {
+    emit('seek', time)
+  }
+}
+
+// Fecha o modal
+const handleClose = () => {
+  if (showVideo.value) {
+    destroyYouTubePlayer()
+    emit('resumeSpotify')
+  }
+  emit('close')
+}
 
 // Watch track para resetar vídeo quando trocar música
 watch(() => props.track, () => {
   videoId.value = null
-  videoError.value = false
-  if (viewMode.value === 'video' || viewMode.value === 'both') {
+  destroyYouTubePlayer()
+  if (showVideo.value) {
     searchVideo()
   }
+})
+
+// Cleanup
+onUnmounted(() => {
+  destroyYouTubePlayer()
 })
 
 // Imagens tribais
@@ -252,7 +358,7 @@ const isChorusLine = (index) => {
 }
 
 const shouldShowDecor = (index, side) => {
-  if (index !== props.currentLineIndex) return false
+  if (index !== activeLineIndex.value) return false
   if (!isChorusLine(index)) return false
   if (index % 2 === 0) {
     return side === 'left'
@@ -280,7 +386,7 @@ const isLongLine = (text) => {
 const getLineStyle = (index) => {
   const color = props.dominantColor || '#ffffff'
   
-  if (index === props.currentLineIndex) {
+  if (index === activeLineIndex.value) {
     return {
       color: '#fff',
       textShadow: `0 0 20px ${color}, 0 0 40px ${color}`,
@@ -305,20 +411,14 @@ const getLineDuration = (index) => {
   return 4
 }
 
-const seekTo = (time) => {
-  emit('seek', time)
-}
-
-const handleScroll = () => {}
-
 const scrollToActiveLine = () => {
   const container = lyricsContainer.value
   if (!container) return
 
-  const wrappers = container.children[0]?.children
-  if (!wrappers) return
+  const wrapper = container.querySelector('.lyrics-lines')
+  if (!wrapper) return
 
-  const targetElement = wrappers[props.currentLineIndex]
+  const targetElement = wrapper.children[activeLineIndex.value]
 
   if (targetElement) {
     const containerHeight = container.clientHeight
@@ -334,7 +434,7 @@ const scrollToActiveLine = () => {
   }
 }
 
-watch(() => props.currentLineIndex, (newIndex) => {
+watch(activeLineIndex, (newIndex) => {
   if (newIndex >= 0) {
     nextTick(() => {
       scrollToActiveLine()
@@ -343,7 +443,7 @@ watch(() => props.currentLineIndex, (newIndex) => {
 })
 
 onMounted(() => {
-  if (props.currentLineIndex >= 0) {
+  if (activeLineIndex.value >= 0) {
     scrollToActiveLine()
   }
 })
@@ -361,9 +461,42 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   background: rgba(0, 0, 0, 0.98);
+  overflow: hidden;
 }
 
-/* Controles no topo */
+/* Vídeo de Fundo */
+.video-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.video-background iframe,
+.video-background #youtube-player {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: auto;
+}
+
+.video-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.video-active {
+  background: transparent;
+}
+
+/* Controles */
 .view-controls {
   position: fixed;
   top: 0;
@@ -400,7 +533,7 @@ onMounted(() => {
 .mode-toggle {
   display: flex;
   gap: 0.5rem;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
   padding: 0.5rem;
   border: 2px solid rgba(255, 255, 255, 0.2);
 }
@@ -430,33 +563,26 @@ onMounted(() => {
   border-color: #ff6b6b;
 }
 
-.mode-btn i {
-  font-size: 1.1rem;
-}
-
-/* Container principal */
-.content-wrapper {
+.audio-source {
   display: flex;
-  width: 100%;
-  height: 100%;
-  padding-top: 80px;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 0, 0, 0.3);
+  border: 1px solid #ff0000;
+  color: #fff;
+  font-family: 'Cingire', sans-serif;
+  font-size: 0.85rem;
 }
 
-/* Seções */
-.lyrics-section,
-.video-section {
-  width: 100%;
-  height: 100%;
-  transition: width 0.4s ease;
+.audio-source i {
+  color: #ff0000;
 }
 
-.lyrics-section.half-width,
-.video-section.half-width {
-  width: 50%;
-}
-
-/* Lyrics Container */
+/* Container de Letras */
 .lyrics-container {
+  position: relative;
+  z-index: 10;
   width: 100%;
   height: 100%;
   overflow-y: auto;
@@ -464,7 +590,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  perspective: 1000px;
   mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
 }
@@ -472,33 +597,21 @@ onMounted(() => {
 .lyrics-lines {
   display: flex;
   flex-direction: column;
-  align-items: flex-end; 
+  align-items: center;
   gap: 1rem;
   width: 100%;
   max-width: 1200px;
-  padding: 40vh 5%; 
-}
-
-.split-mode .lyrics-lines {
-  align-items: center;
-  padding: 40vh 2%;
+  padding: 40vh 5%;
 }
 
 .lyric-wrapper {
   display: flex;
   align-items: center;
-  justify-content: flex-end; 
+  justify-content: center;
   gap: 20px;
   width: 100%;
-  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease;
-  transform-origin: right center;
-  opacity: 0.3;
-  transform: translateX(50px) scale(0.8) rotateY(-10deg);
-  will-change: transform, opacity;
-}
-
-.split-mode .lyric-wrapper {
-  justify-content: center;
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  opacity: 0.4;
   transform: scale(0.85);
 }
 
@@ -512,7 +625,7 @@ onMounted(() => {
 .sing-timer {
   width: 100%;
   height: 4px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.2);
   margin-top: 5px;
   border-radius: 2px;
   overflow: hidden;
@@ -524,7 +637,6 @@ onMounted(() => {
   animation-name: timer-progress;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
-  box-shadow: 0 0 10px currentColor;
 }
 
 @keyframes timer-progress {
@@ -534,171 +646,99 @@ onMounted(() => {
 
 .future-wrapper {
   opacity: 0.3;
-  transform: translateX(100px) scale(0.8) rotateY(-20deg);
+  transform: scale(0.8) translateY(10px);
 }
 
 .past-wrapper {
-  opacity: 0.1;
-  transform: translateX(200px) scale(0.7) rotateY(-30deg);
-  filter: blur(2px);
+  opacity: 0.2;
+  transform: scale(0.75) translateY(-10px);
+  filter: blur(1px);
 }
 
 .active-wrapper {
   opacity: 1;
-  transform: translateX(0) scale(1.1) rotateY(0deg);
+  transform: scale(1);
   z-index: 10;
   filter: none;
-  justify-content: center; 
-  margin: 2rem 0;
-}
-
-.split-mode .active-wrapper {
-  transform: scale(1);
+  margin: 1.5rem 0;
 }
 
 .tribal-decor {
-  height: 120px; 
+  height: 100px;
   width: auto;
   opacity: 0.8;
   transition: all 0.6s ease;
   pointer-events: none;
 }
 
-.split-mode .tribal-decor {
-  height: 80px;
-}
-
 .tribal-decor.left {
-  transform: translateX(20px);
+  transform: translateX(10px);
 }
 
 .tribal-decor.right {
-  transform: translateX(-20px) scaleX(-1);
+  transform: translateX(-10px) scaleX(-1);
 }
 
 .lyric-line {
   font-family: 'Impact', 'Cingire', sans-serif;
-  font-size: 3rem;
+  font-size: 2.5rem;
   text-transform: uppercase;
   font-style: italic;
-  color: rgba(255, 255, 255, 0.5);
-  text-align: right;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
   cursor: pointer;
   transition: all 0.4s;
   white-space: normal;
   word-wrap: break-word;
   max-width: 90%;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.5);
   padding: 0.8rem 1.5rem;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.split-mode .lyric-line {
-  font-size: 2rem;
-  text-align: center;
+  backdrop-filter: blur(5px);
 }
 
 .lyric-line.long-text {
-  font-size: 2rem;
-  max-width: 95%;
-}
-
-.split-mode .lyric-line.long-text {
-  font-size: 1.5rem;
+  font-size: 1.8rem;
 }
 
 .lyric-line:hover {
   color: #fff;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.7);
 }
 
 .active-wrapper .lyric-line {
-  font-size: 4rem;
-  background: rgba(0, 0, 0, 0.6);
-  text-align: center;
-  box-shadow: none;
+  font-size: 3.5rem;
+  background: rgba(0, 0, 0, 0.7);
   border-bottom: 4px solid currentColor;
-  transform: none;
-  padding-bottom: 0.2rem;
-}
-
-.split-mode .active-wrapper .lyric-line {
-  font-size: 2.5rem;
+  padding-bottom: 0.3rem;
 }
 
 .active-wrapper .lyric-line.long-text {
-  font-size: 2.8rem;
+  font-size: 2.2rem;
 }
 
-.split-mode .active-wrapper .lyric-line.long-text {
-  font-size: 1.8rem;
-}
-
-/* Video Section */
-.video-section {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #000;
-  border-left: 2px solid rgba(255, 107, 107, 0.3);
-}
-
-.video-container {
+/* Loading do vídeo */
+.video-loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  max-height: calc(100vh - 100px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
-.youtube-player {
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  aspect-ratio: 16/9;
-}
-
-.video-loading,
-.video-error,
-.video-placeholder {
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1rem;
-  color: rgba(255, 255, 255, 0.6);
+  z-index: 200;
+  color: #fff;
   font-family: 'Cingire', sans-serif;
-  text-align: center;
-  padding: 2rem;
 }
 
-.video-loading i,
-.video-error i,
-.video-placeholder i {
-  font-size: 4rem;
+.video-loading-overlay i {
+  font-size: 3rem;
   color: #ff6b6b;
-}
-
-.retry-btn {
-  padding: 0.8rem 1.5rem;
-  background: #ff6b6b;
-  border: none;
-  color: #000;
-  font-family: 'Cingire', sans-serif;
-  font-size: 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.3s;
-}
-
-.retry-btn:hover {
-  background: #fff;
-  transform: scale(1.05);
 }
 
 /* States */
@@ -711,6 +751,7 @@ onMounted(() => {
   color: #fff;
   font-family: 'Impact', sans-serif;
   font-size: 2rem;
+  z-index: 10;
 }
 
 .error-detail {
@@ -745,60 +786,25 @@ onMounted(() => {
     display: none;
   }
 
-  .content-wrapper {
-    flex-direction: column;
-    padding-top: 70px;
+  .audio-source {
+    display: none;
   }
 
-  .lyrics-section.half-width,
-  .video-section.half-width {
-    width: 100%;
-    height: 50%;
+  .lyric-line {
+    font-size: 1.5rem;
   }
 
-  .video-section {
-    border-left: none;
-    border-top: 2px solid rgba(255, 107, 107, 0.3);
-  }
-
-  .lyric-line { 
-    font-size: 1.5rem; 
-    text-shadow: none !important;
-  }
-
-  .active-wrapper .lyric-line { 
+  .active-wrapper .lyric-line {
     font-size: 2rem;
-    box-shadow: none !important;
-    transform: none !important;
-    border-bottom-width: 3px !important;
   }
 
-  .tribal-decor { 
-    height: 50px; 
-    opacity: 0.5; 
+  .tribal-decor {
+    height: 50px;
+    opacity: 0.5;
   }
-  
-  .lyric-wrapper { 
-    transform: none !important; 
-    opacity: 1 !important; 
-    justify-content: center; 
-    transition: opacity 0.3s ease;
-  }
-  
-  .lyrics-lines { 
-    align-items: center; 
-    padding: 40vh 1rem; 
-    gap: 1.5rem;
-  }
-  
-  .future-wrapper, .past-wrapper { 
-    opacity: 0.4 !important; 
-    filter: none !important; 
-    transform: scale(0.95) !important;
-  }
-  
-  .timer-bar {
-    box-shadow: none !important;
+
+  .lyrics-lines {
+    padding: 35vh 1rem;
   }
 }
 </style>
