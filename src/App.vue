@@ -81,7 +81,15 @@
 
     <!-- Modais -->
     <Teleport to="body">
-      <LoginModal :showModal="showLoginModal" @close="showLoginModal = false" />
+      <LoginModal 
+        :showModal="showLoginModal" 
+        @close="showLoginModal = false" 
+        @requestAccess="showLoginModal = false; showAccessModal = true"
+      />
+      <AccessRequestModal 
+        :showModal="showAccessModal" 
+        @close="showAccessModal = false" 
+      />
     </Teleport>
     <QueueModal v-if="showQueueModal" @close="showQueueModal = false" />
     <RetrospectiveModal 
@@ -181,6 +189,7 @@ import MusicCarousel from './components/MusicCarousel.vue'
 import NotificationContainer from './components/NotificationContainer.vue'
 import SpotifySearch from './components/SpotifySearch.vue'
 import LoginModal from './components/LoginModal.vue'
+import AccessRequestModal from './components/AccessRequestModal.vue'
 import UserProfile from './components/UserProfile.vue'
 import TheFooter from './components/TheFooter.vue'
 import QueueModal from './components/QueueModal.vue'
@@ -401,6 +410,7 @@ const currentTrackIsLiked = computed(() => {
 
 // ============= ESTADO DA UI =============
 const showLoginModal = ref(false)
+const showAccessModal = ref(false)
 const showProfileModal = ref(false)
 const showQueueModal = ref(false)
 const showRetrospective = ref(false)

@@ -44,6 +44,11 @@
         <p class="login-disclaimer">
           Ao entrar, você concorda em conectar sua conta ao PlayOff
         </p>
+
+        <button class="access-help-btn" @click="$emit('requestAccess')">
+          <i class="fas fa-exclamation-triangle"></i>
+          Não consegue logar? Solicite acesso aqui!
+        </button>
       </div>
     </div>
   </div>
@@ -56,7 +61,7 @@ defineProps({
   showModal: Boolean
 })
 
-const emit = defineEmits(['close', 'login'])
+const emit = defineEmits(['close', 'login', 'requestAccess'])
 
 const isLoading = ref(false)
 const activeProvider = ref(null)
@@ -284,6 +289,39 @@ const handleGoogleLogin = async () => {
   color: rgba(255, 255, 255, 0.5);
   margin: 0;
   line-height: 1.4;
+}
+
+.access-help-btn {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  margin-top: 1.5rem;
+  background: transparent;
+  border: 2px dashed #ff6b6b;
+  color: #ff6b6b;
+  font-family: 'Cingire', sans-serif;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+}
+
+.access-help-btn:hover {
+  background: #ff6b6b;
+  color: #000;
+  border-style: solid;
+}
+
+.access-help-btn i {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 @media (max-width: 768px) {
