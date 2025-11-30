@@ -1,86 +1,158 @@
 <template>
-  <div class="lyrics-view" @click.self="$emit('close')">
-    <div class="lyrics-container" ref="lyricsContainer" @scroll.passive="handleScroll">
-      <div v-if="isLoading" class="loading-state">
-        <i class="fas fa-bolt fa-spin" :style="{ color: dominantColor || '#fff' }"></i>
-        <p>Sintonizando frequência...</p>
-      </div>
+  <div class="lyrics-view" :class="{ 'split-mode': viewMode === 'both' }">
+    <!-- Controles no topo -->
+    <div class="view-controls">
+      <button class="close-btn" @click="$emit('close')" title="Fechar">
+        <i class="fas fa-times"></i>
+      </button>
       
-      <div v-else-if="error" class="error-state">
-        <i class="fas fa-skull-crossbones"></i>
-        <p>Letra não encontrada</p>
-        <p class="error-detail">{{ error }}</p>
-      </div>
-      
-      <div v-else-if="lyrics && lyrics.length > 0" class="lyrics-lines">
-        <div 
-          v-for="(line, index) in lyrics" 
-          :key="index"
-          class="lyric-wrapper"
-          :class="{ 
-            'active-wrapper': index === currentLineIndex,
-            'past-wrapper': index < currentLineIndex,
-            'future-wrapper': index > currentLineIndex
-          }"
+      <div class="mode-toggle">
+        <button 
+          :class="['mode-btn', { active: viewMode === 'lyrics' }]"
+          @click="viewMode = 'lyrics'"
+          title="Apenas Letras"
         >
-          <!-- Decoração Tribal (Alternada e apenas em refrões) -->
-          <img 
-            v-if="shouldShowDecor(index, 'left')"
-            :src="getLineDecoration(index)"
-            class="tribal-decor left"
-            :style="getDecorStyle(index)"
-            alt=""
-          />
-          
-          <div class="line-content">
-            <p 
-              class="lyric-line"
-              :class="{ 
-                'active': index === currentLineIndex,
-                'long-text': isLongLine(line.text)
-              }"
-              :style="getLineStyle(index)"
-              @click="seekTo(line.time)"
-            >
-              {{ line.text }}
-            </p>
-            
-            <!-- Timer de Canto (Barra de Progresso) -->
-            <div v-if="index === currentLineIndex" class="sing-timer">
-              <div 
-                class="timer-bar" 
-                :style="{ 
-                  backgroundColor: dominantColor || '#fff',
-                  animationDuration: `${getLineDuration(index)}s`
-                }"
-              ></div>
-            </div>
-          </div>
-
-          <img 
-            v-if="shouldShowDecor(index, 'right')"
-            :src="getLineDecoration(index)"
-            class="tribal-decor right"
-            :style="getDecorStyle(index)"
-            alt=""
-          />
-        </div>
-      </div>
-      
-      <div v-else class="empty-state">
-        <p>INSTRUMENTAL</p>
+          <i class="fas fa-align-left"></i>
+          <span class="mode-label">Letras</span>
+        </button>
+        <button 
+          :class="['mode-btn', { active: viewMode === 'both' }]"
+          @click="viewMode = 'both'"
+          title="Letras + Clipe"
+        >
+          <i class="fas fa-columns"></i>
+          <span class="mode-label">Ambos</span>
+        </button>
+        <button 
+          :class="['mode-btn', { active: viewMode === 'video' }]"
+          @click="viewMode = 'video'"
+          title="Apenas Clipe"
+        >
+          <i class="fab fa-youtube"></i>
+          <span class="mode-label">Clipe</span>
+        </button>
       </div>
     </div>
-    
-    <button class="close-lyrics-radical" @click="$emit('close')">
-      <span class="x-stroke"></span>
-      <span class="x-stroke"></span>
-    </button>
+
+    <!-- Container Principal -->
+    <div class="content-wrapper">
+      <!-- Seção de Letras -->
+      <div 
+        v-show="viewMode === 'lyrics' || viewMode === 'both'" 
+        class="lyrics-section"
+        :class="{ 'half-width': viewMode === 'both' }"
+      >
+        <div class="lyrics-container" ref="lyricsContainer" @scroll.passive="handleScroll">
+          <div v-if="isLoading" class="loading-state">
+            <i class="fas fa-bolt fa-spin" :style="{ color: dominantColor || '#fff' }"></i>
+            <p>Sintonizando frequência...</p>
+          </div>
+          
+          <div v-else-if="error" class="error-state">
+            <i class="fas fa-skull-crossbones"></i>
+            <p>Letra não encontrada</p>
+            <p class="error-detail">{{ error }}</p>
+          </div>
+          
+          <div v-else-if="lyrics && lyrics.length > 0" class="lyrics-lines">
+            <div 
+              v-for="(line, index) in lyrics" 
+              :key="index"
+              class="lyric-wrapper"
+              :class="{ 
+                'active-wrapper': index === currentLineIndex,
+                'past-wrapper': index < currentLineIndex,
+                'future-wrapper': index > currentLineIndex
+              }"
+            >
+              <img 
+                v-if="shouldShowDecor(index, 'left')"
+                :src="getLineDecoration(index)"
+                class="tribal-decor left"
+                :style="getDecorStyle(index)"
+                alt=""
+              />
+              
+              <div class="line-content">
+                <p 
+                  class="lyric-line"
+                  :class="{ 
+                    'active': index === currentLineIndex,
+                    'long-text': isLongLine(line.text)
+                  }"
+                  :style="getLineStyle(index)"
+                  @click="seekTo(line.time)"
+                >
+                  {{ line.text }}
+                </p>
+                
+                <div v-if="index === currentLineIndex" class="sing-timer">
+                  <div 
+                    class="timer-bar" 
+                    :style="{ 
+                      backgroundColor: dominantColor || '#fff',
+                      animationDuration: `${getLineDuration(index)}s`
+                    }"
+                  ></div>
+                </div>
+              </div>
+
+              <img 
+                v-if="shouldShowDecor(index, 'right')"
+                :src="getLineDecoration(index)"
+                class="tribal-decor right"
+                :style="getDecorStyle(index)"
+                alt=""
+              />
+            </div>
+          </div>
+          
+          <div v-else class="empty-state">
+            <p>INSTRUMENTAL</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção de Vídeo -->
+      <div 
+        v-show="viewMode === 'video' || viewMode === 'both'" 
+        class="video-section"
+        :class="{ 'half-width': viewMode === 'both' }"
+      >
+        <div v-if="isLoadingVideo" class="video-loading">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>Buscando clipe...</p>
+        </div>
+        
+        <div v-else-if="videoError" class="video-error">
+          <i class="fab fa-youtube"></i>
+          <p>Clipe não encontrado</p>
+          <button class="retry-btn" @click="searchVideo">
+            <i class="fas fa-redo"></i> Tentar novamente
+          </button>
+        </div>
+        
+        <div v-else-if="videoId" class="video-container">
+          <iframe
+            :src="`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+            class="youtube-player"
+          ></iframe>
+        </div>
+        
+        <div v-else class="video-placeholder">
+          <i class="fab fa-youtube"></i>
+          <p>Clique em "Clipe" para buscar o videoclipe</p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, watch, onMounted, nextTick, computed } from 'vue'
 
 const props = defineProps({
   lyrics: {
@@ -105,27 +177,65 @@ const props = defineProps({
   },
   dominantColor: {
     type: String,
-    default: '#ff6b6b' // Fallback color
+    default: '#ff6b6b'
   }
 })
 
 const emit = defineEmits(['close', 'seek'])
+
+// Estado
+const viewMode = ref('lyrics') // 'lyrics' | 'video' | 'both'
+const videoId = ref(null)
+const isLoadingVideo = ref(false)
+const videoError = ref(false)
 const lyricsContainer = ref(null)
 
-// Debugging
-watch(() => props.currentLineIndex, (newVal) => {
-  console.log('LyricsView: currentLineIndex updated:', newVal)
+// Busca vídeo no YouTube
+const searchVideo = async () => {
+  if (!props.track) return
+  
+  isLoadingVideo.value = true
+  videoError.value = false
+  
+  try {
+    const query = `${props.track.title || props.track.name} ${props.track.artist} official video`
+    const response = await fetch(`/auth/youtube/search?q=${encodeURIComponent(query)}&limit=1`)
+    
+    if (response.ok) {
+      const results = await response.json()
+      if (results && results.length > 0) {
+        videoId.value = results[0].id
+      } else {
+        videoError.value = true
+      }
+    } else {
+      videoError.value = true
+    }
+  } catch (error) {
+    console.error('Erro ao buscar vídeo:', error)
+    videoError.value = true
+  } finally {
+    isLoadingVideo.value = false
+  }
+}
+
+// Watch viewMode para buscar vídeo quando necessário
+watch(viewMode, (newMode) => {
+  if ((newMode === 'video' || newMode === 'both') && !videoId.value && !isLoadingVideo.value) {
+    searchVideo()
+  }
 })
 
-watch(() => props.lyrics, (newVal) => {
-  console.log('LyricsView: lyrics received:', newVal?.length || 0, 'lines')
+// Watch track para resetar vídeo quando trocar música
+watch(() => props.track, () => {
+  videoId.value = null
+  videoError.value = false
+  if (viewMode.value === 'video' || viewMode.value === 'both') {
+    searchVideo()
+  }
 })
 
-watch(() => props.track, (newVal) => {
-  console.log('LyricsView: track updated:', newVal)
-})
-
-// Imagens tribais fornecidas
+// Imagens tribais
 const tribalDecorations = [
   'https://res.cloudinary.com/dzwfuzxxw/image/upload/v1764354409/e043da0489879c615d5063b55c5ab0c7-removebg-preview_aroulq.png',
   'https://res.cloudinary.com/dzwfuzxxw/image/upload/v1764354409/f71e42405ccc0d760e397cf03b0cf5b7-removebg-preview_lazpjg.png',
@@ -133,24 +243,17 @@ const tribalDecorations = [
   'https://res.cloudinary.com/dzwfuzxxw/image/upload/v1764354409/6603a562e7b182e052f6923d5a3966a3-removebg-preview_pnqo4g.png'
 ]
 
-// Heurística simples para detectar refrão (repetição de texto)
 const isChorusLine = (index) => {
   if (!props.lyrics || props.lyrics.length === 0) return false
   const line = props.lyrics[index].text.toLowerCase().trim()
-  if (line.length < 5) return false // Ignora linhas muito curtas
-
-  // Conta quantas vezes essa linha aparece na música
+  if (line.length < 5) return false
   const count = props.lyrics.filter(l => l.text.toLowerCase().trim() === line).length
-  return count >= 3 // Se aparecer 3 ou mais vezes, provável refrão
+  return count >= 3
 }
 
-// Lógica para mostrar decoração (Alternada e condicional)
 const shouldShowDecor = (index, side) => {
-  // Só mostra se for linha ativa E for refrão
   if (index !== props.currentLineIndex) return false
   if (!isChorusLine(index)) return false
-
-  // Alterna o lado baseado no índice (par = esquerda, impar = direita)
   if (index % 2 === 0) {
     return side === 'left'
   } else {
@@ -170,7 +273,6 @@ const getDecorStyle = (index) => {
   }
 }
 
-// Heurística para reduzir tamanho da fonte em linhas longas
 const isLongLine = (text) => {
   return text && text.length > 40
 }
@@ -197,27 +299,23 @@ const getLineDuration = (index) => {
     
     if (current && next && typeof current.time === 'number' && typeof next.time === 'number') {
       const duration = next.time - current.time
-      return Math.max(duration, 1) // Mínimo de 1s
+      return Math.max(duration, 1)
     }
   }
-  return 4 // Duração padrão
+  return 4
 }
 
 const seekTo = (time) => {
   emit('seek', time)
 }
 
-const handleScroll = () => {
-  // Optional: Add logic if needed, but keeping it passive helps performance
-}
+const handleScroll = () => {}
 
 const scrollToActiveLine = () => {
   const container = lyricsContainer.value
   if (!container) return
 
-  // Cache selectors if possible or use ID-based lookup for speed
-  // For now, we optimize by not querying if we don't need to
-  const wrappers = container.children[0]?.children // Accessing direct children of .lyrics-lines
+  const wrappers = container.children[0]?.children
   if (!wrappers) return
 
   const targetElement = wrappers[props.currentLineIndex]
@@ -252,7 +350,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ... Estilos do container mantidos ... */
 .lyrics-view {
   position: fixed;
   top: 0;
@@ -263,33 +360,113 @@ onMounted(() => {
   z-index: 15;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  background: rgba(0, 0, 0, 0.98);
+}
+
+/* Controles no topo */
+.view-controls {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  background: rgba(0, 0, 0, 0.98); /* Darker background, less alpha */
-  /* Removed backdrop-filter for performance */
+  padding: 1rem 2rem;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%);
 }
 
-@supports (backdrop-filter: blur(10px)) {
-  @media (min-width: 769px) {
-    .lyrics-view {
-      background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(10px);
-    }
-  }
+.close-btn {
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 107, 107, 0.2);
+  border: 2px solid #ff6b6b;
+  color: #ff6b6b;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
 }
 
+.close-btn:hover {
+  background: #ff6b6b;
+  color: #000;
+  transform: rotate(90deg);
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 0.5rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.mode-btn {
+  padding: 0.8rem 1.2rem;
+  background: transparent;
+  border: 2px solid transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Cingire', sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+}
+
+.mode-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.mode-btn.active {
+  background: #ff6b6b;
+  color: #000;
+  border-color: #ff6b6b;
+}
+
+.mode-btn i {
+  font-size: 1.1rem;
+}
+
+/* Container principal */
+.content-wrapper {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  padding-top: 80px;
+}
+
+/* Seções */
+.lyrics-section,
+.video-section {
+  width: 100%;
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.lyrics-section.half-width,
+.video-section.half-width {
+  width: 50%;
+}
+
+/* Lyrics Container */
 .lyrics-container {
   width: 100%;
-  height: 100vh;
-  height: 100dvh;
+  height: 100%;
   overflow-y: auto;
   padding: 2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   perspective: 1000px;
-  mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
 }
 
 .lyrics-lines {
@@ -298,25 +475,33 @@ onMounted(() => {
   align-items: flex-end; 
   gap: 1rem;
   width: 100%;
-  max-width: 1600px;
-  padding: 50vh 10%; 
+  max-width: 1200px;
+  padding: 40vh 5%; 
+}
+
+.split-mode .lyrics-lines {
+  align-items: center;
+  padding: 40vh 2%;
 }
 
 .lyric-wrapper {
   display: flex;
   align-items: center;
   justify-content: flex-end; 
-  gap: 30px;
+  gap: 20px;
   width: 100%;
-  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease; /* Optimized transition properties */
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease;
   transform-origin: right center;
   opacity: 0.3;
-  /* Default (Desktop) Transforms */
   transform: translateX(50px) scale(0.8) rotateY(-10deg);
-  will-change: transform, opacity; /* Hint for browser */
+  will-change: transform, opacity;
 }
 
-/* Wrapper do conteúdo da linha (texto + timer) */
+.split-mode .lyric-wrapper {
+  justify-content: center;
+  transform: scale(0.85);
+}
+
 .line-content {
   display: flex;
   flex-direction: column;
@@ -324,7 +509,6 @@ onMounted(() => {
   width: fit-content;
 }
 
-/* Timer de Canto */
 .sing-timer {
   width: 100%;
   height: 4px;
@@ -337,7 +521,6 @@ onMounted(() => {
 .timer-bar {
   height: 100%;
   width: 0%;
-  /* animation-duration definida inline */
   animation-name: timer-progress;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
@@ -349,20 +532,17 @@ onMounted(() => {
   to { width: 100%; }
 }
 
-/* Futuro */
 .future-wrapper {
   opacity: 0.3;
   transform: translateX(100px) scale(0.8) rotateY(-20deg);
 }
 
-/* Passado */
 .past-wrapper {
   opacity: 0.1;
   transform: translateX(200px) scale(0.7) rotateY(-30deg);
   filter: blur(2px);
 }
 
-/* Ativo */
 .active-wrapper {
   opacity: 1;
   transform: translateX(0) scale(1.1) rotateY(0deg);
@@ -372,13 +552,20 @@ onMounted(() => {
   margin: 2rem 0;
 }
 
-/* Tribal */
+.split-mode .active-wrapper {
+  transform: scale(1);
+}
+
 .tribal-decor {
-  height: 180px; 
+  height: 120px; 
   width: auto;
   opacity: 0.8;
   transition: all 0.6s ease;
   pointer-events: none;
+}
+
+.split-mode .tribal-decor {
+  height: 80px;
 }
 
 .tribal-decor.left {
@@ -389,28 +576,36 @@ onMounted(() => {
   transform: translateX(-20px) scaleX(-1);
 }
 
-/* Texto */
 .lyric-line {
   font-family: 'Impact', 'Cingire', sans-serif;
-  font-size: 3.5rem;
+  font-size: 3rem;
   text-transform: uppercase;
   font-style: italic;
   color: rgba(255, 255, 255, 0.5);
   text-align: right;
   cursor: pointer;
   transition: all 0.4s;
-  white-space: normal; /* Permite quebra de linha */
-  word-wrap: break-word; /* Quebra palavras longas */
-  max-width: 90%; /* Limite de segurança */
+  white-space: normal;
+  word-wrap: break-word;
+  max-width: 90%;
   background: rgba(255, 255, 255, 0.03);
-  padding: 1rem 2rem;
+  padding: 0.8rem 1.5rem;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.split-mode .lyric-line {
+  font-size: 2rem;
+  text-align: center;
+}
+
 .lyric-line.long-text {
-  font-size: 2.5rem; /* Fonte menor para textos longos */
+  font-size: 2rem;
   max-width: 95%;
+}
+
+.split-mode .lyric-line.long-text {
+  font-size: 1.5rem;
 }
 
 .lyric-line:hover {
@@ -418,23 +613,95 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Estilo Ativo Sobrescreve - Borda Itálica e Grossa */
 .active-wrapper .lyric-line {
-  font-size: 5rem;
+  font-size: 4rem;
   background: rgba(0, 0, 0, 0.6);
   text-align: center;
-  /* Simplificado para mobile */
   box-shadow: none;
   border-bottom: 4px solid currentColor;
-  transform: none; /* Remove skew/transform on active line mobile/perf */
+  transform: none;
   padding-bottom: 0.2rem;
 }
 
-.active-wrapper .lyric-line.long-text {
-  font-size: 3.2rem; /* Fonte reduzida na ativa se for longa */
+.split-mode .active-wrapper .lyric-line {
+  font-size: 2.5rem;
 }
 
-/* Botão Fechar e outros mantidos */
+.active-wrapper .lyric-line.long-text {
+  font-size: 2.8rem;
+}
+
+.split-mode .active-wrapper .lyric-line.long-text {
+  font-size: 1.8rem;
+}
+
+/* Video Section */
+.video-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  border-left: 2px solid rgba(255, 107, 107, 0.3);
+}
+
+.video-container {
+  width: 100%;
+  height: 100%;
+  max-height: calc(100vh - 100px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.youtube-player {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  aspect-ratio: 16/9;
+}
+
+.video-loading,
+.video-error,
+.video-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Cingire', sans-serif;
+  text-align: center;
+  padding: 2rem;
+}
+
+.video-loading i,
+.video-error i,
+.video-placeholder i {
+  font-size: 4rem;
+  color: #ff6b6b;
+}
+
+.retry-btn {
+  padding: 0.8rem 1.5rem;
+  background: #ff6b6b;
+  border: none;
+  color: #000;
+  font-family: 'Cingire', sans-serif;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s;
+}
+
+.retry-btn:hover {
+  background: #fff;
+  transform: scale(1.05);
+}
+
+/* States */
 .loading-state, .error-state, .empty-state {
   display: flex;
   flex-direction: column;
@@ -446,73 +713,90 @@ onMounted(() => {
   font-size: 2rem;
 }
 
-.close-lyrics-radical {
-  position: fixed;
-  top: 2rem;
-  left: 2rem;
-  width: 60px;
-  height: 60px;
-  background: transparent;
-  border: 3px solid #fff;
-  cursor: pointer;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform: skewX(-10deg);
-  transition: all 0.3s;
+.error-detail {
+  font-size: 1rem;
+  color: rgba(255,255,255,0.5);
 }
 
-.close-lyrics-radical .x-stroke {
-  position: absolute;
-  width: 40px;
-  height: 4px;
-  background-color: #fff;
-}
-
-.close-lyrics-radical .x-stroke:first-child { transform: rotate(45deg); }
-.close-lyrics-radical .x-stroke:last-child { transform: rotate(-45deg); }
-
-.close-lyrics-radical:hover {
-  background: #fff;
-  border-color: var(--accent-rgb);
-  transform: skewX(-10deg) scale(1.1) rotate(5deg);
-}
-.close-lyrics-radical:hover .x-stroke { background-color: var(--accent-rgb); }
-
+/* Mobile */
 @media (max-width: 768px) {
-  .lyric-line { 
-    font-size: 1.8rem; 
-    text-shadow: none !important; /* Remove text shadow on mobile */
+  .view-controls {
+    padding: 0.8rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
+
+  .close-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+
+  .mode-toggle {
+    padding: 0.3rem;
+  }
+
+  .mode-btn {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.8rem;
+  }
+
+  .mode-label {
+    display: none;
+  }
+
+  .content-wrapper {
+    flex-direction: column;
+    padding-top: 70px;
+  }
+
+  .lyrics-section.half-width,
+  .video-section.half-width {
+    width: 100%;
+    height: 50%;
+  }
+
+  .video-section {
+    border-left: none;
+    border-top: 2px solid rgba(255, 107, 107, 0.3);
+  }
+
+  .lyric-line { 
+    font-size: 1.5rem; 
+    text-shadow: none !important;
+  }
+
   .active-wrapper .lyric-line { 
-    font-size: 2.4rem; /* Slightly smaller */
+    font-size: 2rem;
     box-shadow: none !important;
     transform: none !important;
-    border-bottom-width: 4px !important;
+    border-bottom-width: 3px !important;
   }
-  .tribal-decor { height: 60px; opacity: 0.5; } /* Smaller images */
+
+  .tribal-decor { 
+    height: 50px; 
+    opacity: 0.5; 
+  }
   
   .lyric-wrapper { 
     transform: none !important; 
     opacity: 1 !important; 
     justify-content: center; 
-    transition: opacity 0.3s ease; /* Simpler transition */
+    transition: opacity 0.3s ease;
   }
   
   .lyrics-lines { 
     align-items: center; 
-    padding: 50vh 1rem; 
-    gap: 1.5rem; /* More space */
+    padding: 40vh 1rem; 
+    gap: 1.5rem;
   }
   
   .future-wrapper, .past-wrapper { 
     opacity: 0.4 !important; 
     filter: none !important; 
-    transform: scale(0.95) !important; /* Simple scale instead of 3D */
+    transform: scale(0.95) !important;
   }
   
-  /* Disable heavy animations */
   .timer-bar {
     box-shadow: none !important;
   }

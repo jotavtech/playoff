@@ -295,6 +295,23 @@ module.exports = (db) => {
     }
   });
 
+  // Busca vídeos no YouTube (para clipes)
+  router.get('/youtube/search', async (req, res) => {
+    try {
+      const { q, limit = 5 } = req.query;
+      
+      if (!q) {
+        return res.status(400).json({ error: 'Query obrigatória' });
+      }
+
+      const results = await googleAuth.searchYouTube(q, parseInt(limit));
+      res.json(results);
+    } catch (error) {
+      console.error('Erro ao buscar no YouTube:', error);
+      res.status(500).json({ error: 'Erro na busca' });
+    }
+  });
+
   // Logout
   router.post('/logout', requireAuth, (req, res) => {
     // Em produção, invalidar token/session
