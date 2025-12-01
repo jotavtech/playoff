@@ -538,36 +538,48 @@ onUnmounted(() => {
 }
 
 .lyric-line {
-  font-family: 'Impact', sans-serif;
-  font-size: 2.2rem;
+  font-family: 'Cingire', sans-serif;
+  font-size: 2.8rem;
   text-transform: uppercase;
   font-style: italic;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.5);
   text-align: center;
   cursor: pointer;
   transition: all 0.3s;
-  padding: 0.8rem 1.5rem;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 8px;
-  border: 2px solid transparent;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  text-shadow: 2px 2px 0px #000;
+  letter-spacing: 0.05em;
+  transform: skewX(-5deg);
 }
 
 .lyric-line.long-text {
-  font-size: 1.6rem;
+  font-size: 2.2rem;
 }
 
 .lyric-line:hover {
   color: #fff;
+  text-shadow: 4px 4px 0px #000;
+  transform: skewX(-10deg) scale(1.05);
 }
 
 .active-wrapper .lyric-line {
-  font-size: 3rem;
-  background: rgba(0, 0, 0, 0.7);
-  border-bottom: 4px solid var(--accent-color);
+  font-size: 4.2rem;
+  color: #fff;
+  background: transparent;
+  border: none;
+  text-shadow: 
+    4px 4px 0px #000,
+    -1px -1px 0 var(--accent-color),  
+    1px -1px 0 var(--accent-color),
+    -1px 1px 0 var(--accent-color),
+    1px 1px 0 var(--accent-color);
+  transform: skewX(-10deg) scale(1.1);
+  line-height: 1.1;
 }
 
 .active-wrapper .lyric-line.long-text {
-  font-size: 2rem;
+  font-size: 2.8rem;
 }
 
 .sing-timer {
