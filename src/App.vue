@@ -1834,7 +1834,7 @@ onMounted(async () => {
       // Só atualiza a posição, não os metadados completos
       if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
         try {
-          const duration = currentDuration.value / 1000
+          const duration = totalDuration.value / 1000
           const position = currentTime.value / 1000
           if (duration > 0 && position >= 0 && position <= duration) {
             navigator.mediaSession.setPositionState({
