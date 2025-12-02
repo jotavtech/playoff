@@ -16,9 +16,11 @@ export function useSpotifyPlayer() {
   const duration = ref(0)
   const volume = ref(0.7)
   const error = ref(null)
-  const trackEndedCallback = ref(null) // Callback para notificar fim da música
+  const isBuffering = ref(false)
+  const pendingTrack = ref(null) // Track being loaded but not yet reported by SDK
 
-  let progressInterval = null
+  // Inicializa o Spotify Web Playback SDK
+  const initializePlayer = (onTrackEnded) => {
   let remoteSyncInterval = null // Intervalo para polling remoto
   let previousState = null // Para detecção de mudanças de estado
   let lastStateTime = 0 // Timestamp de quando recebemos o estado do Spotify
@@ -180,12 +182,22 @@ export function useSpotifyPlayer() {
 
       // Marca o tempo exato que recebemos este estado
       lastStateTime = Date.now()
+      
+      // Se tínhamos um track pendente (update otimista) e agora a música mudou no SDK
+      // Podemos limpar o pendente
+      if (pendingTrack.value) {
+          // Verifica se a track do state é a que esperávamos
+          if (state.track_window?.current_track?.id === pendingTrack.value.id) {
+              pendingTrack.value = null
+              isBuffering.value = false
+          }
+      }
+      
+      // Detecta buffering (paused mas com loading implícito ou transição)
+      // O SDK não expõe 'loading' diretamente no state object padrão, mas podemos inferir
+      // Se pausado e posição é 0 e track mudou, geralmente é loading
 
       // Detecção de fim de música (heurística para Spotify SDK)
-      // Se estava tocando (previousState.paused === false)
-      // E agora pausou (state.paused === true)
-      // E posição resetou para 0 (state.position === 0)
-      // E não é buffering (state.loading === false - não exposto mas inferido)
       if (previousState && !previousState.paused && state.paused && state.position === 0) {
          console.log('🏁 Spotify Track Ended Detected')
          if (trackEndedCallback.value) trackEndedCallback.value()
@@ -255,7 +267,11 @@ export function useSpotifyPlayer() {
   }
 
   // Toca uma música específica (track Spotify)
-  const playTrack = async (spotifyUri) => {
+  // Aceita URI string ou objeto de track completo para update otimista
+  const playTrack = async (trackOrUri) => {
+    const spotifyUri = typeof trackOrUri === 'string' ? trackOrUri : trackOrUri.spotifyUrl || trackOrUri.uri
+    const trackData = typeof trackOrUri === 'object' ? trackOrUri : null
+
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('🎵 useSpotifyPlayer.playTrack() CHAMADO')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
@@ -275,6 +291,31 @@ export function useSpotifyPlayer() {
       console.log('')
       console.log('🔍 Garantindo dispositivo ativo antes de tocar...')
       
+      // Define estado de buffering para evitar conflitos de UI
+      isBuffering.value = true
+      
+      // Se temos dados da track, fazemos update otimista IMEDIATO
+      if (trackData) {
+          console.log('⚡ Update Otimista: Atualizando UI imediatamente...')
+          
+          // Normaliza dados da track
+          const optimisticTrack = {
+            id: trackData.id,
+            name: trackData.title || trackData.name,
+            artist: trackData.artist,
+            album: trackData.album || trackData.albumName,
+            albumCover: trackData.albumCover,
+            uri: spotifyUri,
+            duration_ms: trackData.duration_ms || trackData.duration || 0
+          }
+          
+          currentTrack.value = optimisticTrack
+          pendingTrack.value = optimisticTrack
+          position.value = 0
+          duration.value = optimisticTrack.duration_ms
+          isPaused.value = false // Assumimos que vai tocar
+      }
+
       // Primeiro, garante que há um dispositivo ativo
       let deviceActivated = await ensureDeviceActive()
       
@@ -290,6 +331,7 @@ export function useSpotifyPlayer() {
         if (!devices || devices.length === 0) {
           console.error('❌ Nenhum dispositivo Spotify disponível.')
           error.value = 'Nenhum dispositivo Spotify ativo. O PlayOff Web Player deve aparecer após login.'
+          isBuffering.value = false
           return false
         }
       }
@@ -332,6 +374,7 @@ export function useSpotifyPlayer() {
       if (!targetDevice) {
         console.error('❌ Nenhum dispositivo disponível')
         error.value = 'Nenhum dispositivo disponível. Recarregue a página.'
+        isBuffering.value = false
         return false
       }
       
@@ -367,7 +410,17 @@ export function useSpotifyPlayer() {
         isPaused.value = false
         console.log('⏱️ Posição resetada para 0ms')
         
+        // Se tínhamos dados otimistas, reforçamos
+        if (pendingTrack.value) {
+           duration.value = pendingTrack.value.duration_ms
+        }
+        
+        // Agenda sync remoto para confirmar estado em breve
+        setTimeout(() => syncRemoteState(), 1000)
+        
         error.value = null
+        // Mantém buffering true por um tempo curto para evitar "pausas" falsas
+        setTimeout(() => { isBuffering.value = false }, 1500)
         return true
       }
 
@@ -386,6 +439,7 @@ export function useSpotifyPlayer() {
 
       // Atualiza erro global para que o frontend saiba que o player falhou
       error.value = errorMessage
+      isBuffering.value = false
 
       if (errorStatus === 404 && (errorReason === 'NO_ACTIVE_DEVICE' || errorMessage.includes('No active device'))) {
         console.warn('⚠️ Spotify retornou NO_ACTIVE_DEVICE (404)')
@@ -402,6 +456,7 @@ export function useSpotifyPlayer() {
       console.error(`   Stack: ${err.stack}`)
       console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
       error.value = err.message
+      isBuffering.value = false
       return false
     }
   }
@@ -703,6 +758,7 @@ export function useSpotifyPlayer() {
     syncRemoteState()
     
     // E depois a cada 2 segundos (tempo real o suficiente sem explodir rate limit)
+    isBuffering,
     remoteSyncInterval = setInterval(syncRemoteState, 2000)
   }
 

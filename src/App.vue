@@ -288,6 +288,7 @@ const {
   getCurrentState, // Importa função de sync
   seek: spotifySeek,
   error: spotifyError,
+  isBuffering, // Importa estado de buffering
   currentTrack: spotifyCurrentTrack, // Track do Spotify (local ou remoto)
   disconnect: disconnectSpotifyPlayer, // Desconectar player no logout
   stopRemoteSync // Parar sync remoto no logout
@@ -548,31 +549,36 @@ const checkAndPlayHighestVoted = async () => {
   
   // Verifico se há músicas disponíveis
   if (sortedSongs.value.length === 0) {
-    console.log('📭 Nenhuma música disponível para auto-reprodução')
+    console.log(' Nenhuma música disponível para auto-reprodução')
     return
   }
   
   // Se já estiver tocando algo, não interrompe! (Correção para evitar trocas indesejadas)
-  if (isPlaying.value) {
-    console.log('⏸️ Música já está tocando - auto-reprodução cancelada para não interromper')
+  // Também verifica se está em buffering (carregando nova música)
+  if (isPlaying.value || isBuffering.value) {
+    console.log(' Música já está tocando ou carregando - auto-reprodução cancelada')
     return
   }
   
   // Obtenho a música mais votada (primeira na lista ordenada)
   const highestVoted = sortedSongs.value[0]
   
+  // Verifica se a música atual JÁ É a mais votada (mesmo que pausada/carregando)
+  if (currentTrack.value && currentTrack.value.id === highestVoted.id) {
+      console.log(' A música mais votada já é a atual')
+      return
+  }
+
   // Só reproduzo automaticamente se:
   // 1. A música tem pelo menos 1 voto (evita tocar músicas sem engajamento)
-  // 2. É diferente da música atual (evita reiniciar a mesma música)
-  const shouldAutoPlay = highestVoted.votes > 0 && 
-                         (!currentTrack.value || currentTrack.value.id !== highestVoted.id)
+  const shouldAutoPlay = highestVoted.votes > 0
   
   if (shouldAutoPlay) {
-    console.log(`🏆 Auto-reproduzindo música líder: "${highestVoted.title}" (${highestVoted.votes} votos)`)
+    console.log(` Auto-reproduzindo música líder: "${highestVoted.title}" (${highestVoted.votes} votos)`)
     // Música líder também só toca se tiver Spotify, não cai para preview
     await handlePlaySong(highestVoted)
   } else {
-    console.log(`⏸️ Auto-reprodução não necessária - música já é a atual ou sem votos`)
+    console.log(` Auto-reprodução não necessária - sem votos suficientes`)
   }
 }
 
@@ -778,7 +784,9 @@ const handlePlaySong = async (song) => {
         console.log('')
         console.log('▶️ CHAMANDO playSpotifyTrack()...')
 
-        const success = await playSpotifyTrack(spotifyUri)
+        // Passa o objeto song completo para permitir update otimista da UI
+        // Isso corrige o delay de 10s na atualização da duração/posição
+        const success = await playSpotifyTrack(song)
 
         console.log('')
         console.log('📊 RESULTADO DO PLAYBACK:')
