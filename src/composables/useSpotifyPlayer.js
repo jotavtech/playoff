@@ -18,9 +18,9 @@ export function useSpotifyPlayer() {
   const error = ref(null)
   const isBuffering = ref(false)
   const pendingTrack = ref(null) // Track being loaded but not yet reported by SDK
+  const trackEndedCallback = ref(null) // Callback para notificar fim da música
 
-  // Inicializa o Spotify Web Playback SDK
-  const initializePlayer = (onTrackEnded) => {
+  let progressInterval = null
   let remoteSyncInterval = null // Intervalo para polling remoto
   let previousState = null // Para detecção de mudanças de estado
   let lastStateTime = 0 // Timestamp de quando recebemos o estado do Spotify
@@ -759,6 +759,7 @@ export function useSpotifyPlayer() {
     
     // E depois a cada 2 segundos (tempo real o suficiente sem explodir rate limit)
     isBuffering,
+    isBuffering,
     remoteSyncInterval = setInterval(syncRemoteState, 2000)
   }
 
@@ -812,6 +813,7 @@ export function useSpotifyPlayer() {
     deviceId,
     isReady,
     isConnecting,
+    isBuffering,
     currentTrack,
     isPaused,
     position,
