@@ -316,71 +316,71 @@ export function useSpotifyPlayer() {
           isPaused.value = false // Assumimos que vai tocar
       }
 
-      // Primeiro, garante que há um dispositivo ativo
-      let deviceActivated = await ensureDeviceActive()
+      // PRIORIDADE: Usar SEMPRE o Web Player do PlayOff (não depende de Spotify aberto)
+      let targetDeviceId = null
       
-      // Se não conseguiu ativar, tenta buscar dispositivos
-      if (!deviceActivated) {
-        console.log('🔍 Buscando dispositivos Spotify disponíveis...')
-        const devices = await getDevices()
-        console.log(`   Devices encontrados: ${devices.length}`)
-        devices.forEach(d => {
-          console.log(`   - ${d.name} | id=${d.id} | active=${d.is_active} | type=${d.type}`)
-        })
-
-        if (!devices || devices.length === 0) {
-          console.error('❌ Nenhum dispositivo Spotify disponível.')
-          error.value = 'Nenhum dispositivo Spotify ativo. O PlayOff Web Player deve aparecer após login.'
-          isBuffering.value = false
-          return false
-        }
-      }
-      
-      // Busca dispositivos novamente após garantir ativação
-      const devices = await getDevices()
-      
-      // Prioridade de escolha do device alvo:
-      // 1) Dispositivo atualmente ativo no Spotify
-      // 2) Web Playback SDK deste app
-      // 3) Primeiro device da lista (fallback)
-      let targetDevice = devices.find(d => d.is_active) || null
-
-      if (!targetDevice && deviceId.value) {
-        const webDevice = devices.find(d => d.id === deviceId.value)
-        if (webDevice) {
-          console.log('🎧 Ativando Web Playback como dispositivo principal...')
-          await transferPlayback()
-          await new Promise(r => setTimeout(r, 500))
-          targetDevice = webDevice
-        }
-      }
-
-      if (!targetDevice && devices.length > 0) {
-        targetDevice = devices[0]
-        console.log(`🎯 Usando primeiro device: ${targetDevice.name}`)
+      // 1. Se o Web Player está pronto, usa ele diretamente
+      if (isReady.value && deviceId.value) {
+        console.log('🎧 Usando Web Player do PlayOff (principal)')
+        targetDeviceId = deviceId.value
         
-        // Ativa esse dispositivo
-        await fetch('https://api.spotify.com/v1/me/player', {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ device_ids: [targetDevice.id], play: false })
-        })
+        // Garante que o Web Player é o dispositivo ativo
+        await transferPlayback()
         await new Promise(r => setTimeout(r, 300))
+      } else {
+        // 2. Web Player não está pronto - tenta aguardar
+        console.log('⏳ Aguardando Web Player ficar pronto...')
+        
+        // Aguarda até 3 segundos pelo Web Player
+        let waitAttempts = 0
+        while (!isReady.value && waitAttempts < 30) {
+          await new Promise(r => setTimeout(r, 100))
+          waitAttempts++
+        }
+        
+        if (isReady.value && deviceId.value) {
+          console.log('✅ Web Player ficou pronto!')
+          targetDeviceId = deviceId.value
+          await transferPlayback()
+          await new Promise(r => setTimeout(r, 300))
+        } else {
+          // 3. Fallback: busca outros dispositivos
+          console.log('🔍 Web Player não disponível, buscando outros dispositivos...')
+          const devices = await getDevices()
+          
+          if (devices.length > 0) {
+            // Prefere o Web Player se estiver na lista
+            const webDevice = devices.find(d => d.id === deviceId.value)
+            const activeDevice = devices.find(d => d.is_active)
+            const targetDevice = webDevice || activeDevice || devices[0]
+            
+            targetDeviceId = targetDevice.id
+            console.log(`🎯 Usando dispositivo: ${targetDevice.name}`)
+            
+            // Ativa o dispositivo
+            await fetch('https://api.spotify.com/v1/me/player', {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ device_ids: [targetDeviceId], play: false })
+            })
+            await new Promise(r => setTimeout(r, 300))
+          }
+        }
       }
       
-      if (!targetDevice) {
+      if (!targetDeviceId) {
         console.error('❌ Nenhum dispositivo disponível')
-        error.value = 'Nenhum dispositivo disponível. Recarregue a página.'
+        error.value = 'Player não conectado. Aguarde alguns segundos e tente novamente.'
         isBuffering.value = false
         return false
       }
       
-      console.log(`🎯 Device alvo: ${targetDevice.name} (${targetDevice.id})`)
+      console.log(`🎯 Device alvo: ${targetDeviceId}`)
 
-      const apiUrl = `https://api.spotify.com/v1/me/player/play?device_id=${targetDevice.id}`
+      const apiUrl = `https://api.spotify.com/v1/me/player/play?device_id=${targetDeviceId}`
       console.log('')
       console.log('📡 CHAMANDO API DO SPOTIFY:')
       console.log(`   URL: ${apiUrl}`)
@@ -419,8 +419,11 @@ export function useSpotifyPlayer() {
         setTimeout(() => syncRemoteState(), 1000)
         
         error.value = null
-        // Mantém buffering true por um tempo curto para evitar "pausas" falsas
-        setTimeout(() => { isBuffering.value = false }, 1500)
+        // Mantém buffering true por mais tempo para evitar conflitos com sync remoto
+        setTimeout(() => { 
+          isBuffering.value = false
+          pendingTrack.value = null
+        }, 3000)
         return true
       }
 
@@ -443,8 +446,37 @@ export function useSpotifyPlayer() {
 
       if (errorStatus === 404 && (errorReason === 'NO_ACTIVE_DEVICE' || errorMessage.includes('No active device'))) {
         console.warn('⚠️ Spotify retornou NO_ACTIVE_DEVICE (404)')
-        console.warn('   Nenhum dispositivo ativo para receber o comando de play.')
-        error.value = 'Nenhum dispositivo Spotify ativo. Abra o Spotify no celular/desktop, dê play em qualquer música e tente novamente.'
+        // Tenta reconectar o Web Player automaticamente
+        if (player.value) {
+          console.log('🔄 Tentando reconectar Web Player...')
+          await player.value.connect()
+          await new Promise(r => setTimeout(r, 1000))
+          
+          if (isReady.value && deviceId.value) {
+            // Tenta tocar novamente
+            console.log('🔄 Tentando tocar novamente após reconexão...')
+            await transferPlayback()
+            await new Promise(r => setTimeout(r, 500))
+            
+            const retryResponse = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`, {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ uris: [spotifyUri] })
+            })
+            
+            if (retryResponse.status === 204 || retryResponse.ok) {
+              console.log('✅ Reprodução iniciada após reconexão!')
+              error.value = null
+              setTimeout(() => { isBuffering.value = false; pendingTrack.value = null }, 3000)
+              return true
+            }
+          }
+        }
+        
+        error.value = 'Aguarde o player conectar e tente novamente.'
         return false
       }
 
@@ -696,28 +728,41 @@ export function useSpotifyPlayer() {
   }
 
   // Sincroniza estado com API remota (para quando toca no celular)
+  // IMPORTANTE: Só sincroniza se não houver transição em andamento
   const syncRemoteState = async () => {
+    // Se estamos em buffering (transição de música), NÃO sincroniza para evitar conflitos
+    if (isBuffering.value || pendingTrack.value) {
+      console.log('⏳ Sync remoto ignorado - transição em andamento')
+      return
+    }
+    
     const state = await getCurrentState()
     
     if (!state || !state.item) {
-      // Se não tem nada tocando remotamente e não estamos tocando localmente
-      // Poderíamos limpar, mas melhor manter a última música visível
       return
     }
 
     // Se o dispositivo ativo for O NOSSO (Web Player), deixamos o SDK lidar via eventos
-    // para evitar conflitos e loops de atualização
     if (deviceId.value && state.device && state.device.id === deviceId.value) {
       return
     }
 
-    // Atualiza estado baseado no remoto
     const track = state.item
     
-    // Verifica se a música mudou para logar
-    if (!currentTrack.value || currentTrack.value.id !== track.id) {
-      console.log(`🔄 Sync Remoto: Detectada nova música tocando em ${state.device?.name}: ${track.name}`)
+    // Só atualiza se a música for DIFERENTE da atual (evita sobrescrever transições)
+    if (currentTrack.value && currentTrack.value.id === track.id) {
+      // Mesma música - só atualiza posição se diferença for significativa (>2s)
+      const posDiff = Math.abs(position.value - state.progress_ms)
+      if (posDiff > 2000) {
+        position.value = state.progress_ms
+        lastStateTime = Date.now()
+      }
+      isPaused.value = !state.is_playing
+      return
     }
+
+    // Música diferente detectada remotamente
+    console.log(`🔄 Sync Remoto: ${track.name} em ${state.device?.name}`)
 
     currentTrack.value = {
       id: track.id,
@@ -726,7 +771,7 @@ export function useSpotifyPlayer() {
       album: track.album.name,
       albumCover: track.album.images[0]?.url,
       uri: track.uri,
-      duration_ms: track.duration_ms // Importante para letras/progresso
+      duration_ms: track.duration_ms
     }
 
     isPaused.value = !state.is_playing
@@ -734,14 +779,12 @@ export function useSpotifyPlayer() {
     duration.value = track.duration_ms
     lastStateTime = Date.now()
     
-    // Precisamos simular o previousState do SDK para o progressInterval funcionar
     previousState = {
       paused: !state.is_playing,
       position: state.progress_ms,
       duration: track.duration_ms
     }
 
-    // Gerencia o intervalo de progresso visual
     if (state.is_playing && !progressInterval) {
       startProgressInterval()
     } else if (!state.is_playing && progressInterval) {
@@ -749,18 +792,16 @@ export function useSpotifyPlayer() {
     }
   }
 
-  // Inicia sincronização remota (polling)
+  // Inicia sincronização remota (polling) - intervalo maior para evitar sobrecarga
   const startRemoteSync = () => {
     if (remoteSyncInterval) clearInterval(remoteSyncInterval)
     
-    console.log('📡 Iniciando sincronização remota com Spotify (Polling a cada 2s)...')
-    // Executa imediatamente
-    syncRemoteState()
+    console.log('📡 Iniciando sincronização remota com Spotify (Polling a cada 5s)...')
+    // Executa após delay inicial para não conflitar com inicialização
+    setTimeout(() => syncRemoteState(), 2000)
     
-    // E depois a cada 2 segundos (tempo real o suficiente sem explodir rate limit)
-    isBuffering,
-    isBuffering,
-    remoteSyncInterval = setInterval(syncRemoteState, 2000)
+    // Polling a cada 5 segundos (reduzido para evitar instabilidade)
+    remoteSyncInterval = setInterval(syncRemoteState, 5000)
   }
 
   // Para sincronização remota
@@ -768,7 +809,7 @@ export function useSpotifyPlayer() {
     if (remoteSyncInterval) {
       clearInterval(remoteSyncInterval)
       remoteSyncInterval = null
-      console.log('bs Parando sincronização remota')
+      console.log('🛑 Parando sincronização remota')
     }
   }
 

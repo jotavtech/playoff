@@ -630,8 +630,8 @@ export function useCloudinaryAudio() {
                            imageUrl.includes('spotify.com')
       
       if (isExternalUrl) {
-        // Usa proxy CORS público para contornar restrições
-        finalUrl = `https://corsproxy.io/?${encodeURIComponent(imageUrl)}`
+        // Usa proxy CORS público para contornar restrições (allorigins é mais estável)
+        finalUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(imageUrl)}`
         console.log('🔄 Usando proxy CORS para imagem do Spotify')
       }
       // ========== FIM DO PROXY ==========
