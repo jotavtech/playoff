@@ -380,15 +380,12 @@ export function useSpotifyPlayer() {
            duration.value = pendingTrack.value.duration_ms
         }
         
-        // Agenda sync remoto para confirmar estado em breve
-        setTimeout(() => syncRemoteState(), 1000)
-        
         error.value = null
-        // Mantém buffering true por mais tempo para evitar conflitos com sync remoto
+        // Limpa buffering após 1 segundo (SDK vai notificar estado via evento)
         setTimeout(() => { 
           isBuffering.value = false
           pendingTrack.value = null
-        }, 3000)
+        }, 1000)
         return true
       }
 
@@ -769,16 +766,19 @@ export function useSpotifyPlayer() {
     }
   }
 
-  // Inicia sincronização remota (polling) - intervalo maior para evitar sobrecarga
+  // Inicia sincronização remota (polling) - DESATIVADO por padrão
+  // O Web Playback SDK já envia eventos, então polling só é necessário
+  // se quisermos detectar mudanças em OUTROS dispositivos (celular/desktop)
   const startRemoteSync = () => {
-    if (remoteSyncInterval) clearInterval(remoteSyncInterval)
+    // DESATIVADO: O polling causa muitas requisições desnecessárias
+    // O SDK do Web Player já notifica mudanças de estado via eventos
+    // Se precisar reativar, descomente as linhas abaixo
     
-    console.log('📡 Iniciando sincronização remota com Spotify (Polling a cada 5s)...')
-    // Executa após delay inicial para não conflitar com inicialização
-    setTimeout(() => syncRemoteState(), 2000)
+    // if (remoteSyncInterval) clearInterval(remoteSyncInterval)
+    // console.log('📡 Iniciando sincronização remota com Spotify...')
+    // remoteSyncInterval = setInterval(syncRemoteState, 10000) // 10s se reativar
     
-    // Polling a cada 5 segundos (reduzido para evitar instabilidade)
-    remoteSyncInterval = setInterval(syncRemoteState, 5000)
+    console.log('📡 Sync remoto desativado - usando eventos do SDK')
   }
 
   // Para sincronização remota
