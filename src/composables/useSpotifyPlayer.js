@@ -316,69 +316,34 @@ export function useSpotifyPlayer() {
           isPaused.value = false // Assumimos que vai tocar
       }
 
-      // PRIORIDADE: Usar SEMPRE o Web Player do PlayOff (não depende de Spotify aberto)
-      let targetDeviceId = null
+      // PRIORIDADE ABSOLUTA: Web Player do PlayOff (som sai no navegador, não no celular)
       
-      // 1. Se o Web Player está pronto, usa ele diretamente
-      if (isReady.value && deviceId.value) {
-        console.log('🎧 Usando Web Player do PlayOff (principal)')
-        targetDeviceId = deviceId.value
+      // Aguarda Web Player ficar pronto (até 5 segundos)
+      if (!isReady.value || !deviceId.value) {
+        console.log('⏳ Aguardando Web Player do navegador ficar pronto...')
         
-        // Garante que o Web Player é o dispositivo ativo
-        await transferPlayback()
-        await new Promise(r => setTimeout(r, 300))
-      } else {
-        // 2. Web Player não está pronto - tenta aguardar
-        console.log('⏳ Aguardando Web Player ficar pronto...')
-        
-        // Aguarda até 3 segundos pelo Web Player
         let waitAttempts = 0
-        while (!isReady.value && waitAttempts < 30) {
+        while ((!isReady.value || !deviceId.value) && waitAttempts < 50) {
           await new Promise(r => setTimeout(r, 100))
           waitAttempts++
         }
-        
-        if (isReady.value && deviceId.value) {
-          console.log('✅ Web Player ficou pronto!')
-          targetDeviceId = deviceId.value
-          await transferPlayback()
-          await new Promise(r => setTimeout(r, 300))
-        } else {
-          // 3. Fallback: busca outros dispositivos
-          console.log('🔍 Web Player não disponível, buscando outros dispositivos...')
-          const devices = await getDevices()
-          
-          if (devices.length > 0) {
-            // Prefere o Web Player se estiver na lista
-            const webDevice = devices.find(d => d.id === deviceId.value)
-            const activeDevice = devices.find(d => d.is_active)
-            const targetDevice = webDevice || activeDevice || devices[0]
-            
-            targetDeviceId = targetDevice.id
-            console.log(`🎯 Usando dispositivo: ${targetDevice.name}`)
-            
-            // Ativa o dispositivo
-            await fetch('https://api.spotify.com/v1/me/player', {
-              method: 'PUT',
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ device_ids: [targetDeviceId], play: false })
-            })
-            await new Promise(r => setTimeout(r, 300))
-          }
-        }
       }
       
-      if (!targetDeviceId) {
-        console.error('❌ Nenhum dispositivo disponível')
-        error.value = 'Player não conectado. Aguarde alguns segundos e tente novamente.'
+      if (!isReady.value || !deviceId.value) {
+        console.error('❌ Web Player não está pronto')
+        error.value = 'Player do navegador não conectou. Recarregue a página.'
         isBuffering.value = false
         return false
       }
       
-      console.log(`🎯 Device alvo: ${targetDeviceId}`)
+      console.log('🎧 Web Player pronto! Transferindo playback para o navegador...')
+      
+      // FORÇA transferência para o Web Player (tira do celular/desktop)
+      await transferPlayback(false)
+      await new Promise(r => setTimeout(r, 500))
+      
+      const targetDeviceId = deviceId.value
+      console.log(`🎯 Device alvo (Web Player): ${targetDeviceId}`)
 
       const apiUrl = `https://api.spotify.com/v1/me/player/play?device_id=${targetDeviceId}`
       console.log('')
@@ -700,14 +665,20 @@ export function useSpotifyPlayer() {
     }
   }
 
-  // Transfere reprodução para este dispositivo
-  const transferPlayback = async () => {
-    if (!deviceId.value) return false
+  // Transfere reprodução para este dispositivo (Web Player do PlayOff)
+  // Isso TIRA o som do celular/desktop e coloca no navegador
+  const transferPlayback = async (startPlaying = false) => {
+    if (!deviceId.value) {
+      console.warn('⚠️ Não é possível transferir - deviceId não disponível')
+      return false
+    }
 
     const accessToken = localStorage.getItem('spotify_access_token')
     if (!accessToken) return false
 
     try {
+      console.log(`🔄 Transferindo playback para Web Player (play: ${startPlaying})...`)
+      
       const response = await fetch('https://api.spotify.com/v1/me/player', {
         method: 'PUT',
         headers: {
@@ -716,11 +687,17 @@ export function useSpotifyPlayer() {
         },
         body: JSON.stringify({
           device_ids: [deviceId.value],
-          play: false
+          play: startPlaying // Se true, começa a tocar imediatamente no navegador
         })
       })
 
-      return response.status === 204 || response.ok
+      if (response.status === 204 || response.ok) {
+        console.log('✅ Playback transferido para Web Player do PlayOff!')
+        return true
+      }
+      
+      console.warn('⚠️ Falha ao transferir playback:', response.status)
+      return false
     } catch (err) {
       console.error('❌ Erro ao transferir playback:', err)
       return false
