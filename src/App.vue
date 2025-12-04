@@ -710,7 +710,38 @@ const handlePlaySong = async (song) => {
       }
     }
 
-    // OPÇÃO 1: Tocar via Spotify SDK (se logado e tiver URL)
+    // PRIORIDADE: Tocar via HTML5 Player (nativo do PlayOff) se tiver audioUrl
+    if (song.audioUrl) {
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('🎵 TOCANDO VIA HTML5 PLAYER (NATIVO DO PLAYOFF)')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log(`📋 Música: ${song.title} - ${song.artist}`)
+      console.log(`🔗 Audio URL: ${song.audioUrl}`)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
+      const success = await playSong(song)
+
+      if (success) {
+        console.log('✅ Música tocando via HTML5 Player!')
+
+        // Atualiza a track atual na UI
+        await setTrack(song)
+
+        // Rola para o player com animação
+        scrollToPlayerWithAnimation()
+
+        // Mostra notificação
+        showNotification(`🎵 ${song.title}`, 'success')
+
+        return true
+      } else {
+        console.warn('⚠️ Falha ao tocar via HTML5 Player')
+        showNotification(`Erro ao tocar "${song.title}"`, 'error')
+        return false
+      }
+    }
+
+    // OPÇÃO 2: Tocar via Spotify SDK (apenas se NÃO tiver audioUrl)
     if (song.spotifyUrl && isAuthenticated.value) {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
       console.log('🟢 INICIANDO PLAYBACK VIA SPOTIFY WEB SDK')
