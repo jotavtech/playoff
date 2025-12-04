@@ -48,6 +48,13 @@
         <span v-if="queue.length > 0" class="queue-badge">{{ queue.length }}</span>
       </button>
 
+      <button class="year-retro-btn" @click="showYearRetrospective = true" title="Retrospectiva 2025">
+        <div class="retro-btn-content">
+          <span class="retro-year-text">2025</span>
+          <span class="retro-sparkle">✨</span>
+        </div>
+      </button>
+
       <button class="retrospective-btn" @click="showRetrospective = true" title="Resumo da Semana">
         <i class="fas fa-compact-disc"></i>
       </button>
@@ -92,10 +99,14 @@
       />
     </Teleport>
     <QueueModal v-if="showQueueModal" @close="showQueueModal = false" />
-    <RetrospectiveModal 
-      v-if="showRetrospective" 
-      :songs="combinedSongs" 
-      @close="showRetrospective = false" 
+    <RetrospectiveModal
+      v-if="showRetrospective"
+      :songs="combinedSongs"
+      @close="showRetrospective = false"
+    />
+    <YearRetrospectiveModal
+      v-if="showYearRetrospective"
+      @close="showYearRetrospective = false"
     />
     <AboutView 
       v-if="showAbout" 
@@ -205,6 +216,7 @@ import TheFooter from './components/TheFooter.vue'
 import QueueModal from './components/QueueModal.vue'
 import LyricsView from './components/LyricsView.vue'
 import RetrospectiveModal from './components/RetrospectiveModal.vue'
+import YearRetrospectiveModal from './components/YearRetrospectiveModal.vue'
 import AboutView from './views/AboutView.vue'
 import FriendsModal from './components/FriendsModal.vue'
 import DiscoverySection from './components/DiscoverySection.vue'
@@ -434,6 +446,7 @@ const showAccessModal = ref(false)
 const showProfileModal = ref(false)
 const showQueueModal = ref(false)
 const showRetrospective = ref(false)
+const showYearRetrospective = ref(false)
 const showAbout = ref(false)
 const showFriendsModal = ref(false)
 const showLyrics = ref(false)
@@ -2243,6 +2256,116 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Year Retrospective Button - Super Energized! */
+.year-retro-btn {
+  position: relative;
+  width: 70px;
+  height: 70px;
+  background: linear-gradient(135deg, #ff006e, #8338ec, #3a86ff);
+  background-size: 200% 200%;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  animation: gradient-shift 3s ease infinite, pulse-glow 2s ease-in-out infinite;
+  box-shadow:
+    0 0 20px rgba(255, 0, 110, 0.5),
+    0 0 40px rgba(131, 56, 236, 0.3),
+    0 4px 8px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 20px rgba(255, 0, 110, 0.5),
+      0 0 40px rgba(131, 56, 236, 0.3),
+      0 4px 8px rgba(0, 0, 0, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(255, 0, 110, 0.8),
+      0 0 60px rgba(131, 56, 236, 0.5),
+      0 0 90px rgba(58, 134, 255, 0.3),
+      0 4px 8px rgba(0, 0, 0, 0.3);
+    transform: scale(1.05);
+  }
+}
+
+.year-retro-btn::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shine 3s ease infinite;
+}
+
+@keyframes shine {
+  0% { transform: rotate(0deg) translate(-50%, -50%); }
+  100% { transform: rotate(360deg) translate(-50%, -50%); }
+}
+
+.year-retro-btn:hover {
+  transform: scale(1.15) rotate(5deg);
+  animation: gradient-shift 1s ease infinite, pulse-glow 0.8s ease-in-out infinite, shake 0.5s ease infinite;
+}
+
+@keyframes shake {
+  0%, 100% { transform: scale(1.15) rotate(5deg); }
+  25% { transform: scale(1.15) rotate(7deg); }
+  75% { transform: scale(1.15) rotate(3deg); }
+}
+
+.retro-btn-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.retro-year-text {
+  font-size: 16px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  letter-spacing: 1px;
+}
+
+.retro-sparkle {
+  font-size: 18px;
+  animation: sparkle 1.5s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2) rotate(180deg);
+  }
 }
 
 .retrospective-btn,
