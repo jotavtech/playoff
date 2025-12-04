@@ -861,20 +861,29 @@ export function useCloudinaryAudio() {
   // Play song with enhanced album cover and color detection
   const playSong = async (songData) => {
     try {
-      console.log(`🎵 playSong chamado para: ${songData.title} - ${songData.artist}`)
-      console.log(`📡 URL da música: ${songData.audioUrl}`)
-      console.log(`🎨 Capa atual: ${songData.albumCover}`)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('🎵 INICIANDO REPRODUÇÃO VIA HTML5 PLAYER')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log(`🎵 Música: ${songData.title} - ${songData.artist}`)
+      console.log(`📡 Audio URL: ${songData.audioUrl || 'SEM URL!'}`)
+      console.log(`🎨 Capa: ${songData.albumCover}`)
+      console.log(`🔗 Tipo de URL: ${songData.audioUrl ? (songData.audioUrl.includes('cloudinary') ? 'CLOUDINARY (COMPLETA)' : songData.audioUrl.includes('scdn.co') ? 'SPOTIFY PREVIEW (30s)' : 'OUTRA') : 'NENHUMA'}`)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
       
       currentTrack.value = songData
       
-      // Always search for Spotify album cover and preview URL for better quality
+      // Always search for Spotify album cover for better quality
       console.log('🔍 Buscando informações do Spotify...')
       const albumInfo = await searchAlbumCover(songData.artist, songData.title)
-      
-      // Se não tem audioUrl mas o Spotify retornou previewUrl, usa ele
+
+      // IMPORTANTE: NUNCA substitui audioUrl do Cloudinary pelo preview do Spotify!
+      // O Cloudinary tem a música completa, o Spotify preview só tem 30s
+      // Só usa preview do Spotify se NÃO tiver nenhum audioUrl
       if ((!songData.audioUrl || songData.audioUrl === '') && albumInfo?.previewUrl) {
-        console.log(`🎵 Usando preview URL do Spotify: ${albumInfo.previewUrl}`)
+        console.log(`🎵 Sem audioUrl - Usando preview URL do Spotify (30s): ${albumInfo.previewUrl}`)
         songData.audioUrl = albumInfo.previewUrl
+      } else if (songData.audioUrl) {
+        console.log(`✅ Mantendo audioUrl completo do Cloudinary: ${songData.audioUrl}`)
       }
       
       if (albumInfo) {
