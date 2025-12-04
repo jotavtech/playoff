@@ -9,7 +9,7 @@ const crypto = require('crypto');
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || '1fd9e79e2e074a33b258c30747f74e6b';
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || '3bc40e26370c43818ec3612d25fcbf96';
 // Usando 127.0.0.1 para evitar problemas com localhost e IPv6
-const REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || 'http://127.0.0.1:5175/auth/spotify/callback';
+const REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || 'http://127.0.0.1:5173/auth/spotify/callback';
 
 // Scopes necessários para tocar músicas e acessar dados do usuário
 const SCOPES = [

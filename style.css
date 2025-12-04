@@ -698,6 +698,52 @@ body::before {
 }
 
 /* Responsive Design */
+
+/* Laptop & Intermediate Screens (1200px - 1600px) */
+@media (max-width: 1600px) {
+  .hero-section {
+    padding: 1rem 3rem;
+    gap: 2rem;
+  }
+
+  .player-card {
+    flex: 0 0 380px; /* Slightly smaller player */
+    padding: 2rem;
+  }
+  
+  .player-info h2 {
+    font-size: 2.2rem;
+  }
+
+  /* Scale down vinyl proportionally */
+  .vinyl-container {
+    width: 450px;
+    height: 450px;
+  }
+
+  .vinyl-disc {
+    width: 900px;
+    height: 900px;
+    transform: translateX(-450px);
+  }
+
+  .vinyl-center {
+    width: 180px;
+    height: 180px;
+  }
+
+  /* Adjust animations for new offset */
+  @keyframes vinylRotate {
+    from { transform: translateX(-450px) rotate(0deg); }
+    to { transform: translateX(-450px) rotate(360deg); }
+  }
+
+  @keyframes vinylRotatePlaying {
+    from { transform: translateX(-450px) rotate(0deg); }
+    to { transform: translateX(-450px) rotate(360deg); }
+  }
+}
+
 @media (max-width: 1200px) {
   .hero-section {
     flex-direction: column;
