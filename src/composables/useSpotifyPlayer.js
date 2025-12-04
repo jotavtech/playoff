@@ -21,7 +21,6 @@ export function useSpotifyPlayer() {
   const trackEndedCallback = ref(null) // Callback para notificar fim da música
 
   let progressInterval = null
-  let remoteSyncInterval = null // Intervalo para polling remoto
   let previousState = null // Para detecção de mudanças de estado
   let lastStateTime = 0 // Timestamp de quando recebemos o estado do Spotify
   let lastPlayCommand = null // Track do último comando de play para evitar duplicatas
@@ -32,11 +31,6 @@ export function useSpotifyPlayer() {
     if (onTrackEnded) trackEndedCallback.value = onTrackEnded
     
     console.log('🚀 Iniciando setup do Spotify Player...')
-    
-    // Inicia sincronização remota imediatamente se já tiver token
-    if (localStorage.getItem('spotify_access_token')) {
-      startRemoteSync()
-    }
 
     // Função auxiliar para tentar criar o player
     const tryCreatePlayer = () => {
@@ -728,100 +722,14 @@ export function useSpotifyPlayer() {
     }
   }
 
-  // Sincroniza estado com API remota (para quando toca no celular)
-  // IMPORTANTE: Só sincroniza se não houver transição em andamento
-  const syncRemoteState = async () => {
-    // Se estamos em buffering (transição de música), NÃO sincroniza para evitar conflitos
-    if (isBuffering.value || pendingTrack.value) {
-      console.log('⏳ Sync remoto ignorado - transição em andamento')
-      return
-    }
-
-    // Se recebemos um comando de play recentemente (< 3s), não sincroniza
-    // para evitar sobrescrever a ação local do usuário
-    if (Date.now() - lastPlayTime < 3000) {
-      console.log('⏳ Sync remoto ignorado - comando de play recente')
-      return
-    }
-
-    const state = await getCurrentState()
-
-    if (!state || !state.item) {
-      return
-    }
-
-    // Se o dispositivo ativo for O NOSSO (Web Player), deixamos o SDK lidar via eventos
-    if (deviceId.value && state.device && state.device.id === deviceId.value) {
-      return
-    }
-
-    const track = state.item
-
-    // Só atualiza se a música for DIFERENTE da atual (evita sobrescrever transições)
-    if (currentTrack.value && currentTrack.value.id === track.id) {
-      // Mesma música - só atualiza posição se diferença for significativa (>2s)
-      const posDiff = Math.abs(position.value - state.progress_ms)
-      if (posDiff > 2000) {
-        position.value = state.progress_ms
-        lastStateTime = Date.now()
-      }
-      isPaused.value = !state.is_playing
-      return
-    }
-
-    // Música diferente detectada remotamente
-    console.log(`🔄 Sync Remoto: ${track.name} em ${state.device?.name}`)
-
-    currentTrack.value = {
-      id: track.id,
-      name: track.name,
-      artist: track.artists.map(a => a.name).join(', '),
-      album: track.album.name,
-      albumCover: track.album.images[0]?.url,
-      uri: track.uri,
-      duration_ms: track.duration_ms
-    }
-
-    isPaused.value = !state.is_playing
-    position.value = state.progress_ms
-    duration.value = track.duration_ms
-    lastStateTime = Date.now()
-
-    previousState = {
-      paused: !state.is_playing,
-      position: state.progress_ms,
-      duration: track.duration_ms
-    }
-
-    if (state.is_playing && !progressInterval) {
-      startProgressInterval()
-    } else if (!state.is_playing && progressInterval) {
-      stopProgressInterval()
-    }
-  }
-
-  // Inicia sincronização remota (polling) - DESATIVADO por padrão
-  // O Web Playback SDK já envia eventos, então polling só é necessário
-  // se quisermos detectar mudanças em OUTROS dispositivos (celular/desktop)
+  // Não há mais polling - o SDK envia eventos diretamente
+  // Mantemos apenas as funções de compatibilidade vazias
   const startRemoteSync = () => {
-    // DESATIVADO: O polling causa muitas requisições desnecessárias
-    // O SDK do Web Player já notifica mudanças de estado via eventos
-    // Se precisar reativar, descomente as linhas abaixo
-    
-    // if (remoteSyncInterval) clearInterval(remoteSyncInterval)
-    // console.log('📡 Iniciando sincronização remota com Spotify...')
-    // remoteSyncInterval = setInterval(syncRemoteState, 10000) // 10s se reativar
-    
-    console.log('📡 Sync remoto desativado - usando eventos do SDK')
+    console.log('📡 Usando apenas eventos do SDK - sem polling')
   }
 
-  // Para sincronização remota
   const stopRemoteSync = () => {
-    if (remoteSyncInterval) {
-      clearInterval(remoteSyncInterval)
-      remoteSyncInterval = null
-      console.log('🛑 Parando sincronização remota')
-    }
+    console.log('📡 Sync via eventos do SDK')
   }
 
   // Busca o estado atual de reprodução (sync com outros dispositivos)
@@ -857,7 +765,6 @@ export function useSpotifyPlayer() {
   // Cleanup ao desmontar
   onUnmounted(() => {
     disconnect()
-    stopRemoteSync()
   })
 
   return {
