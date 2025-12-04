@@ -24,6 +24,8 @@ export function useSpotifyPlayer() {
   let remoteSyncInterval = null // Intervalo para polling remoto
   let previousState = null // Para detecção de mudanças de estado
   let lastStateTime = 0 // Timestamp de quando recebemos o estado do Spotify
+  let lastPlayCommand = null // Track do último comando de play para evitar duplicatas
+  let lastPlayTime = 0 // Timestamp do último play para debounce
 
   // Inicializa o Spotify Web Playback SDK
   const initializePlayer = (onTrackEnded) => {
@@ -197,10 +199,19 @@ export function useSpotifyPlayer() {
       // O SDK não expõe 'loading' diretamente no state object padrão, mas podemos inferir
       // Se pausado e posição é 0 e track mudou, geralmente é loading
 
-      // Detecção de fim de música (heurística para Spotify SDK)
-      if (previousState && !previousState.paused && state.paused && state.position === 0) {
-         console.log('🏁 Spotify Track Ended Detected')
-         if (trackEndedCallback.value) trackEndedCallback.value()
+      // Detecção de fim de música (heurística melhorada para Spotify SDK)
+      // Verifica se: estava tocando -> parou -> posição próxima ao fim OU zero (loop)
+      if (previousState && !previousState.paused && state.paused) {
+        const nearEnd = state.position >= (state.duration - 1000) // Dentro de 1 segundo do fim
+        const atStart = state.position === 0
+
+        if (nearEnd || atStart) {
+          console.log('🏁 Spotify Track Ended Detected')
+          console.log(`   Posição final: ${Math.floor(state.position / 1000)}s / ${Math.floor(state.duration / 1000)}s`)
+          if (trackEndedCallback.value) {
+            trackEndedCallback.value()
+          }
+        }
       }
 
       previousState = state
@@ -271,6 +282,18 @@ export function useSpotifyPlayer() {
   const playTrack = async (trackOrUri) => {
     const spotifyUri = typeof trackOrUri === 'string' ? trackOrUri : trackOrUri.spotifyUrl || trackOrUri.uri
     const trackData = typeof trackOrUri === 'object' ? trackOrUri : null
+
+    // DEBOUNCE: Evita múltiplas chamadas para a mesma música em curto período
+    const now = Date.now()
+    if (lastPlayCommand === spotifyUri && (now - lastPlayTime) < 2000) {
+      console.log('⏸️ DEBOUNCE: Ignorando comando de play duplicado')
+      console.log(`   Última chamada: ${now - lastPlayTime}ms atrás`)
+      console.log(`   URI: ${spotifyUri}`)
+      return false
+    }
+
+    lastPlayCommand = spotifyUri
+    lastPlayTime = now
 
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('🎵 useSpotifyPlayer.playTrack() CHAMADO')
@@ -381,11 +404,15 @@ export function useSpotifyPlayer() {
         }
         
         error.value = null
-        // Limpa buffering após 1 segundo (SDK vai notificar estado via evento)
-        setTimeout(() => { 
-          isBuffering.value = false
-          pendingTrack.value = null
-        }, 1000)
+        // Limpa buffering após delay inteligente (1s + tempo que já passou desde o comando)
+        const bufferingDelay = Math.max(500, 1000 - (Date.now() - now))
+        setTimeout(() => {
+          if (isBuffering.value) {
+            console.log('✅ Buffering finalizado após delay')
+            isBuffering.value = false
+            pendingTrack.value = null
+          }
+        }, bufferingDelay)
         return true
       }
 
@@ -709,9 +736,16 @@ export function useSpotifyPlayer() {
       console.log('⏳ Sync remoto ignorado - transição em andamento')
       return
     }
-    
+
+    // Se recebemos um comando de play recentemente (< 3s), não sincroniza
+    // para evitar sobrescrever a ação local do usuário
+    if (Date.now() - lastPlayTime < 3000) {
+      console.log('⏳ Sync remoto ignorado - comando de play recente')
+      return
+    }
+
     const state = await getCurrentState()
-    
+
     if (!state || !state.item) {
       return
     }
@@ -722,7 +756,7 @@ export function useSpotifyPlayer() {
     }
 
     const track = state.item
-    
+
     // Só atualiza se a música for DIFERENTE da atual (evita sobrescrever transições)
     if (currentTrack.value && currentTrack.value.id === track.id) {
       // Mesma música - só atualiza posição se diferença for significativa (>2s)
@@ -752,7 +786,7 @@ export function useSpotifyPlayer() {
     position.value = state.progress_ms
     duration.value = track.duration_ms
     lastStateTime = Date.now()
-    
+
     previousState = {
       paused: !state.is_playing,
       position: state.progress_ms,
