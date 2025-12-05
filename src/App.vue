@@ -2255,113 +2255,27 @@ onUnmounted(() => {
   text-overflow: ellipsis;
 }
 
-/* Year Retrospective Button - ROCK STYLE! */
+/* Year Retrospective Button - Mesmo padrão dos outros botões */
 .year-retro-btn {
-  position: relative;
-  width: 75px;
-  height: 75px;
-  background: linear-gradient(135deg, #ff0000, #ff3333, #cc0000);
-  background-size: 200% 200%;
-  border: 3px solid #fff;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #ff6b6b;
+  color: #ff6b6b;
+  font-size: 1.2rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
-  animation: fire-gradient 2s ease infinite, rock-pulse 1.5s ease-in-out infinite;
-  box-shadow:
-    0 0 25px rgba(255, 0, 0, 0.6),
-    0 0 50px rgba(255, 51, 51, 0.4),
-    0 5px 15px rgba(0, 0, 0, 0.5);
-  overflow: hidden;
+  transition: all 0.2s;
   transform: skewX(-5deg);
 }
 
-@keyframes fire-gradient {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-
-@keyframes rock-pulse {
-  0%, 100% {
-    box-shadow:
-      0 0 25px rgba(255, 0, 0, 0.6),
-      0 0 50px rgba(255, 51, 51, 0.4),
-      0 5px 15px rgba(0, 0, 0, 0.5);
-    transform: skewX(-5deg) scale(1);
-  }
-  50% {
-    box-shadow:
-      0 0 40px rgba(255, 0, 0, 0.9),
-      0 0 80px rgba(255, 51, 51, 0.6),
-      0 0 120px rgba(255, 100, 0, 0.3),
-      0 5px 15px rgba(0, 0, 0, 0.5);
-    transform: skewX(-5deg) scale(1.05);
-  }
-}
-
-.year-retro-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.4),
-    transparent
-  );
-  animation: rock-shine 2s ease infinite;
-}
-
-@keyframes rock-shine {
-  0% { left: -100%; }
-  50%, 100% { left: 100%; }
-}
-
 .year-retro-btn:hover {
-  transform: skewX(-5deg) scale(1.15);
-  animation: fire-gradient 0.5s ease infinite, rock-shake 0.3s ease infinite;
-}
-
-@keyframes rock-shake {
-  0%, 100% { transform: skewX(-5deg) scale(1.15) rotate(0deg); }
-  25% { transform: skewX(-5deg) scale(1.15) rotate(-3deg); }
-  75% { transform: skewX(-5deg) scale(1.15) rotate(3deg); }
-}
-
-.retro-btn-content {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-}
-
-.retro-fire {
-  font-size: 22px;
-  color: #fff;
-  animation: fire-flicker 0.5s ease-in-out infinite alternate;
-  text-shadow: 0 0 10px #ff6600, 0 0 20px #ff3300;
-}
-
-@keyframes fire-flicker {
-  0% { transform: scale(1) translateY(0); opacity: 1; }
-  100% { transform: scale(1.1) translateY(-2px); opacity: 0.9; }
-}
-
-.retro-year-text {
-  font-size: 14px;
-  font-weight: 900;
-  color: #fff;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(255, 0, 0, 0.5);
-  letter-spacing: 2px;
-  font-family: 'Impact', sans-serif;
+  background: #ff6b6b;
+  color: #000;
+  transform: skewX(-5deg) translate(-2px, -2px);
+  box-shadow: 2px 2px 0 #fff;
 }
 
 .retrospective-btn,
