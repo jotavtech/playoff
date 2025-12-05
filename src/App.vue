@@ -729,6 +729,16 @@ const handlePlaySong = async (song) => {
       console.log(`🔗 Audio URL: ${song.audioUrl}`)
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
+      // IMPORTANTE: Pausa o Spotify antes de tocar via HTML5 para evitar conflitos
+      if (isSpotifyActive.value && pauseSpotify) {
+        console.log('⏸️ Pausando Spotify para dar prioridade ao PlayOff...')
+        try {
+          await pauseSpotify()
+        } catch (e) {
+          console.warn('⚠️ Não foi possível pausar Spotify:', e)
+        }
+      }
+
       const success = await playSong(song)
 
       if (success) {
@@ -938,6 +948,16 @@ const handlePlayPreview = async (song) => {
     console.log(`🎧 App.vue: Tocando PREVIEW (30s) de "${song.title}" por ${song.artist}`)
     console.log(`📋 Preview - audioUrl: ${song.audioUrl ? '(tem)' : '(vai buscar)'}`)    
     console.log(`📋 Preview - albumCover: ${song.albumCover}`)    
+    
+    // IMPORTANTE: Pausa o Spotify antes de tocar preview para evitar conflitos
+    if (isSpotifyActive.value && pauseSpotify) {
+      console.log('⏸️ Pausando Spotify para dar prioridade ao Preview...')
+      try {
+        await pauseSpotify()
+      } catch (e) {
+        console.warn('⚠️ Não foi possível pausar Spotify:', e)
+      }
+    }
     
     // Sempre usa o player HTML5 com preview
     const result = await playSong(song)
