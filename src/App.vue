@@ -49,10 +49,7 @@
       </button>
 
       <button class="year-retro-btn" @click="showYearRetrospective = true" title="Retrospectiva 2025">
-        <div class="retro-btn-content">
-          <span class="retro-year-text">2025</span>
-          <span class="retro-sparkle">✨</span>
-        </div>
+        <i class="fas fa-calendar-alt"></i>
       </button>
 
       <button class="retrospective-btn" @click="showRetrospective = true" title="Resumo da Semana">
@@ -2258,81 +2255,82 @@ onUnmounted(() => {
   text-overflow: ellipsis;
 }
 
-/* Year Retrospective Button - Super Energized! */
+/* Year Retrospective Button - ROCK STYLE! */
 .year-retro-btn {
   position: relative;
-  width: 70px;
-  height: 70px;
-  background: linear-gradient(135deg, #ff006e, #8338ec, #3a86ff);
+  width: 75px;
+  height: 75px;
+  background: linear-gradient(135deg, #ff0000, #ff3333, #cc0000);
   background-size: 200% 200%;
   border: 3px solid #fff;
-  border-radius: 50%;
+  border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-  animation: gradient-shift 3s ease infinite, pulse-glow 2s ease-in-out infinite;
+  animation: fire-gradient 2s ease infinite, rock-pulse 1.5s ease-in-out infinite;
   box-shadow:
-    0 0 20px rgba(255, 0, 110, 0.5),
-    0 0 40px rgba(131, 56, 236, 0.3),
-    0 4px 8px rgba(0, 0, 0, 0.3);
+    0 0 25px rgba(255, 0, 0, 0.6),
+    0 0 50px rgba(255, 51, 51, 0.4),
+    0 5px 15px rgba(0, 0, 0, 0.5);
   overflow: hidden;
+  transform: skewX(-5deg);
 }
 
-@keyframes gradient-shift {
+@keyframes fire-gradient {
   0%, 100% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
 }
 
-@keyframes pulse-glow {
+@keyframes rock-pulse {
   0%, 100% {
     box-shadow:
-      0 0 20px rgba(255, 0, 110, 0.5),
-      0 0 40px rgba(131, 56, 236, 0.3),
-      0 4px 8px rgba(0, 0, 0, 0.3);
-    transform: scale(1);
+      0 0 25px rgba(255, 0, 0, 0.6),
+      0 0 50px rgba(255, 51, 51, 0.4),
+      0 5px 15px rgba(0, 0, 0, 0.5);
+    transform: skewX(-5deg) scale(1);
   }
   50% {
     box-shadow:
-      0 0 30px rgba(255, 0, 110, 0.8),
-      0 0 60px rgba(131, 56, 236, 0.5),
-      0 0 90px rgba(58, 134, 255, 0.3),
-      0 4px 8px rgba(0, 0, 0, 0.3);
-    transform: scale(1.05);
+      0 0 40px rgba(255, 0, 0, 0.9),
+      0 0 80px rgba(255, 51, 51, 0.6),
+      0 0 120px rgba(255, 100, 0, 0.3),
+      0 5px 15px rgba(0, 0, 0, 0.5);
+    transform: skewX(-5deg) scale(1.05);
   }
 }
 
 .year-retro-btn::before {
   content: '';
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
   background: linear-gradient(
-    45deg,
+    90deg,
     transparent,
-    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0.4),
     transparent
   );
-  animation: shine 3s ease infinite;
+  animation: rock-shine 2s ease infinite;
 }
 
-@keyframes shine {
-  0% { transform: rotate(0deg) translate(-50%, -50%); }
-  100% { transform: rotate(360deg) translate(-50%, -50%); }
+@keyframes rock-shine {
+  0% { left: -100%; }
+  50%, 100% { left: 100%; }
 }
 
 .year-retro-btn:hover {
-  transform: scale(1.15) rotate(5deg);
-  animation: gradient-shift 1s ease infinite, pulse-glow 0.8s ease-in-out infinite, shake 0.5s ease infinite;
+  transform: skewX(-5deg) scale(1.15);
+  animation: fire-gradient 0.5s ease infinite, rock-shake 0.3s ease infinite;
 }
 
-@keyframes shake {
-  0%, 100% { transform: scale(1.15) rotate(5deg); }
-  25% { transform: scale(1.15) rotate(7deg); }
-  75% { transform: scale(1.15) rotate(3deg); }
+@keyframes rock-shake {
+  0%, 100% { transform: skewX(-5deg) scale(1.15) rotate(0deg); }
+  25% { transform: skewX(-5deg) scale(1.15) rotate(-3deg); }
+  75% { transform: skewX(-5deg) scale(1.15) rotate(3deg); }
 }
 
 .retro-btn-content {
@@ -2342,30 +2340,28 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 2px;
+}
+
+.retro-fire {
+  font-size: 22px;
+  color: #fff;
+  animation: fire-flicker 0.5s ease-in-out infinite alternate;
+  text-shadow: 0 0 10px #ff6600, 0 0 20px #ff3300;
+}
+
+@keyframes fire-flicker {
+  0% { transform: scale(1) translateY(0); opacity: 1; }
+  100% { transform: scale(1.1) translateY(-2px); opacity: 0.9; }
 }
 
 .retro-year-text {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 900;
   color: #fff;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  letter-spacing: 1px;
-}
-
-.retro-sparkle {
-  font-size: 18px;
-  animation: sparkle 1.5s ease-in-out infinite;
-}
-
-@keyframes sparkle {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1) rotate(0deg);
-  }
-  50% {
-    opacity: 0.6;
-    transform: scale(1.2) rotate(180deg);
-  }
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(255, 0, 0, 0.5);
+  letter-spacing: 2px;
+  font-family: 'Impact', sans-serif;
 }
 
 .retrospective-btn,

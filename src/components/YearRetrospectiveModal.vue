@@ -1,14 +1,20 @@
 <template>
   <div class="retro-overlay" @click.self="closeRetrospective">
-    <!-- Loading State -->
+    <!-- Loading State - ROCK STYLE -->
     <div v-if="isLoading" class="loading-state">
-      <div class="loading-skull">
-        <i class="fas fa-skull"></i>
+      <div class="loading-guitar">
+        <i class="fas fa-guitar"></i>
       </div>
-      <p class="loading-text">CARREGANDO SEU ANO...</p>
+      <div class="loading-flames">
+        <span class="flame">🔥</span>
+        <span class="flame">🔥</span>
+        <span class="flame">🔥</span>
+      </div>
+      <p class="loading-text">PREPARANDO O SHOW...</p>
       <div class="loading-bar">
         <div class="loading-fill"></div>
       </div>
+      <p class="loading-subtext">Buscando suas músicas do Spotify</p>
     </div>
 
     <!-- Main Content -->
@@ -41,17 +47,25 @@
       <transition name="punk-slide" mode="out-in">
         <!-- Slide 1: Intro BRUTAL -->
         <div v-if="currentSlide === 0" key="slide-0" class="retro-slide intro-slide">
+          <!-- Sparks Animation -->
+          <div class="sparks-container">
+            <span class="spark" v-for="n in 12" :key="n" :style="{ '--delay': n * 0.2 + 's', '--x': (Math.random() * 100) + '%' }">✦</span>
+          </div>
+          
           <div class="glitch-container">
             <h1 class="retro-year glitch" data-text="2025">2025</h1>
             <div class="year-scratch"></div>
+            <div class="fire-effect">🔥</div>
           </div>
           <h2 class="retro-subtitle">
-            <span class="strike">SEU ANO</span> EM BARULHO
+            <span class="strike">SEU ANO</span> EM <span class="highlight">ROCK</span>
           </h2>
           <div class="skull-divider">
-            <i class="fas fa-skull"></i>
+            <i class="fas fa-guitar"></i>
             <span class="divider-line"></span>
-            <i class="fas fa-skull"></i>
+            <i class="fas fa-fire-alt"></i>
+            <span class="divider-line"></span>
+            <i class="fas fa-guitar"></i>
           </div>
           <div class="intro-stats">
             <div class="big-stat">
@@ -615,23 +629,33 @@ const fetchYearData = async () => {
   }
 
   try {
-    // 1. Busca top tracks (long_term = último ano)
+    console.log('🎸 Buscando dados reais do Spotify...')
+    
+    // 1. Busca top tracks (long_term = último ano) - APENAS MÚSICAS REAIS
     const tracksRes = await fetch('https://api.spotify.com/v1/me/top/tracks?time_range=long_term&limit=50', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
 
-    if (!tracksRes.ok) throw new Error('Falha ao buscar tracks')
+    if (!tracksRes.ok) {
+      console.error('❌ Erro ao buscar tracks:', tracksRes.status)
+      throw new Error('Falha ao buscar tracks')
+    }
 
     const tracksData = await tracksRes.json()
+    console.log(`✅ ${tracksData.items.length} músicas encontradas`)
     
-    // Mapeia tracks
+    // Mapeia tracks com dados REAIS do Spotify
     topSongs.value = tracksData.items.map((track, index) => ({
       id: track.id,
       title: track.name,
       artist: track.artists.map(a => a.name).join(', '),
       albumCover: track.album.images[0]?.url || '/default-album.jpg',
-      playCount: Math.floor((50 - index) * 15 + Math.random() * 30), // Estimativa baseada na posição
-      duration_ms: track.duration_ms
+      album: track.album.name,
+      // Estimativa de plays baseada na posição (quanto mais alto, mais ouvido)
+      playCount: Math.floor(Math.pow(50 - index, 1.5) * 3 + Math.random() * 20),
+      duration_ms: track.duration_ms,
+      popularity: track.popularity,
+      spotifyUrl: track.external_urls?.spotify
     }))
 
     // 2. Busca top artists
@@ -818,62 +842,128 @@ onMounted(() => {
   height: 100vh;
   background: #0a0a0a;
   background-image: 
-    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px),
-    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px);
+    radial-gradient(ellipse at top, rgba(255, 0, 0, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom, rgba(255, 51, 51, 0.05) 0%, transparent 50%),
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.02) 2px, rgba(255,255,255,0.02) 4px),
+    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,0.02) 2px, rgba(255,255,255,0.02) 4px);
   z-index: 10000;
   display: flex;
   justify-content: center;
   align-items: center;
   overflow-y: auto;
   overflow-x: hidden;
+  animation: bg-pulse 4s ease-in-out infinite;
 }
 
-/* Loading State */
+@keyframes bg-pulse {
+  0%, 100% { 
+    background-color: #0a0a0a;
+  }
+  50% { 
+    background-color: #0d0808;
+  }
+}
+
+.retro-overlay::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Loading State - ROCK STYLE */
 .loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 20px;
+  min-height: 100vh;
 }
 
-.loading-skull {
-  font-size: 64px;
-  animation: skull-pulse 1s ease-in-out infinite;
+.loading-guitar {
+  font-size: 80px;
+  animation: guitar-rock 0.5s ease-in-out infinite alternate;
   color: #ff3333;
+  text-shadow: 0 0 30px rgba(255, 51, 51, 0.8);
 }
 
-@keyframes skull-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.1); opacity: 0.7; }
+@keyframes guitar-rock {
+  0% { transform: rotate(-15deg) scale(1); }
+  100% { transform: rotate(15deg) scale(1.1); }
+}
+
+.loading-flames {
+  display: flex;
+  gap: 10px;
+  font-size: 32px;
+}
+
+.loading-flames .flame {
+  animation: flame-dance 0.3s ease-in-out infinite alternate;
+}
+
+.loading-flames .flame:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.loading-flames .flame:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+@keyframes flame-dance {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-10px) scale(1.2); }
 }
 
 .loading-text {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 4px;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 6px;
   color: #fff;
   text-transform: uppercase;
+  text-shadow: 0 0 20px rgba(255, 51, 51, 0.5);
+  animation: text-pulse 1s ease-in-out infinite;
+}
+
+@keyframes text-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.loading-subtext {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 2px;
+  margin-top: -10px;
 }
 
 .loading-bar {
-  width: 200px;
-  height: 4px;
+  width: 250px;
+  height: 6px;
   background: rgba(255,255,255,0.1);
-  border-radius: 2px;
+  border-radius: 3px;
   overflow: hidden;
+  border: 1px solid rgba(255, 51, 51, 0.3);
 }
 
 .loading-fill {
   height: 100%;
-  background: linear-gradient(90deg, #ff3333, #ff6b6b);
-  animation: loading-progress 1.5s ease-in-out infinite;
+  background: linear-gradient(90deg, #ff0000, #ff3333, #ff6600, #ff3333, #ff0000);
+  background-size: 200% 100%;
+  animation: loading-fire 1s ease-in-out infinite;
 }
 
-@keyframes loading-progress {
-  0% { width: 0%; transform: translateX(0); }
-  50% { width: 100%; transform: translateX(0); }
-  100% { width: 100%; transform: translateX(100%); }
+@keyframes loading-fire {
+  0% { width: 0%; background-position: 0% 50%; }
+  50% { width: 100%; background-position: 100% 50%; }
+  100% { width: 100%; background-position: 0% 50%; transform: translateX(100%); }
 }
 
 .retro-container {
@@ -1007,23 +1097,47 @@ onMounted(() => {
   color: white;
 }
 
-/* Punk Slide Transitions */
-.punk-slide-enter-active,
+/* ROCK Slide Transitions - More Aggressive! */
+.punk-slide-enter-active {
+  animation: slide-in-rock 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
 .punk-slide-leave-active {
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: slide-out-rock 0.4s cubic-bezier(0.55, 0.055, 0.675, 0.19);
 }
 
-.punk-slide-enter-from {
-  opacity: 0;
-  transform: translateX(50px) skewX(-5deg);
+@keyframes slide-in-rock {
+  0% {
+    opacity: 0;
+    transform: translateX(100px) rotate(5deg) scale(0.8);
+    filter: blur(10px);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateX(-20px) rotate(-2deg) scale(1.02);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) rotate(0) scale(1);
+    filter: blur(0);
+  }
 }
 
-.punk-slide-leave-to {
-  opacity: 0;
-  transform: translateX(-50px) skewX(5deg);
+@keyframes slide-out-rock {
+  0% {
+    opacity: 1;
+    transform: translateX(0) rotate(0) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-100px) rotate(-5deg) scale(0.8);
+    filter: blur(10px);
+  }
 }
 
-/* ========== INTRO SLIDE ========== */
+/* ========== INTRO SLIDE - ROCK STYLE ========== */
 .intro-slide {
   display: flex;
   flex-direction: column;
@@ -1031,10 +1145,75 @@ onMounted(() => {
   justify-content: center;
   min-height: 80vh;
   gap: 20px;
+  position: relative;
+}
+
+/* Sparks Animation */
+.sparks-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.spark {
+  position: absolute;
+  top: 20%;
+  left: var(--x, 50%);
+  font-size: 16px;
+  color: #ff6600;
+  animation: spark-fly 2s ease-out infinite;
+  animation-delay: var(--delay, 0s);
+  opacity: 0;
+  text-shadow: 0 0 10px #ff3300, 0 0 20px #ff0000;
+}
+
+@keyframes spark-fly {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-150px) translateX(calc(var(--x) - 50%)) scale(0.5) rotate(360deg);
+  }
 }
 
 .glitch-container {
   position: relative;
+}
+
+.fire-effect {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 40px;
+  animation: fire-float 0.5s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 10px rgba(255, 102, 0, 0.8));
+}
+
+@keyframes fire-float {
+  0% { transform: translateX(-50%) translateY(0) scale(1); }
+  100% { transform: translateX(-50%) translateY(-10px) scale(1.1); }
+}
+
+.retro-subtitle .highlight {
+  color: #ff3333;
+  text-shadow: 0 0 20px rgba(255, 51, 51, 0.8);
+  animation: highlight-pulse 1s ease-in-out infinite;
+}
+
+@keyframes highlight-pulse {
+  0%, 100% { text-shadow: 0 0 20px rgba(255, 51, 51, 0.8); }
+  50% { text-shadow: 0 0 40px rgba(255, 51, 51, 1), 0 0 60px rgba(255, 102, 0, 0.5); }
 }
 
 .retro-year {
@@ -1196,7 +1375,7 @@ onMounted(() => {
   letter-spacing: 1px;
 }
 
-/* ========== SONGS SLIDE ========== */
+/* ========== SONGS SLIDE - ROCK STYLE ========== */
 .songs-list-punk {
   display: flex;
   flex-direction: column;
@@ -1213,25 +1392,62 @@ onMounted(() => {
   padding: 12px;
   background: rgba(255,255,255,0.03);
   border-left: 4px solid transparent;
-  transition: all 0.2s ease;
-  animation: slide-in 0.5s ease forwards;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: rock-slide-in 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
   opacity: 0;
+  position: relative;
+  overflow: hidden;
 }
 
-@keyframes slide-in {
-  from { opacity: 0; transform: translateX(-20px); }
-  to { opacity: 1; transform: translateX(0); }
+.song-item-punk::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 51, 51, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.song-item-punk:hover::before {
+  left: 100%;
+}
+
+@keyframes rock-slide-in {
+  0% { 
+    opacity: 0; 
+    transform: translateX(-50px) rotate(-2deg) scale(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(10px) rotate(1deg) scale(1.02);
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateX(0) rotate(0) scale(1);
+  }
 }
 
 .song-item-punk:hover {
-  background: rgba(255,255,255,0.08);
+  background: rgba(255,51,51,0.15);
   border-left-color: #ff3333;
-  transform: translateX(5px);
+  transform: translateX(10px) scale(1.02);
+  box-shadow: -5px 0 20px rgba(255, 51, 51, 0.3);
 }
 
-.song-item-punk.rank-1 { border-left-color: #ffd700; }
-.song-item-punk.rank-2 { border-left-color: #c0c0c0; }
-.song-item-punk.rank-3 { border-left-color: #cd7f32; }
+.song-item-punk.rank-1 { 
+  border-left-color: #ffd700; 
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent);
+}
+.song-item-punk.rank-2 { 
+  border-left-color: #c0c0c0; 
+  background: linear-gradient(90deg, rgba(192, 192, 192, 0.1), transparent);
+}
+.song-item-punk.rank-3 { 
+  border-left-color: #cd7f32; 
+  background: linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent);
+}
 
 .rank-number {
   font-size: 28px;
