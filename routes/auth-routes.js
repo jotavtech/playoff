@@ -97,17 +97,16 @@ module.exports = (db) => {
     // Usa variável de ambiente se disponível, removendo espaços
     let redirectUri = process.env.SPOTIFY_REDIRECT_URI ? process.env.SPOTIFY_REDIRECT_URI.trim() : null;
     
-    // Se não houver variável, tenta construir dinamicamente
+    // Se não houver variável, usa URI fixa para desenvolvimento local
     if (!redirectUri) {
-      let protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      // Verifica se é ambiente de produção (Railway)
       const host = req.get('host');
-      
-      // Força HTTPS se não for localhost
-      if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
-        protocol = 'https';
+      if (host && host.includes('railway.app')) {
+        redirectUri = `https://${host}/auth/spotify/callback`;
+      } else {
+        // Desenvolvimento local - usa a URI que está no dashboard do Spotify
+        redirectUri = 'http://127.0.0.1:5175/auth/spotify/callback';
       }
-      
-      redirectUri = `${protocol}://${host}/auth/spotify/callback`;
     }
     
     console.log('--- DEBUG SPOTIFY AUTH ---');

@@ -123,21 +123,47 @@ export function useSpotifyPlayer() {
 
     // Player pronto
     player.value.addListener('ready', async ({ device_id }) => {
-      console.log('✅ Spotify Player pronto! Device ID:', device_id)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('✅ SPOTIFY PLAYER READY EVENT!')
+      console.log(`   Device ID: ${device_id}`)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      
       deviceId.value = device_id
       isConnecting.value = false
       
-      // Aguarda um pouco para o device ser registrado no servidor do Spotify
-      // Isso evita erros "Device not found" logo após conexão
-      console.log('⏳ Aguardando registro do device no Spotify (2s)...')
-      await new Promise(r => setTimeout(r, 2000))
+      // Aguarda o device ser registrado no servidor do Spotify
+      console.log('⏳ Aguardando registro do device no Spotify...')
       
-      // Agora sim marca como pronto
+      // Verifica se o device aparece na lista (até 10 tentativas)
+      let deviceConfirmed = false
+      for (let i = 1; i <= 10; i++) {
+        await new Promise(r => setTimeout(r, 1000))
+        
+        const devices = await getDevices()
+        const ourDevice = devices.find(d => d.id === device_id)
+        
+        console.log(`   Tentativa ${i}/10 - Devices: ${devices.length}`)
+        
+        if (ourDevice) {
+          console.log(`✅ Device confirmado: ${ourDevice.name} (${ourDevice.type})`)
+          deviceConfirmed = true
+          break
+        }
+      }
+      
+      if (!deviceConfirmed) {
+        console.warn('⚠️ Device não apareceu na lista após 10s')
+        console.log('💡 Isso pode indicar problema de rede ou token')
+        // Continua mesmo assim - às vezes funciona
+      }
+      
+      // Marca como pronto
       isReady.value = true
-      console.log('✅ Device registrado e pronto para uso!')
+      console.log('✅ Player marcado como pronto!')
       
       // Tenta transferir o playback automaticamente
-      transferPlayback()
+      const transferred = await transferPlayback()
+      console.log(`📡 Transferência de playback: ${transferred ? 'OK' : 'Falhou (normal se não há música tocando)'}`)
     })
 
     // Player não pronto
@@ -245,12 +271,16 @@ export function useSpotifyPlayer() {
     // Conecta o player
     player.value.connect().then(success => {
       if (success) {
-        console.log('✅ Conectado ao Spotify Web Playback!')
+        console.log('✅ Conectado ao Spotify Web Playback! Aguardando evento ready...')
       } else {
-        console.error('❌ Falha ao conectar')
-        error.value = 'Falha ao conectar ao Spotify'
+        console.error('❌ Falha ao conectar ao Spotify')
+        error.value = 'Falha ao conectar ao Spotify. Verifique sua conexão.'
         isConnecting.value = false
       }
+    }).catch(err => {
+      console.error('❌ Erro ao conectar:', err)
+      error.value = 'Erro ao conectar ao Spotify'
+      isConnecting.value = false
     })
   }
 
@@ -707,7 +737,10 @@ export function useSpotifyPlayer() {
   // Busca dispositivos disponíveis
   const getDevices = async () => {
     const accessToken = localStorage.getItem('spotify_access_token')
-    if (!accessToken) return []
+    if (!accessToken) {
+      console.warn('⚠️ getDevices: Sem token de acesso')
+      return []
+    }
 
     try {
       const response = await fetch('https://api.spotify.com/v1/me/player/devices', {
@@ -716,7 +749,17 @@ export function useSpotifyPlayer() {
 
       if (response.ok) {
         const data = await response.json()
-        return data.devices || []
+        const devices = data.devices || []
+        if (devices.length > 0) {
+          console.log(`📱 Devices encontrados: ${devices.map(d => `${d.name} (${d.type}${d.is_active ? ', ATIVO' : ''})`).join(', ')}`)
+        }
+        return devices
+      }
+      
+      if (response.status === 401) {
+        console.error('❌ getDevices: Token expirado ou inválido')
+      } else {
+        console.warn(`⚠️ getDevices: Resposta ${response.status}`)
       }
 
       return []
