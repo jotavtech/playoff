@@ -864,7 +864,7 @@ const handlePlaySong = async (song) => {
           return true
         } else {
           console.error('❌ Falha ao tocar no Spotify SDK')
-          showNotification('Falha ao tocar no Spotify', 'error')
+          // Não mostra notificação aqui - será tratado abaixo
         }
       }
     }
@@ -874,28 +874,23 @@ const handlePlaySong = async (song) => {
 
     if (song.spotifyUrl && isAuthenticated.value) {
       // Tentou Spotify mas falhou
-      console.log('❌ Spotify SDK não disponível - NÃO atualizando UI')
+      console.log('❌ Spotify SDK não disponível ou falhou')
       console.log('🚨 Diagnóstico:')
       console.log(`   - Player Ready: ${spotifyPlayerReady.value}`)
       console.log(`   - Device ID: ${deviceId.value || 'NENHUM'}`)
       console.log(`   - Token: ${spotifyAccessToken.value ? 'OK' : 'FALTANDO'}`)
-      console.log('')
 
-      if (!deviceId.value) {
-        console.error('❌ PROBLEMA: Device ID não foi criado!')
-        console.log('💡 Diagnóstico Avançado:')
-        console.log('   - Verifique se você está logado no Spotify Web Player')
-        console.log('   - Tentando reconectar automaticamente...')
-        // Tenta reinicializar silenciosamente com callback de next track
-        if (spotifyAccessToken.value) initSpotifyPlayer(handleNextTrack)
+      // Se não tem device, tenta reconectar silenciosamente
+      if (!deviceId.value && spotifyAccessToken.value) {
+        console.log('🔄 Tentando reconectar player...')
+        initSpotifyPlayer(handleNextTrack)
       }
 
-      // Feedback mais suave
+      // Apenas UMA notificação amigável
       showNotification(
-        'Tentando conectar ao Spotify... Aguarde um momento e tente novamente.',
+        'Player conectando... Tente novamente em alguns segundos.',
         'info'
       )
-      // NÃO chama setTrack - não atualiza UI se não está tocando
       return false
     }
 
