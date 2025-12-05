@@ -377,19 +377,48 @@ export function useSpotifyPlayer() {
       const targetDeviceId = deviceId.value
       console.log(`🎯 Device alvo (Web Player): ${targetDeviceId}`)
 
-      // Função helper para tentar tocar com retry
-      const tryPlay = async (retryNum = 0) => {
-        const apiUrl = `https://api.spotify.com/v1/me/player/play?device_id=${targetDeviceId}`
-        
-        if (retryNum === 0) {
-          console.log('')
-          console.log('📡 CHAMANDO API DO SPOTIFY:')
-          console.log(`   URL: ${apiUrl}`)
-          console.log(`   Method: PUT`)
-          console.log(`   Body: { uris: ["${spotifyUri}"] }`)
-        } else {
-          console.log(`🔄 Retry ${retryNum}/3...`)
+      // PRIMEIRO: Verifica se o device está registrado no Spotify
+      console.log('🔍 Verificando se device está registrado no Spotify...')
+      let devices = await getDevices()
+      let ourDevice = devices.find(d => d.id === targetDeviceId)
+      
+      // Se device não encontrado, aguarda e tenta novamente (até 5x com delay progressivo)
+      if (!ourDevice) {
+        console.log('⏳ Device não encontrado na lista, aguardando registro...')
+        for (let attempt = 1; attempt <= 5; attempt++) {
+          await new Promise(r => setTimeout(r, attempt * 1000)) // 1s, 2s, 3s, 4s, 5s
+          devices = await getDevices()
+          ourDevice = devices.find(d => d.id === targetDeviceId)
+          
+          if (ourDevice) {
+            console.log(`✅ Device encontrado após ${attempt} tentativa(s)!`)
+            break
+          }
+          console.log(`   Tentativa ${attempt}/5 - Device ainda não registrado...`)
         }
+      }
+      
+      if (!ourDevice) {
+        console.error('❌ Device não foi registrado no Spotify após 5 tentativas')
+        console.log('💡 Isso pode indicar:')
+        console.log('   - Conta sem Spotify Premium')
+        console.log('   - Problema de conexão com o Spotify')
+        console.log('   - Token expirado')
+        error.value = 'Spotify Premium necessário para reprodução completa'
+        isBuffering.value = false
+        return false
+      }
+      
+      console.log(`✅ Device confirmado: ${ourDevice.name} (${ourDevice.type})`)
+
+      // Função helper para tentar tocar
+      const tryPlay = async () => {
+        const apiUrl = `https://api.spotify.com/v1/me/player/play?device_id=${targetDeviceId}`
+        console.log('')
+        console.log('📡 CHAMANDO API DO SPOTIFY:')
+        console.log(`   URL: ${apiUrl}`)
+        console.log(`   Method: PUT`)
+        console.log(`   Body: { uris: ["${spotifyUri}"] }`)
 
         const response = await fetch(apiUrl, {
           method: 'PUT',
@@ -403,30 +432,15 @@ export function useSpotifyPlayer() {
         return response
       }
 
-      // Tenta tocar com retry automático para "Device not found"
-      let response = await tryPlay(0)
+      // Tenta tocar
+      let response = await tryPlay()
       
-      // Se device não encontrado, espera e tenta novamente (até 3x)
+      // Se ainda falhar com 404, tenta transferir playback e tocar novamente
       if (response.status === 404) {
-        for (let retry = 1; retry <= 3; retry++) {
-          const errorData = await response.json().catch(() => ({}))
-          if (errorData?.error?.message?.includes('Device not found') || errorData?.error?.message?.includes('No active device')) {
-            console.log(`⏳ Device não registrado ainda, aguardando ${retry}s...`)
-            await new Promise(r => setTimeout(r, retry * 1000))
-            
-            // Tenta transferir playback antes de retry
-            if (retry === 2) {
-              console.log('🔄 Tentando transferir playback...')
-              await transferPlayback(false)
-              await new Promise(r => setTimeout(r, 500))
-            }
-            
-            response = await tryPlay(retry)
-            if (response.status === 204 || response.ok) break
-          } else {
-            break // Outro tipo de erro, não faz retry
-          }
-        }
+        console.log('⚠️ Erro 404 mesmo com device confirmado, tentando transferir playback...')
+        await transferPlayback(false)
+        await new Promise(r => setTimeout(r, 1000))
+        response = await tryPlay()
       }
 
       console.log('')

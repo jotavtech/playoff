@@ -879,6 +879,16 @@ const handlePlaySong = async (song) => {
       console.log(`   - Player Ready: ${spotifyPlayerReady.value}`)
       console.log(`   - Device ID: ${deviceId.value || 'NENHUM'}`)
       console.log(`   - Token: ${spotifyAccessToken.value ? 'OK' : 'FALTANDO'}`)
+      console.log(`   - Erro: ${spotifyError.value || 'nenhum'}`)
+
+      // Verifica se é problema de Premium
+      if (spotifyError.value?.includes('Premium')) {
+        showNotification(
+          'Spotify Premium necessário. Use o botão 🎧 para ouvir preview de 30s.',
+          'warning'
+        )
+        return false
+      }
 
       // Se não tem device, tenta reconectar silenciosamente
       if (!deviceId.value && spotifyAccessToken.value) {
@@ -886,9 +896,9 @@ const handlePlaySong = async (song) => {
         initSpotifyPlayer(handleNextTrack)
       }
 
-      // Apenas UMA notificação amigável
+      // Notificação amigável
       showNotification(
-        'Player conectando... Tente novamente em alguns segundos.',
+        'Conectando ao Spotify... Tente novamente.',
         'info'
       )
       return false
