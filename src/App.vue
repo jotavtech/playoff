@@ -1689,7 +1689,7 @@ const updateMediaSession = () => {
     
     // Atualiza posição (para a barra de progresso)
     if ('setPositionState' in navigator.mediaSession) {
-      const duration = currentDuration.value / 1000 // em segundos
+      const duration = totalDuration.value / 1000 // em segundos
       const position = currentTime.value / 1000 // em segundos
       
       if (duration > 0 && position >= 0 && position <= duration) {
@@ -1817,7 +1817,7 @@ const setupMediaSessionHandlers = () => {
     
     try {
       const newPosition = currentTime.value + (skipTime * 1000)
-      const maxPosition = currentDuration.value
+      const maxPosition = totalDuration.value
       handleSeek(Math.min(newPosition, maxPosition))
     } catch (e) {
       console.warn('⚠️ Erro no seek forward:', e)

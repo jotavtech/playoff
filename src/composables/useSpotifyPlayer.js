@@ -274,8 +274,18 @@ export function useSpotifyPlayer() {
   // Toca uma música específica (track Spotify)
   // Aceita URI string ou objeto de track completo para update otimista
   const playTrack = async (trackOrUri) => {
-    const spotifyUri = typeof trackOrUri === 'string' ? trackOrUri : trackOrUri.spotifyUrl || trackOrUri.uri
+    let spotifyUri = typeof trackOrUri === 'string' ? trackOrUri : trackOrUri.spotifyUrl || trackOrUri.uri
     const trackData = typeof trackOrUri === 'object' ? trackOrUri : null
+    
+    // Converte URL do Spotify para URI se necessário
+    // https://open.spotify.com/track/ID -> spotify:track:ID
+    if (spotifyUri && spotifyUri.includes('open.spotify.com/track/')) {
+      const trackId = spotifyUri.split('/track/')[1]?.split('?')[0]
+      if (trackId) {
+        spotifyUri = `spotify:track:${trackId}`
+        console.log(`🔄 Convertido URL para URI: ${spotifyUri}`)
+      }
+    }
 
     // DEBOUNCE: Evita múltiplas chamadas para a mesma música em curto período
     const now = Date.now()
