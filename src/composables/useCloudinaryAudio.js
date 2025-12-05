@@ -870,6 +870,12 @@ export function useCloudinaryAudio() {
       console.log(`🔗 Tipo de URL: ${songData.audioUrl ? (songData.audioUrl.includes('cloudinary') ? 'CLOUDINARY (COMPLETA)' : songData.audioUrl.includes('scdn.co') ? 'SPOTIFY PREVIEW (30s)' : 'OUTRA') : 'NENHUMA'}`)
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
       
+      // Garante que o player está inicializado
+      if (!audioPlayer.value) {
+        console.log('⚠️ Player não inicializado, inicializando agora...')
+        await initializePlayer()
+      }
+      
       currentTrack.value = songData
       
       // Always search for Spotify album cover for better quality
@@ -975,28 +981,63 @@ export function useCloudinaryAudio() {
       // Load and play
       console.log('⏳ Carregando áudio...')
       
-      // Aguarda o carregamento com timeout de 10s
-      const loadPromise = audioPlayer.value.load()
+      // Cria uma Promise que resolve quando o áudio estiver pronto para tocar
+      const loadPromise = new Promise((resolve, reject) => {
+        const onCanPlay = () => {
+          audioPlayer.value.removeEventListener('canplay', onCanPlay)
+          audioPlayer.value.removeEventListener('error', onError)
+          resolve()
+        }
+        const onError = (e) => {
+          audioPlayer.value.removeEventListener('canplay', onCanPlay)
+          audioPlayer.value.removeEventListener('error', onError)
+          reject(new Error(`Erro ao carregar áudio: ${e.message || 'desconhecido'}`))
+        }
+        audioPlayer.value.addEventListener('canplay', onCanPlay)
+        audioPlayer.value.addEventListener('error', onError)
+        audioPlayer.value.load()
+      })
+      
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout ao carregar áudio')), 10000)
+        setTimeout(() => reject(new Error('Timeout ao carregar áudio (10s)')), 10000)
       )
       
       try {
         await Promise.race([loadPromise, timeoutPromise])
-        console.log('✅ Áudio carregado!')
+        console.log('✅ Áudio carregado e pronto!')
       } catch (error) {
-        console.warn('⚠️ Timeout/erro no load, tentando play() mesmo assim:', error.message)
+        console.warn('⚠️ Problema no carregamento:', error.message)
+        // Tenta tocar mesmo assim - alguns navegadores permitem
       }
       
       // Verifica se tem alguma fonte válida
-      if (!audioPlayer.value.src || audioPlayer.value.src === '') {
-        throw new Error('Nenhuma fonte de áudio definida')
+      if (!audioPlayer.value.src || audioPlayer.value.src === '' || audioPlayer.value.src === window.location.href) {
+        throw new Error('Nenhuma fonte de áudio válida definida')
       }
       
       console.log('▶️ Tentando reproduzir...')
       console.log(`🔗 Source: ${audioPlayer.value.src}`)
       
-      await audioPlayer.value.play()
+      // Tenta reproduzir com retry
+      let playAttempts = 0
+      const maxAttempts = 3
+      
+      while (playAttempts < maxAttempts) {
+        try {
+          await audioPlayer.value.play()
+          break // Sucesso, sai do loop
+        } catch (playError) {
+          playAttempts++
+          console.warn(`⚠️ Tentativa ${playAttempts}/${maxAttempts} de reprodução falhou:`, playError.message)
+          
+          if (playAttempts >= maxAttempts) {
+            throw playError
+          }
+          
+          // Aguarda um pouco antes de tentar novamente
+          await new Promise(r => setTimeout(r, 500))
+        }
+      }
       
       console.log('✅ Reprodução iniciada com sucesso!')
       console.log(`🔊 Volume final: ${audioPlayer.value.volume}`)
@@ -1016,7 +1057,14 @@ export function useCloudinaryAudio() {
       return true
     } catch (error) {
       console.error('❌ Erro ao tocar música:', error)
-      throw error
+      console.error('📋 Detalhes do erro:', {
+        name: error.name,
+        message: error.message,
+        audioSrc: audioPlayer.value?.src || 'N/A',
+        readyState: audioPlayer.value?.readyState || 'N/A'
+      })
+      isPlaying.value = false
+      return false
     }
   }
   
@@ -1169,8 +1217,14 @@ export function useCloudinaryAudio() {
   // Toggle play/pause
   const togglePlayback = async () => {
     try {
+      // Verifica se o player está inicializado
+      if (!audioPlayer.value) {
+        console.warn('⚠️ Player não inicializado')
+        await initializePlayer()
+      }
+      
       // Verifica se há uma música carregada com URL válida
-      if (!audioPlayer.value.src || audioPlayer.value.src === '' || audioPlayer.value.src === window.location.href) {
+      if (!audioPlayer.value?.src || audioPlayer.value.src === '' || audioPlayer.value.src === window.location.href) {
         console.warn('⚠️ Nenhuma música carregada para reproduzir')
         
         // Tenta tocar a primeira música da lista se disponível
@@ -1205,7 +1259,7 @@ export function useCloudinaryAudio() {
   const previousTrack = async (songsList = []) => {
     if (!currentTrack.value || !songsList || songsList.length === 0) {
       console.log('⏮️ Voltando ao início da música (sem lista disponível)')
-      audioPlayer.value.currentTime = 0
+      if (audioPlayer.value) audioPlayer.value.currentTime = 0
       return true
     }
     
@@ -1213,14 +1267,14 @@ export function useCloudinaryAudio() {
     
     if (currentIndex === -1) {
       console.log('⏮️ Música atual não encontrada na lista, voltando ao início')
-      audioPlayer.value.currentTime = 0
+      if (audioPlayer.value) audioPlayer.value.currentTime = 0
       return true
     }
     
     // Se estiver na primeira música, volta ao início da música atual
     if (currentIndex === 0) {
       console.log('⏮️ Primeira música da lista, voltando ao início')
-      audioPlayer.value.currentTime = 0
+      if (audioPlayer.value) audioPlayer.value.currentTime = 0
       return true
     }
     
@@ -1262,14 +1316,16 @@ export function useCloudinaryAudio() {
         return true
       } catch (error) {
         console.error('❌ Erro ao tocar música da fila:', error)
-        // Se falhar, tenta a próxima (recursivo ou cai pro fallback)
+        // Se falhar, continua para o fallback
       }
     }
 
     if (!currentTrack.value || !songsList || songsList.length === 0) {
       console.log('⏭️ Parando música atual (sem lista disponível)')
-      audioPlayer.value.pause()
-      audioPlayer.value.currentTime = 0
+      if (audioPlayer.value) {
+        audioPlayer.value.pause()
+        audioPlayer.value.currentTime = 0
+      }
       return true
     }
     
@@ -1290,8 +1346,10 @@ export function useCloudinaryAudio() {
     // Se estiver na última música, para a reprodução
     if (currentIndex === songsList.length - 1) {
       console.log('⏭️ Última música da lista, parando reprodução')
-      audioPlayer.value.pause()
-      audioPlayer.value.currentTime = 0
+      if (audioPlayer.value) {
+        audioPlayer.value.pause()
+        audioPlayer.value.currentTime = 0
+      }
       return true
     }
     
