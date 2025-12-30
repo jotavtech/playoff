@@ -459,6 +459,33 @@ setTimeout(() => {
   sdkInitAttempted.value = true
 }, 5000)
 
+// ============= NORMALIZAÇÃO DE DADOS DE MÚSICA =============
+// Garante consistência entre snake_case (API/backend) e camelCase (frontend)
+const normalizeSongData = (song) => {
+  if (!song || typeof song !== 'object') return song
+  
+  // Normaliza title/name
+  if (!song.title && song.name) song.title = song.name
+  
+  // Normaliza albumCover
+  if (!song.albumCover && song.album_cover) song.albumCover = song.album_cover
+  
+  // Normaliza spotifyUrl (CRÍTICO para playback)
+  if (!song.spotifyUrl && song.spotify_url) song.spotifyUrl = song.spotify_url
+  
+  // Normaliza previewUrl (CRÍTICO para fallback de preview)
+  if (!song.previewUrl && song.preview_url) song.previewUrl = song.preview_url
+  
+  // Normaliza audioUrl
+  if ((!song.audioUrl || song.audioUrl === '') && song.audio_url) song.audioUrl = song.audio_url
+  
+  // Normaliza duration
+  if (!song.duration_ms && typeof song.duration === 'number') song.duration_ms = song.duration
+  if (!song.duration && typeof song.duration_ms === 'number') song.duration = song.duration_ms
+  
+  return song
+}
+
 // ============= ANIMAÇÃO DE ROLAGEM PARA O PLAYER =============
 // Função que rola suavemente para o topo e dispara animação do disco
 const scrollToPlayerWithAnimation = () => {
@@ -944,9 +971,13 @@ const handlePlayPreview = async (song) => {
   userHasInteracted.value = true
   isPlayingPreview.value = true // Mark that we're in preview mode
   
+  // Normaliza campos para garantir consistência
+  song = normalizeSongData(song)
+  
   try {
     console.log(`🎧 App.vue: Tocando PREVIEW (30s) de "${song.title}" por ${song.artist}`)
-    console.log(`📋 Preview - audioUrl: ${song.audioUrl ? '(tem)' : '(vai buscar)'}`)    
+    console.log(`📋 Preview - audioUrl: ${song.audioUrl ? '(tem)' : '(vai buscar)'}`)
+    console.log(`📋 Preview - previewUrl: ${song.previewUrl ? '(tem)' : '(não tem)'}`)    
     console.log(`📋 Preview - albumCover: ${song.albumCover}`)    
     
     // IMPORTANTE: Pausa o Spotify antes de tocar preview para evitar conflitos
@@ -959,8 +990,17 @@ const handlePlayPreview = async (song) => {
       }
     }
     
+    // Prepara objeto com audioUrl definido para o player HTML5
+    const previewSong = { ...song }
+    
+    // Se tem previewUrl mas não tem audioUrl, usa previewUrl como audioUrl
+    if (previewSong.previewUrl && !previewSong.audioUrl) {
+      console.log(`🔄 Usando previewUrl como audioUrl: ${previewSong.previewUrl}`)
+      previewSong.audioUrl = previewSong.previewUrl
+    }
+    
     // Sempre usa o player HTML5 com preview
-    const result = await playSong(song)
+    const result = await playSong(previewSong)
     
     if (result) {
       showNotification(`🎵 Preview (30s): ${song.title}`, 'info')
@@ -981,7 +1021,12 @@ const handlePlayPreview = async (song) => {
 // Handler especial para auto-play quando adiciona música
 // Tenta Spotify mas cai automaticamente para preview se falhar
 const handleAutoPlaySong = async (song) => {
+  // Normaliza campos para garantir consistência
+  song = normalizeSongData(song)
+  
   console.log(`🎵 Auto-play: tentando tocar "${song.title}"`)
+  console.log(`📋 Auto-play - spotifyUrl: ${song.spotifyUrl ? '(tem)' : '(não tem)'}`)
+  console.log(`📋 Auto-play - previewUrl: ${song.previewUrl ? '(tem)' : '(não tem)'}`)
   
   // Tenta tocar via Spotify SDK primeiro
   const spotifySuccess = await handlePlaySong(song)
@@ -993,8 +1038,8 @@ const handleAutoPlaySong = async (song) => {
   
   // Se Spotify falhou, cai automaticamente para preview
   console.log('⚠️ Spotify falhou, usando preview automaticamente...')
-  await handlePlayPreview(song)
-  return true
+  const previewSuccess = await handlePlayPreview(song)
+  return previewSuccess
 }
 
 // Handler para adicionar música do Spotify (ou tocar se já existe)
@@ -1295,9 +1340,9 @@ const handleDiscoveryPlay = async (track) => {
           artist: spotifyTrack.artists?.[0]?.name || track.artist,
           album: spotifyTrack.album?.name,
           albumCover: spotifyTrack.album?.images?.[0]?.url,
-          spotify_url: spotifyTrack.external_urls?.spotify,
+          spotifyUrl: spotifyTrack.external_urls?.spotify,
           duration_ms: spotifyTrack.duration_ms,
-          preview_url: spotifyTrack.preview_url
+          previewUrl: spotifyTrack.preview_url
         })
         showNotification(`▶ ${spotifyTrack.name}`, 'success')
         return
@@ -1330,9 +1375,9 @@ const handleDiscoveryAddToQueue = async (track) => {
           artist: spotifyTrack.artists?.[0]?.name || track.artist,
           album: spotifyTrack.album?.name,
           albumCover: spotifyTrack.album?.images?.[0]?.url,
-          spotify_url: spotifyTrack.external_urls?.spotify,
+          spotifyUrl: spotifyTrack.external_urls?.spotify,
           duration_ms: spotifyTrack.duration_ms,
-          preview_url: spotifyTrack.preview_url
+          previewUrl: spotifyTrack.preview_url
         }
         
         // Adiciona à fila
@@ -1664,6 +1709,39 @@ const startLocalInterpolation = () => {
       }
     }
   }, 30) // 33ms ~ 30fps para UI suave
+}
+
+// ============= HANDLER DE AUDIO-ENDED =============
+// Função nomeada para permitir cleanup correto do event listener
+let lastAudioEndedTime = 0
+const handleAudioEndedEvent = () => {
+  const now = Date.now()
+  
+  // Evita loops: ignora se o evento foi disparado há menos de 2 segundos
+  if (now - lastAudioEndedTime < 2000) {
+    console.log('⚠️ Ignorando audio-ended (anti-loop)')
+    return
+  }
+  lastAudioEndedTime = now
+  
+  console.log('🏁 App.vue: Áudio HTML5 acabou')
+  
+  // Se está tocando preview, NÃO avança automaticamente
+  if (isPlayingPreview.value) {
+    console.log('⏸️ Preview finalizado - NÃO avançando automaticamente')
+    isPlayingPreview.value = false
+    return
+  }
+  
+  // Se não está tocando nada, ignora
+  if (!isPlaying.value && !currentTrack.value) {
+    console.log('⚠️ Nenhuma música ativa - ignorando audio-ended')
+    return
+  }
+  
+  // Se for música completa, avança para próxima
+  console.log('➡️ Indo para próxima música')
+  handleNextTrack()
 }
 
 // ============= MEDIA SESSION API (CONTROLES EM SEGUNDO PLANO) =============
@@ -2013,37 +2091,8 @@ onMounted(async () => {
     console.log('🎨 4/4: Configurando listeners de eventos...')
     // Escuto eventos de extração de cor das capas de álbum
     window.addEventListener('albumColorExtracted', handleAlbumColorExtracted)
-    // Escuto evento de fim de música HTML5 (com proteção anti-loop)
-    let lastAudioEndedTime = 0
-    window.addEventListener('audio-ended', () => {
-      const now = Date.now()
-      
-      // Evita loops: ignora se o evento foi disparado há menos de 2 segundos
-      if (now - lastAudioEndedTime < 2000) {
-        console.log('⚠️ Ignorando audio-ended (anti-loop)')
-        return
-      }
-      lastAudioEndedTime = now
-      
-      console.log('🏁 App.vue: Áudio HTML5 acabou')
-      
-      // Se está tocando preview, NÃO avança automaticamente
-      if (isPlayingPreview.value) {
-        console.log('⏸️ Preview finalizado - NÃO avançando automaticamente')
-        isPlayingPreview.value = false
-        return
-      }
-      
-      // Se não está tocando nada, ignora
-      if (!isPlaying.value && !currentTrack.value) {
-        console.log('⚠️ Nenhuma música ativa - ignorando audio-ended')
-        return
-      }
-      
-      // Se for música completa, avança para próxima
-      console.log('➡️ Indo para próxima música')
-      handleNextTrack()
-    })
+    // Escuto evento de fim de música HTML5 (usa função nomeada definida no escopo do módulo para cleanup correto)
+    window.addEventListener('audio-ended', handleAudioEndedEvent)
     
     // Detecta qualquer clique na página para habilitar áudio
     const enableAudioOnInteraction = () => {
@@ -2084,7 +2133,7 @@ onUnmounted(() => {
   
   // Removo event listeners para evitar memory leaks
   window.removeEventListener('albumColorExtracted', handleAlbumColorExtracted)
-  window.removeEventListener('audio-ended', handleNextTrack)
+  window.removeEventListener('audio-ended', handleAudioEndedEvent)
   
   console.log('✅ Limpeza concluída')
 })
