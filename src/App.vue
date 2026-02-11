@@ -671,32 +671,22 @@ const handleSuperVote = async (song) => {
       
       if (played) {
         // Feedback específico para super voto
-        showNotification(`⚡ Super Voto! Tocando imediatamente: ${song.title}`, 'success')
+        showNotification(` Super Voto! Tocando imediatamente: ${song.title}`, 'success')
       } else {
-        // Falha técnica no Spotify - Tenta fallback para preview
-        console.warn('⚠️ Spotify falhou no Super Voto - Tentando fallback para preview...')
+        // Falha ao tocar - NÃO faz fallback para preview
+        console.error(' SUPER VOTO - Não foi possível tocar a música completa')
+        console.log(' Detalhes:')
+        console.log('   - Super Voto executado ')
+        console.log('   - Tentou tocar música completa ')
         
-        const previewPlayed = await handlePlayPreview(song)
-        
-        if (previewPlayed) {
-          showNotification(`⚡ Super Voto! Tocando preview (Spotify indisponível)`, 'warning')
-        } else {
-          // Falha total
-          console.error('🚨 SUPER VOTO FALHOU - Erro ao conectar com o Spotify Web Player e sem preview')
-          console.log('📋 Detalhes:')
-          console.log('   - Super Voto executado ✅')
-          console.log('   - Tentou tocar via Spotify SDK ❌')
-          console.log('   - Tentou tocar preview ❌')
-          
-          showNotification(
-            `⚡ Super Voto executado! Mas não foi possível tocar a música. Verifique sua conexão com o Spotify.`,
-            'warning'
-          )
-        }
+        showNotification(
+          ` Super Voto executado! Mas não foi possível tocar a música. Verifique sua conexão com o Spotify.`,
+          'warning'
+        )
       }
     }
   } catch (error) {
-    console.error('❌ App.vue: Erro crítico no super voto:', error)
+    console.error(' App.vue: Erro crítico no super voto:', error)
     showNotification('Erro no super voto - tente novamente', 'error')
   }
 }
@@ -1016,27 +1006,26 @@ const handlePlayPreview = async (song) => {
 }
 
 // Handler especial para auto-play quando adiciona música
-// Tenta Spotify mas cai automaticamente para preview se falhar
+// Toca a música completa - NUNCA faz fallback para preview
 const handleAutoPlaySong = async (song) => {
   // Normaliza campos para garantir consistência
   song = normalizeSongData(song)
   
-  console.log(`🎵 Auto-play: tentando tocar "${song.title}"`)
+  console.log(`🎵 Auto-play: tentando tocar "${song.title}" (completa, sem preview)`)
   console.log(`📋 Auto-play - spotifyUrl: ${song.spotifyUrl ? '(tem)' : '(não tem)'}`)
-  console.log(`📋 Auto-play - previewUrl: ${song.previewUrl ? '(tem)' : '(não tem)'}`)
+  console.log(`📋 Auto-play - audioUrl: ${song.audioUrl ? '(tem)' : '(não tem)'}`)
   
-  // Tenta tocar via Spotify SDK primeiro
-  const spotifySuccess = await handlePlaySong(song)
+  // Toca a música completa (HTML5 ou Spotify SDK)
+  const success = await handlePlaySong(song)
   
-  if (spotifySuccess) {
-    console.log('✅ Auto-play via Spotify SDK bem-sucedido')
+  if (success) {
+    console.log('✅ Auto-play bem-sucedido (música completa)')
     return true
   }
   
-  // Se Spotify falhou, cai automaticamente para preview
-  console.log('⚠️ Spotify falhou, usando preview automaticamente...')
-  const previewSuccess = await handlePlayPreview(song)
-  return previewSuccess
+  // NÃO faz fallback para preview - música deve tocar completa ou não tocar
+  console.warn(`⚠️ Não foi possível tocar "${song.title}" completa`)
+  return false
 }
 
 // Handler para adicionar música do Spotify (ou tocar se já existe)
@@ -1115,19 +1104,31 @@ const handleAddSpotifySong = async (track) => {
 }
 
 // Handler para adicionar à fila
-const handleAddToQueue = (song) => {
+const handleAddToQueue = async (song) => {
   try {
+    // Se já está tocando uma música, toca a nova IMEDIATAMENTE (completa, sem preview)
+    if (currentTrack.value && (isAudioPlaying.value || isSpotifyActive.value)) {
+      console.log(` Música tocando - reproduzindo "${song.title}" IMEDIATAMENTE (completa)`)
+      song = normalizeSongData(song)
+      const played = await handlePlaySong(song)
+      if (played) {
+        showNotification(` Tocando agora: ${song.title}`, 'success')
+        return
+      }
+      // Se falhou, adiciona à fila como fallback
+      console.warn(' Não conseguiu tocar imediatamente, adicionando à fila')
+    }
+
     const success = addToQueue(song)
     if (success) {
-      showNotification(`📥 Adicionado à fila: ${song.title}`, 'success')
-      // Abre o modal automaticamente para mostrar a fila
+      showNotification(` Adicionado à fila: ${song.title}`, 'success')
       showQueueModal.value = true
     } else {
       showNotification('Música já está na fila', 'warning')
-      showQueueModal.value = true // Abre mesmo assim para mostrar
+      showQueueModal.value = true
     }
   } catch (error) {
-    console.error('❌ Erro ao adicionar à fila:', error)
+    console.error(' Erro ao adicionar à fila:', error)
     showNotification('Erro ao adicionar à fila', 'error')
   }
 }
@@ -1233,7 +1234,7 @@ const handlePreviousTrack = async () => {
     
     const prevSong = list[prevIndex]
     if (prevSong) {
-      // Anterior pode usar preview se Spotify falhar (experiência contínua)
+      // Toca música completa (sem preview)
       await handleAutoPlaySong(prevSong)
       console.log(`✅ Navegação para anterior concluída: ${prevSong.title}`)
     }
