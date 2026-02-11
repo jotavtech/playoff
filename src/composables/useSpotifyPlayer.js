@@ -410,7 +410,9 @@ export function useSpotifyPlayer() {
       // PRIMEIRO: Verifica se o device está registrado no Spotify
       console.log('🔍 Verificando se device está registrado no Spotify...')
       let devices = await getDevices()
-      let ourDevice = devices.find(d => d.id === targetDeviceId)
+      // Busca por ID exato OU por nome do player (fallback para quando ID muda após reconexão)
+      const PLAYER_NAME = 'PlayOff Music Player 🎵'
+      let ourDevice = devices.find(d => d.id === targetDeviceId) || devices.find(d => d.name === PLAYER_NAME)
       
       // Se device não encontrado, aguarda e tenta novamente (até 5x com delay progressivo)
       if (!ourDevice) {
@@ -418,7 +420,7 @@ export function useSpotifyPlayer() {
         for (let attempt = 1; attempt <= 5; attempt++) {
           await new Promise(r => setTimeout(r, attempt * 1000)) // 1s, 2s, 3s, 4s, 5s
           devices = await getDevices()
-          ourDevice = devices.find(d => d.id === targetDeviceId)
+          ourDevice = devices.find(d => d.id === targetDeviceId) || devices.find(d => d.name === PLAYER_NAME)
           
           if (ourDevice) {
             console.log(`✅ Device encontrado após ${attempt} tentativa(s)!`)
@@ -430,20 +432,23 @@ export function useSpotifyPlayer() {
       
       if (!ourDevice) {
         console.error('❌ Device não foi registrado no Spotify após 5 tentativas')
-        console.log('💡 Isso pode indicar:')
-        console.log('   - Conta sem Spotify Premium')
-        console.log('   - Problema de conexão com o Spotify')
-        console.log('   - Token expirado')
         error.value = 'Spotify Premium necessário para reprodução completa'
         isBuffering.value = false
         return false
       }
       
+      // Se achou por nome mas com ID diferente, atualiza o deviceId
+      if (ourDevice.id !== targetDeviceId) {
+        console.log(`🔄 Device ID atualizado: ${targetDeviceId} → ${ourDevice.id}`)
+        deviceId.value = ourDevice.id
+      }
+      
       console.log(`✅ Device confirmado: ${ourDevice.name} (${ourDevice.type})`)
 
-      // Função helper para tentar tocar
+      // Função helper para tentar tocar (usa deviceId.value que pode ter sido atualizado)
       const tryPlay = async () => {
-        const apiUrl = `https://api.spotify.com/v1/me/player/play?device_id=${targetDeviceId}`
+        const activeDeviceId = deviceId.value
+        const apiUrl = `https://api.spotify.com/v1/me/player/play?device_id=${activeDeviceId}`
         console.log('')
         console.log('📡 CHAMANDO API DO SPOTIFY:')
         console.log(`   URL: ${apiUrl}`)
