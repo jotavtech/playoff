@@ -876,25 +876,22 @@ const handlePlaySong = async (song) => {
     }
 
     // Se chegou aqui, Spotify SDK falhou ou não está disponível
-    // NÃO toca preview automaticamente - usuário deve usar botão Preview
+    // Tenta fallback para HTML5 player (busca preview automaticamente)
 
     if (song.spotifyUrl && isAuthenticated.value) {
-      // Tentou Spotify mas falhou
-      console.log('❌ Spotify SDK não disponível ou falhou')
-      console.log('🚨 Diagnóstico:')
-      console.log(`   - Player Ready: ${spotifyPlayerReady.value}`)
-      console.log(`   - Device ID: ${deviceId.value || 'NENHUM'}`)
-      console.log(`   - Token: ${spotifyAccessToken.value ? 'OK' : 'FALTANDO'}`)
+      console.log('❌ Spotify SDK falhou - tentando fallback HTML5...')
       console.log(`   - Erro: ${spotifyError.value || 'nenhum'}`)
 
-      // Verifica se é problema de Premium
-      if (spotifyError.value?.includes('Premium')) {
-        showNotification(
-          'Spotify Premium necessário. Use o botão 🎧 para ouvir preview de 30s.',
-          'warning'
-        )
-        return false
+      // Fallback: tenta tocar via HTML5 (playSong buscará preview se necessário)
+      const html5Success = await playSong(song)
+      if (html5Success) {
+        console.log('✅ Fallback HTML5 funcionou!')
+        scrollToPlayerWithAnimation()
+        return true
       }
+
+      // Se HTML5 também falhou
+      console.warn('⚠️ Fallback HTML5 também falhou')
 
       // Se não tem device, tenta reconectar silenciosamente
       if (!deviceId.value && spotifyAccessToken.value) {
@@ -902,10 +899,9 @@ const handlePlaySong = async (song) => {
         initSpotifyPlayer(handleNextTrack)
       }
 
-      // Notificação amigável
       showNotification(
-        'Conectando ao Spotify... Tente novamente.',
-        'info'
+        `Não foi possível tocar "${song.title}". Verifique sua conexão.`,
+        'warning'
       )
       return false
     }
