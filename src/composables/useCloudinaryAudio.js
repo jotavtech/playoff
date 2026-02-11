@@ -858,211 +858,122 @@ export function useCloudinaryAudio() {
     }
   }
 
-  // Play song with enhanced album cover and color detection
+  // Play song - INSTANT PLAYBACK FIRST, metadata in background
+  // Estratégia: áudio começa em <200ms, metadados (capa, cores) carregam em paralelo
   const playSong = async (songData) => {
     try {
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      console.log('🎵 INICIANDO REPRODUÇÃO VIA HTML5 PLAYER')
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      console.log(`🎵 Música: ${songData.title} - ${songData.artist}`)
-      console.log(`📡 Audio URL: ${songData.audioUrl || 'SEM URL!'}`)
-      console.log(`🎨 Capa: ${songData.albumCover}`)
-      console.log(`🔗 Tipo de URL: ${songData.audioUrl ? (songData.audioUrl.includes('cloudinary') ? 'CLOUDINARY (COMPLETA)' : songData.audioUrl.includes('scdn.co') ? 'SPOTIFY PREVIEW (30s)' : 'OUTRA') : 'NENHUMA'}`)
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log(`🎵 playSong: "${songData.title}" - ${songData.artist}`)
       
       // Garante que o player está inicializado
       if (!audioPlayer.value) {
-        console.log('⚠️ Player não inicializado, inicializando agora...')
         await initializePlayer()
       }
       
-      currentTrack.value = songData
+      // ══════════════════════════════════════════════════
+      // FASE 1: REPRODUÇÃO INSTANTÂNEA (bloqueante - mínimo possível)
+      // ══════════════════════════════════════════════════
       
-      // Always search for Spotify album cover for better quality
-      console.log('🔍 Buscando informações do Spotify...')
-      const albumInfo = await searchAlbumCover(songData.artist, songData.title)
-
-      // IMPORTANTE: NUNCA substitui audioUrl do Cloudinary pelo preview do Spotify!
-      // O Cloudinary tem a música completa, o Spotify preview só tem 30s
-      // Só usa preview do Spotify se NÃO tiver nenhum audioUrl
-      if ((!songData.audioUrl || songData.audioUrl === '') && albumInfo?.previewUrl) {
-        console.log(`🎵 Sem audioUrl - Usando preview URL do Spotify (30s): ${albumInfo.previewUrl}`)
-        songData.audioUrl = albumInfo.previewUrl
-      } else if (songData.audioUrl) {
-        console.log(`✅ Mantendo audioUrl completo do Cloudinary: ${songData.audioUrl}`)
-      }
-      
-      if (albumInfo) {
-        // Update track data with Spotify information
-        const oldCover = songData.albumCover
-        songData.albumCover = albumInfo.albumCover
-        
-        console.log(`✅ Capa do Spotify encontrada!`)
-        console.log(`📸 Capa anterior: ${oldCover}`)
-        console.log(`🎨 Nova capa Spotify: ${songData.albumCover}`)
-        
-        if (albumInfo.albumName) {
-          songData.album = albumInfo.albumName
-        }
-        
-        // Add Spotify-specific data if available
-        if (albumInfo.spotifyUrl) {
-          songData.spotifyUrl = albumInfo.spotifyUrl
-          console.log(`🎵 Link Spotify: ${albumInfo.spotifyUrl}`)
-        }
-        if (albumInfo.releaseDate) {
-          songData.releaseDate = albumInfo.releaseDate
-          console.log(`📅 Data de lançamento: ${albumInfo.releaseDate}`)
-        }
-        if (albumInfo.popularity) {
-          songData.popularity = albumInfo.popularity
-          console.log(`📊 Popularidade Spotify: ${albumInfo.popularity}%`)
-        }
-        
-        console.log(`📀 Álbum: ${songData.album}`)
-        
-        // Force update currentTrack to trigger Vue reactivity
-        currentTrack.value = { ...songData }
-        console.log(`🔄 currentTrack atualizado com nova capa:`, currentTrack.value.albumCover)
-        
-      } else {
-        console.log('⚠️ Nenhuma capa encontrada via Spotify, mantendo capa original')
-        console.log('🎨 Usando capa existente:', songData.albumCover)
-        // Still force update to ensure reactivity
-        currentTrack.value = { ...songData }
-      }
-      
-      // Fallback final: Se ainda não tem áudio, tenta buscar explicitamente no iTunes
-      // Isso cobre casos onde o Spotify achou a capa mas não tem preview
+      // Se NÃO tem audioUrl, precisa buscar ANTES de tocar (caso raro)
       if (!songData.audioUrl || songData.audioUrl === '') {
-        console.log('🔍 Tentando fallback final de áudio no iTunes...')
-        const itunesInfo = await searchItunesPreview(songData.artist, songData.title)
-        if (itunesInfo && itunesInfo.previewUrl) {
-          console.log(`🎵 Preview de áudio encontrado no iTunes: ${itunesInfo.previewUrl}`)
-          songData.audioUrl = itunesInfo.previewUrl
-          // Se ainda estiver sem capa decente, usa a do iTunes
-          if (!songData.albumCover || songData.albumCover.includes('default-album')) {
-             songData.albumCover = itunesInfo.albumCover
-             currentTrack.value = { ...songData }
+        console.log('⚠️ Sem audioUrl - buscando fonte de áudio...')
+        const albumInfo = await searchAlbumCover(songData.artist, songData.title)
+        if (albumInfo?.previewUrl) {
+          songData.audioUrl = albumInfo.previewUrl
+        }
+        if (albumInfo?.albumCover) songData.albumCover = albumInfo.albumCover
+        if (albumInfo?.albumName) songData.album = albumInfo.albumName
+        if (albumInfo?.spotifyUrl) songData.spotifyUrl = albumInfo.spotifyUrl
+        
+        // Fallback iTunes se Spotify não tem preview
+        if (!songData.audioUrl || songData.audioUrl === '') {
+          const itunesInfo = await searchItunesPreview(songData.artist, songData.title)
+          if (itunesInfo?.previewUrl) {
+            songData.audioUrl = itunesInfo.previewUrl
+            if (!songData.albumCover || songData.albumCover.includes('default-album')) {
+              songData.albumCover = itunesInfo.albumCover
+            }
           }
         }
-      }
-
-      // Verifica se há URL de áudio disponível
-      if (!songData.audioUrl || songData.audioUrl === '') {
-        console.warn('⚠️ Nenhuma URL de áudio disponível para esta música')
-        console.log('ℹ️ A música foi adicionada mas não pode ser reproduzida sem áudio')
-        // Ainda atualiza o currentTrack para mostrar a capa
-        currentTrack.value = { ...songData }
-        isPlaying.value = false
-        return false
+        
+        if (!songData.audioUrl || songData.audioUrl === '') {
+          console.warn('⚠️ Nenhuma URL de áudio disponível')
+          currentTrack.value = { ...songData }
+          isPlaying.value = false
+          return false
+        }
       }
       
-      // Set the audio source
-      console.log(`📡 Carregando áudio: ${songData.audioUrl}`)
+      // Atualiza UI imediatamente com dados que já temos
+      currentTrack.value = { ...songData }
+      
+      // Configura e toca o áudio INSTANTANEAMENTE
       audioPlayer.value.src = songData.audioUrl
       
-      // Verificações de debug do player
-      console.log(`🔊 Estado do player antes de tocar:`)
-      console.log(`   - Volume: ${audioPlayer.value.volume}`)
-      console.log(`   - Muted: ${audioPlayer.value.muted}`)
-      console.log(`   - ReadyState: ${audioPlayer.value.readyState}`)
+      // Garante volume OK
+      if (audioPlayer.value.volume === 0) audioPlayer.value.volume = 0.7
+      if (audioPlayer.value.muted) audioPlayer.value.muted = false
       
-      // Garante que volume está OK e não está muted
-      if (audioPlayer.value.volume === 0) {
-        console.log('⚠️ Volume estava em 0, ajustando para 0.7')
-        audioPlayer.value.volume = 0.7
-      }
-      if (audioPlayer.value.muted) {
-        console.log('⚠️ Áudio estava muted, desmutando')
-        audioPlayer.value.muted = false
-      }
-      
-      // Load and play
-      console.log('⏳ Carregando áudio...')
-      
-      // Cria uma Promise que resolve quando o áudio estiver pronto para tocar
-      const loadPromise = new Promise((resolve, reject) => {
-        const onCanPlay = () => {
-          audioPlayer.value.removeEventListener('canplay', onCanPlay)
-          audioPlayer.value.removeEventListener('error', onError)
-          resolve()
-        }
-        const onError = (e) => {
-          audioPlayer.value.removeEventListener('canplay', onCanPlay)
-          audioPlayer.value.removeEventListener('error', onError)
-          reject(new Error(`Erro ao carregar áudio: ${e.message || 'desconhecido'}`))
-        }
-        audioPlayer.value.addEventListener('canplay', onCanPlay)
-        audioPlayer.value.addEventListener('error', onError)
-        audioPlayer.value.load()
-      })
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout ao carregar áudio (10s)')), 10000)
-      )
+      // Play DIRETO - sem esperar canplay, sem load() explícito
+      // Navegadores modernos fazem buffering automático
+      console.log(`▶️ Play instantâneo: ${songData.audioUrl.substring(0, 80)}...`)
       
       try {
-        await Promise.race([loadPromise, timeoutPromise])
-        console.log('✅ Áudio carregado e pronto!')
-      } catch (error) {
-        console.warn('⚠️ Problema no carregamento:', error.message)
-        // Tenta tocar mesmo assim - alguns navegadores permitem
+        await audioPlayer.value.play()
+      } catch (playError) {
+        // Retry único rápido (100ms) - cobre edge cases de autoplay policy
+        console.warn('⚠️ Retry rápido de play:', playError.message)
+        await new Promise(r => setTimeout(r, 100))
+        await audioPlayer.value.play()
       }
       
-      // Verifica se tem alguma fonte válida
-      if (!audioPlayer.value.src || audioPlayer.value.src === '' || audioPlayer.value.src === window.location.href) {
-        throw new Error('Nenhuma fonte de áudio válida definida')
-      }
+      console.log(`✅ Tocando: "${songData.title}" - ${songData.artist}`)
       
-      console.log('▶️ Tentando reproduzir...')
-      console.log(`🔗 Source: ${audioPlayer.value.src}`)
+      // ══════════════════════════════════════════════════
+      // FASE 2: METADADOS EM BACKGROUND (não-bloqueante)
+      // Roda DEPOIS que o áudio já está tocando
+      // ══════════════════════════════════════════════════
       
-      // Tenta reproduzir com retry
-      let playAttempts = 0
-      const maxAttempts = 3
-      
-      while (playAttempts < maxAttempts) {
+      const enrichInBackground = async () => {
         try {
-          await audioPlayer.value.play()
-          break // Sucesso, sai do loop
-        } catch (playError) {
-          playAttempts++
-          console.warn(`⚠️ Tentativa ${playAttempts}/${maxAttempts} de reprodução falhou:`, playError.message)
+          // Busca capa HD e metadados do Spotify (não bloqueia reprodução)
+          const albumInfo = await searchAlbumCover(songData.artist, songData.title)
           
-          if (playAttempts >= maxAttempts) {
-            throw playError
+          if (albumInfo) {
+            let updated = false
+            
+            if (albumInfo.albumCover && albumInfo.albumCover !== songData.albumCover) {
+              songData.albumCover = albumInfo.albumCover
+              updated = true
+            }
+            if (albumInfo.albumName) songData.album = albumInfo.albumName
+            if (albumInfo.spotifyUrl) songData.spotifyUrl = albumInfo.spotifyUrl
+            if (albumInfo.releaseDate) songData.releaseDate = albumInfo.releaseDate
+            if (albumInfo.popularity) songData.popularity = albumInfo.popularity
+            
+            // Atualiza UI com novos metadados (reatividade Vue)
+            if (updated || albumInfo.albumName) {
+              currentTrack.value = { ...songData }
+              console.log(`🎨 Metadados atualizados em background: capa=${updated}`)
+            }
           }
           
-          // Aguarda um pouco antes de tentar novamente
-          await new Promise(r => setTimeout(r, 500))
+          // Atualiza Media Session (controles de mídia do OS)
+          updateMediaSessionForIOS(songData)
+          
+          // Atualiza fundo dinâmico e cores (fire-and-forget)
+          updateDynamicBackground(currentTrack.value.albumCover)
+          
+        } catch (bgError) {
+          console.warn('⚠️ Erro em metadados background (áudio continua):', bgError.message)
         }
       }
       
-      console.log('✅ Reprodução iniciada com sucesso!')
-      console.log(`🔊 Volume final: ${audioPlayer.value.volume}`)
-      console.log(`🔇 Muted: ${audioPlayer.value.muted}`)
-      console.log(`🎵 Tocando: ${currentTrack.value?.title}`)
-      console.log(`👤 Artista: ${currentTrack.value?.artist}`)
-      console.log(`⏱️ Duração: ${formatTime(audioPlayer.value.duration * 1000)}`)
-      
-      // Atualiza Media Session DEPOIS de tocar com sucesso (iOS)
-      setTimeout(() => updateMediaSessionForIOS(songData), 100)
-      
-      // Update dynamic background and extract colors
-      console.log(`🎨 Iniciando atualização do fundo dinâmico...`)
-      await updateDynamicBackground(currentTrack.value.albumCover)
-      console.log(`✅ Fundo dinâmico atualizado`)
+      // Dispara enriquecimento em background - NÃO espera
+      enrichInBackground()
       
       return true
     } catch (error) {
-      console.error('❌ Erro ao tocar música:', error)
-      console.error('📋 Detalhes do erro:', {
-        name: error.name,
-        message: error.message,
-        audioSrc: audioPlayer.value?.src || 'N/A',
-        readyState: audioPlayer.value?.readyState || 'N/A'
-      })
+      console.error('❌ Erro ao tocar música:', error.message)
       isPlaying.value = false
       return false
     }

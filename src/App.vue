@@ -721,26 +721,7 @@ const handlePlaySong = async (song) => {
       console.log(`   - Token: ${spotifyAccessToken.value ? 'OK' : 'FALTANDO'}`)
     }
 
-    // Tenta encontrar Spotify URL se não existir e estiver logado
-    if (!song.spotifyUrl && isAuthenticated.value) {
-      console.log('🔍 Buscando URL do Spotify para tocar versão completa...')
-      try {
-        const meta = await searchAlbumCover(song.artist, song.title)
-        if (meta && meta.spotifyUrl) {
-          console.log(`✅ Spotify URL encontrado: ${meta.spotifyUrl}`)
-          song.spotifyUrl = meta.spotifyUrl
-          // Atualiza também o objeto original na lista se possível para não buscar de novo
-          const original = songs.value.find(s => s.id === song.id)
-          if (original) original.spotifyUrl = meta.spotifyUrl
-        } else {
-          console.log('⚠️ Não foi possível encontrar URL do Spotify')
-        }
-      } catch (e) {
-        console.warn('⚠️ Falha ao buscar metadados do Spotify:', e)
-      }
-    }
-
-    // PRIORIDADE: Tocar via HTML5 Player (nativo do PlayOff) se tiver audioUrl
+    // Se tem audioUrl, pula direto para HTML5 sem buscar metadados do Spotify (latência mínima)
     if (song.audioUrl) {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
       console.log('🎵 TOCANDO VIA HTML5 PLAYER (NATIVO DO PLAYOFF)')
