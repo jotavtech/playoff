@@ -13,6 +13,27 @@
 # ========================================
 
 services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: playoff-db
+    restart: unless-stopped
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: playoff
+      POSTGRES_PASSWORD: playoff123
+      POSTGRES_DB: playoff
+    volumes:
+      - playoff-pgdata:/var/lib/postgresql/data
+    networks:
+      - playoff-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U playoff -d playoff"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # PlayOff Application
   playoff:
     build:
@@ -37,12 +58,18 @@ services:
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
     networks:
       - playoff-network
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/songs"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+volumes:
+  playoff-pgdata:
 
 networks:
   playoff-network:

@@ -1146,10 +1146,8 @@ export function useCloudinaryAudio() {
         applyAccentColors(dominant, palette)
       }
       
-      // Dispatch custom event with color information
-      window.dispatchEvent(new CustomEvent('albumColorExtracted', {
-        detail: colorInfo
-      }))
+      // NÃO despacha albumColorExtracted aqui - extractDominantColor já o faz
+      // com o formato correto (arrays). Despachar novamente causava evento duplicado.
     }
   }
   
@@ -1293,10 +1291,9 @@ export function useCloudinaryAudio() {
   
   // Adiciona música à fila de prioridade
   const addToQueue = (song) => {
-    // Evita duplicatas consecutivas na fila
-    const lastInQueue = queue.value[queue.value.length - 1]
-    if (lastInQueue && lastInQueue.id === song.id) {
-      console.log('⚠️ Música já é a última da fila')
+    // Evita duplicatas em qualquer posição da fila
+    if (queue.value.some(q => q.id === song.id)) {
+      console.log('⚠️ Música já está na fila')
       return false
     }
     

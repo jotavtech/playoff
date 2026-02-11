@@ -54,13 +54,13 @@ const removeNotification = (id) => {
 <style scoped>
 .notification-container {
   position: fixed;
-  top: 2rem;
-  right: 2rem;
+  top: 1.5rem;
+  right: 1.5rem;
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  max-width: 400px;
+  gap: 0.6rem;
+  max-width: 380px;
   pointer-events: none;
 }
 
@@ -68,67 +68,83 @@ const removeNotification = (id) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.5rem;
-  border-radius: 15px;
-  background: rgba(0, 0, 0, 0.9);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.85rem 1.2rem;
+  border-radius: 0;
+  background: rgba(10, 10, 12, 0.95);
+  backdrop-filter: blur(16px);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-left: 4px solid currentColor;
   color: #ffffff;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
   font-weight: 600;
-  font-size: 0.9rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  max-width: 350px;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  box-shadow: 
+    4px 4px 0 rgba(0, 0, 0, 0.6),
+    0 8px 24px rgba(0, 0, 0, 0.4);
+  max-width: 360px;
   word-wrap: break-word;
   pointer-events: auto;
   position: relative;
   overflow: hidden;
+  transform: skewX(-1deg);
 }
 
 .notification-content {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
   flex: 1;
+  transform: skewX(1deg);
+}
+
+.notification-content i {
+  font-size: 1rem;
+  flex-shrink: 0;
 }
 
 .notification-close {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.4);
   cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 50%;
-  transition: all 0.3s ease;
+  padding: 0.3rem;
+  transition: all 0.15s ease;
   margin-left: 0.5rem;
+  transform: skewX(1deg);
 }
 
 .notification-close:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  transform: skewX(1deg) scale(1.2);
 }
 
 .notification-success {
-  border-color: rgba(46, 204, 113, 0.5);
-  background: linear-gradient(135deg, rgba(46, 204, 113, 0.2), rgba(39, 174, 96, 0.2));
-  color: #2ecc71;
+  border-color: rgba(255, 255, 255, 0.1);
+  border-left-color: #2ecc71;
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.12) 0%, rgba(10, 10, 12, 0.95) 60%);
+  color: #5dfa96;
 }
 
 .notification-error {
-  border-color: rgba(231, 76, 60, 0.5);
-  background: linear-gradient(135deg, rgba(231, 76, 60, 0.2), rgba(192, 57, 43, 0.2));
-  color: #e74c3c;
+  border-color: rgba(255, 255, 255, 0.1);
+  border-left-color: #ff4757;
+  background: linear-gradient(135deg, rgba(255, 71, 87, 0.15) 0%, rgba(10, 10, 12, 0.95) 60%);
+  color: #ff6b7a;
 }
 
 .notification-warning {
-  border-color: rgba(241, 196, 15, 0.5);
-  background: linear-gradient(135deg, rgba(241, 196, 15, 0.2), rgba(243, 156, 18, 0.2));
-  color: #f1c40f;
+  border-color: rgba(255, 255, 255, 0.1);
+  border-left-color: #ffa502;
+  background: linear-gradient(135deg, rgba(255, 165, 2, 0.12) 0%, rgba(10, 10, 12, 0.95) 60%);
+  color: #ffbe44;
 }
 
 .notification-info {
-  border-color: rgba(52, 152, 219, 0.5);
-  background: linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(41, 128, 185, 0.2));
-  color: #3498db;
+  border-color: rgba(255, 255, 255, 0.1);
+  border-left-color: #70a1ff;
+  background: linear-gradient(135deg, rgba(112, 161, 255, 0.12) 0%, rgba(10, 10, 12, 0.95) 60%);
+  color: #93b8ff;
 }
 
 /* Progress bar animation */
@@ -137,56 +153,59 @@ const removeNotification = (id) => {
   position: absolute;
   bottom: 0;
   left: 0;
-  height: 3px;
+  height: 2px;
   background: currentColor;
+  opacity: 0.6;
   animation: notificationProgress 3s linear forwards;
 }
 
 @keyframes notificationProgress {
-  from {
-    width: 100%;
-  }
-  to {
-    width: 0%;
-  }
+  from { width: 100%; }
+  to { width: 0%; }
 }
 
 /* Transition animations */
 .notification-enter-active {
-  transition: all 0.5s ease-out;
+  transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .notification-leave-active {
-  transition: all 0.3s ease-in;
+  transition: all 0.25s cubic-bezier(0.55, 0, 1, 0.45);
 }
 
 .notification-enter-from {
-  transform: translateX(100%);
+  transform: translateX(110%) skewX(-1deg);
   opacity: 0;
 }
 
 .notification-leave-to {
-  transform: translateX(100%);
+  transform: translateX(110%) skewX(-1deg);
   opacity: 0;
 }
 
 .notification-move {
-  transition: transform 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
   .notification-container {
-    top: 1rem;
-    right: 1rem;
-    left: 1rem;
+    top: 0.75rem;
+    right: 0.75rem;
+    left: 0.75rem;
     max-width: none;
   }
 
   .notification {
-    padding: 0.8rem 1rem;
+    padding: 0.7rem 1rem;
     font-size: 0.8rem;
     max-width: none;
+    transform: none;
+  }
+
+  .notification-content,
+  .notification-close {
+    transform: none;
   }
 }
 
@@ -199,11 +218,7 @@ const removeNotification = (id) => {
 
   .notification {
     padding: 0.6rem 0.8rem;
-    border-radius: 10px;
-  }
-
-  .notification-content {
-    gap: 0.3rem;
+    font-size: 0.78rem;
   }
 }
-</style> 
+</style>

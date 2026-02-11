@@ -1388,7 +1388,7 @@ app.post('/api/songs', async (req, res) => {
     const authHeader = req.headers.authorization;
     if (authHeader) {
       const token = authHeader.replace('Bearer ', '');
-      const user = db.getUserBySpotifyId(token); // Assume que token é spotify_id ou access_token
+      const user = await db.getUserBySpotifyId(token); // Assume que token é spotify_id ou access_token
       // O requireAuth usa getUserBySpotifyId(token) onde token é passado no header
       // No frontend, precisamos enviar o token correto
       if (user) userId = user.id;
@@ -1416,7 +1416,7 @@ app.post('/api/songs', async (req, res) => {
     
     // Persiste no banco de dados
     try {
-      db.upsertSong({
+      await db.upsertSong({
         spotify_id: newSong.id,
         title: newSong.title,
         artist: newSong.artist,
@@ -1468,7 +1468,7 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     totalSongs: songs.length,
-    maxSongs: MAX_SONGS,
+    maxSongs: 'unlimited',
     observersRegistered: voteManager.observers.length,
     highestVoted: voteManager.getHighestVotedSong(),
     playerStatus: musicPlayer.getCurrentPlaying(),
@@ -1644,7 +1644,7 @@ const startServer = async () => {
     server.close(() => {
       console.log('✅ Servidor fechado com sucesso');
       console.log('👋 Até mais! Obrigado por usar o PlayOff!');
-      pool.end();
+      if (pool) pool.end();
     });
   });
 };

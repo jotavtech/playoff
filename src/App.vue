@@ -464,26 +464,29 @@ setTimeout(() => {
 const normalizeSongData = (song) => {
   if (!song || typeof song !== 'object') return song
   
+  // Cria cópia rasa para não mutar o objeto original
+  const s = { ...song }
+  
   // Normaliza title/name
-  if (!song.title && song.name) song.title = song.name
+  if (!s.title && s.name) s.title = s.name
   
   // Normaliza albumCover
-  if (!song.albumCover && song.album_cover) song.albumCover = song.album_cover
+  if (!s.albumCover && s.album_cover) s.albumCover = s.album_cover
   
   // Normaliza spotifyUrl (CRÍTICO para playback)
-  if (!song.spotifyUrl && song.spotify_url) song.spotifyUrl = song.spotify_url
+  if (!s.spotifyUrl && s.spotify_url) s.spotifyUrl = s.spotify_url
   
   // Normaliza previewUrl (CRÍTICO para fallback de preview)
-  if (!song.previewUrl && song.preview_url) song.previewUrl = song.preview_url
+  if (!s.previewUrl && s.preview_url) s.previewUrl = s.preview_url
   
   // Normaliza audioUrl
-  if ((!song.audioUrl || song.audioUrl === '') && song.audio_url) song.audioUrl = song.audio_url
+  if ((!s.audioUrl || s.audioUrl === '') && s.audio_url) s.audioUrl = s.audio_url
   
   // Normaliza duration
-  if (!song.duration_ms && typeof song.duration === 'number') song.duration_ms = song.duration
-  if (!song.duration && typeof song.duration_ms === 'number') song.duration = song.duration_ms
+  if (!s.duration_ms && typeof s.duration === 'number') s.duration_ms = s.duration
+  if (!s.duration && typeof s.duration_ms === 'number') s.duration = s.duration_ms
   
-  return song
+  return s
 }
 
 // ============= ANIMAÇÃO DE ROLAGEM PARA O PLAYER =============
@@ -771,19 +774,15 @@ const handlePlaySong = async (song) => {
       if (success) {
         console.log('✅ Música tocando via HTML5 Player!')
 
-        // Atualiza a track atual na UI
-        await setTrack(song)
+        // NÃO chama setTrack aqui! playSong já define currentTrack, busca capa e atualiza background.
+        // Chamar setTrack pausaria o áudio e resetaria a posição (bug crítico).
 
         // Rola para o player com animação
         scrollToPlayerWithAnimation()
 
-        // Mostra notificação
-        showNotification(`🎵 ${song.title}`, 'success')
-
         return true
       } else {
         console.warn('⚠️ Falha ao tocar via HTML5 Player')
-        showNotification(`Erro ao tocar "${song.title}"`, 'error')
         return false
       }
     }
@@ -897,7 +896,6 @@ const handlePlaySong = async (song) => {
             })
           }
 
-          showNotification(`🎵 Spotify: ${song.title}`, 'success')
           return true
         } else {
           console.error('❌ Falha ao tocar no Spotify SDK')
@@ -1003,7 +1001,6 @@ const handlePlayPreview = async (song) => {
     const result = await playSong(previewSong)
     
     if (result) {
-      showNotification(`🎵 Preview (30s): ${song.title}`, 'info')
       return true
     } else {
       isPlayingPreview.value = false
@@ -1225,6 +1222,8 @@ const handlePreviousTrack = async () => {
     console.log('⏮️ App.vue: Navegando para música anterior...')
     
     const list = combinedSongs.value
+    
+    // Se não há lista ou está vazia, busca recomendação
     if (!list || list.length === 0) return
 
     const currentIndex = list.findIndex(s => s.id === currentTrack.value?.id)
@@ -1321,6 +1320,10 @@ const fetchSimilarTrack = async (seedTrack) => {
 let scrobbleTimeout = null
 let lastScrobbledTrack = null
 
+// IDs de intervalos para cleanup no onUnmounted
+let spotifySyncIntervalId = null
+let localInterpolationIntervalId = null
+
 // Função para tocar músicas do DiscoverySection
 const handleDiscoveryPlay = async (track) => {
   console.log('🔥 Discovery: Tocando música:', track.name, '-', track.artist)
@@ -1344,7 +1347,6 @@ const handleDiscoveryPlay = async (track) => {
           duration_ms: spotifyTrack.duration_ms,
           previewUrl: spotifyTrack.preview_url
         })
-        showNotification(`▶ ${spotifyTrack.name}`, 'success')
         return
       }
     }
@@ -1380,9 +1382,8 @@ const handleDiscoveryAddToQueue = async (track) => {
           previewUrl: spotifyTrack.preview_url
         }
         
-        // Adiciona à fila
-        queue.value.push(songData)
-        showNotification(`"${songData.title}" adicionada à fila`, 'success')
+        // Adiciona à fila usando handleAddToQueue (evita duplicatas)
+        handleAddToQueue(songData)
         return
       }
     }
@@ -1475,7 +1476,6 @@ const handleNextTrack = async () => {
       if (currentTrack.value) {
         const similar = await fetchSimilarTrack(currentTrack.value)
         if (similar) {
-          showNotification(`🎵 Tocando similar: ${similar.title}`, 'info')
           await handleAutoPlaySong(similar)
           return
         }
@@ -1496,7 +1496,6 @@ const handleNextTrack = async () => {
         console.log('🔄 Fim da fila - buscando música similar...')
         const similar = await fetchSimilarTrack(currentTrack.value)
         if (similar) {
-          showNotification(`🎵 Tocando similar: ${similar.title}`, 'info')
           await handleAutoPlaySong(similar)
           return
         }
@@ -1592,7 +1591,7 @@ let isRefreshingToken = false // Flag para evitar concorrência de refresh
 
 // ============= SINCRONIZAÇÃO SPOTIFY EXTERNO =============
 const startSpotifySync = () => {
-  setInterval(async () => {
+  spotifySyncIntervalId = setInterval(async () => {
     // Se não estiver autenticado ou já estiver tentando renovar token, pula
     if (!isAuthenticated.value || isRefreshingToken) return
 
@@ -1690,7 +1689,7 @@ const startSpotifySync = () => {
 // ============= INTERPOLAÇÃO LOCAL DE TEMPO =============
 const startLocalInterpolation = () => {
   // Loop de alta frequência (60fps aprox) para suavidade total
-  setInterval(() => {
+  localInterpolationIntervalId = setInterval(() => {
     // Se Spotify está ativo e tocando (e temos dados de sync)
     if (isSpotifyActive.value && !isSpotifyPaused.value && lastSpotifySyncTime.value > 0) {
       
@@ -1970,6 +1969,14 @@ watch([currentTrack, isPlaying], () => {
 // Atualiza posição periodicamente (a cada 2s, não 1s)
 let mediaSessionInterval = null
 
+// Função nomeada no escopo do módulo para cleanup correto no onUnmounted
+const enableAudioOnInteraction = () => {
+  if (!userHasInteracted.value) {
+    userHasInteracted.value = true
+    console.log('✅ Interação do usuário detectada - áudio habilitado')
+  }
+}
+
 // ============= CICLO DE VIDA DO COMPONENTE =============
 
 // Inicialização quando o componente é montado
@@ -2095,12 +2102,7 @@ onMounted(async () => {
     window.addEventListener('audio-ended', handleAudioEndedEvent)
     
     // Detecta qualquer clique na página para habilitar áudio
-    const enableAudioOnInteraction = () => {
-      if (!userHasInteracted.value) {
-        userHasInteracted.value = true
-        console.log('✅ Interação do usuário detectada - áudio habilitado')
-      }
-    }
+    // enableAudioOnInteraction é definida no escopo do módulo para cleanup correto
     document.addEventListener('click', enableAudioOnInteraction)
     document.addEventListener('touchstart', enableAudioOnInteraction)
     
@@ -2131,12 +2133,31 @@ onUnmounted(() => {
     mediaSessionInterval = null
   }
   
+  // Limpa intervalos de sync e interpolação
+  if (spotifySyncIntervalId) {
+    clearInterval(spotifySyncIntervalId)
+    spotifySyncIntervalId = null
+  }
+  if (localInterpolationIntervalId) {
+    clearInterval(localInterpolationIntervalId)
+    localInterpolationIntervalId = null
+  }
+  
+  // Limpa scrobble timeout
+  if (scrobbleTimeout) {
+    clearTimeout(scrobbleTimeout)
+    scrobbleTimeout = null
+  }
+  
   // Removo event listeners para evitar memory leaks
   window.removeEventListener('albumColorExtracted', handleAlbumColorExtracted)
   window.removeEventListener('audio-ended', handleAudioEndedEvent)
+  document.removeEventListener('click', enableAudioOnInteraction)
+  document.removeEventListener('touchstart', enableAudioOnInteraction)
   
-  console.log('✅ Limpeza concluída')
+  console.log(' Limpeza concluída')
 })
+
 </script>
 
 <style scoped>
@@ -2187,96 +2208,101 @@ onUnmounted(() => {
 /* ============= BOTÕES DE LOGIN/PERFIL ============= */
 .user-section {
   position: fixed;
-  top: 1rem;
-  right: 1rem;
+  top: 1.2rem;
+  right: 1.2rem;
   z-index: 1000;
   display: flex;
-  gap: 1rem;
+  gap: 0.6rem;
   align-items: center;
 }
 
 .queue-toggle-btn {
-  width: 40px;
-  height: 40px;
-  background: rgba(0, 0, 0, 0.7);
-  border: 2px solid #fff;
-  color: #fff;
-  font-size: 1.2rem;
+  width: 38px;
+  height: 38px;
+  background: rgba(10, 10, 12, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   transform: skewX(-5deg);
+  backdrop-filter: blur(12px);
 }
 
 .queue-toggle-btn:hover {
   background: #fff;
   color: #000;
+  border-color: #fff;
   transform: skewX(-5deg) translate(-2px, -2px);
-  box-shadow: 2px 2px 0 #ff6b6b;
+  box-shadow: 2px 2px 0 var(--accent-rgb, #ff6b6b);
 }
 
 .reconnect-btn {
-  width: 40px;
-  height: 40px;
-  background: rgba(255, 107, 107, 0.2);
-  border: 2px solid #ff6b6b;
-  color: #ff6b6b;
-  font-size: 1.2rem;
+  width: 38px;
+  height: 38px;
+  background: rgba(255, 71, 87, 0.15);
+  border: 2px solid #ff4757;
+  color: #ff4757;
+  font-size: 1rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   transform: skewX(-5deg);
   animation: pulse-red 2s infinite;
 }
 
 .reconnect-btn:hover {
-  background: #ff6b6b;
+  background: #ff4757;
   color: #fff;
-  transform: skewX(-5deg) scale(1.1);
+  transform: skewX(-5deg) scale(1.08);
 }
 
 @keyframes pulse-red {
-  0% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
-  70% { box-shadow: 0 0 0 10px rgba(255, 107, 107, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.6); }
+  70% { box-shadow: 0 0 0 8px rgba(255, 71, 87, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
 }
 
 .queue-badge {
   position: absolute;
-  top: -5px;
-  right: -5px;
-  background: #ff6b6b;
+  top: -6px;
+  right: -6px;
+  background: var(--accent-rgb, #ff6b6b);
   color: #fff;
-  font-size: 0.7rem;
-  font-weight: bold;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
   width: 18px;
   height: 18px;
-  border-radius: 50%;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #fff;
+  border: 1.5px solid #fff;
+  transform: skewX(5deg);
 }
 
 .login-btn {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.8rem 1.2rem;
+  padding: 0.7rem 1.1rem;
   background: #1DB954;
   border: 2px solid #1DB954;
   color: #fff;
-  font-family: 'Cingire', sans-serif;
-  font-size: 0.95rem;
-  letter-spacing: 0.05em;
+  font-family: 'Space Grotesk', 'Cingire', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   transform: skewX(-5deg);
 }
 
@@ -2288,66 +2314,82 @@ onUnmounted(() => {
 }
 
 .login-btn i {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
 }
 
 .profile-btn {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 1rem 0.5rem 0.5rem;
-  background: rgba(0, 0, 0, 0.8);
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem 0.4rem 0.4rem;
+  background: rgba(10, 10, 12, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.25);
   color: #fff;
-  font-family: 'Cingire', sans-serif;
-  font-size: 0.9rem;
-  letter-spacing: 0.05em;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   transform: skewX(-3deg);
+  backdrop-filter: blur(12px);
 }
 
 .profile-btn:hover {
-  background: rgba(255, 107, 107, 0.2);
-  border-color: #ff6b6b;
+  background: rgba(var(--accent-color, 255, 107, 107), 0.15);
+  border-color: var(--accent-rgb, #ff6b6b);
   transform: skewX(-3deg) translate(-2px, -2px);
-  box-shadow: 2px 2px 0 #ff6b6b;
+  box-shadow: 2px 2px 0 var(--accent-rgb, #ff6b6b);
 }
 
 .user-avatar {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  border: 2px solid #1DB954;
+  border: 2px solid var(--accent-rgb, #1DB954);
   object-fit: cover;
+  transition: border-color var(--color-transition);
+}
+
+.user-avatar.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-rgb, #6366f1);
+  color: #fff;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
 }
 
 .user-name {
-  max-width: 120px;
+  max-width: 110px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Year Retrospective Button - Mesmo padrão dos outros botões */
+/* Year Retrospective Button */
 .year-retro-btn {
-  width: 40px;
-  height: 40px;
-  background: rgba(0, 0, 0, 0.7);
-  border: 2px solid #ff6b6b;
-  color: #ff6b6b;
-  font-size: 1.2rem;
+  width: 38px;
+  height: 38px;
+  background: rgba(10, 10, 12, 0.85);
+  border: 2px solid var(--accent-medium, rgba(255, 107, 107, 0.6));
+  color: var(--accent-light, #ff6b6b);
+  font-size: 1rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s ease, border-color var(--color-transition), color var(--color-transition);
   transform: skewX(-5deg);
+  backdrop-filter: blur(12px);
 }
 
 .year-retro-btn:hover {
-  background: #ff6b6b;
-  color: #000;
+  background: var(--accent-rgb, #ff6b6b);
+  color: #fff;
+  border-color: var(--accent-rgb, #ff6b6b);
   transform: skewX(-5deg) translate(-2px, -2px);
   box-shadow: 2px 2px 0 #fff;
 }
@@ -2355,18 +2397,19 @@ onUnmounted(() => {
 .retrospective-btn,
 .about-btn,
 .friends-btn {
-  width: 40px;
-  height: 40px;
-  background: rgba(0, 0, 0, 0.7);
-  border: 2px solid #fff;
-  color: #fff;
-  font-size: 1.2rem;
+  width: 38px;
+  height: 38px;
+  background: rgba(10, 10, 12, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   transform: skewX(-5deg);
+  backdrop-filter: blur(12px);
 }
 
 .retrospective-btn:hover,
@@ -2374,8 +2417,9 @@ onUnmounted(() => {
 .friends-btn:hover {
   background: #fff;
   color: #000;
+  border-color: #fff;
   transform: skewX(-5deg) translate(-2px, -2px);
-  box-shadow: 2px 2px 0 var(--accent-rgb);
+  box-shadow: 2px 2px 0 var(--accent-rgb, #ff6b6b);
 }
 
 .friends-btn {
@@ -2385,11 +2429,11 @@ onUnmounted(() => {
 .friends-btn::after {
   content: '';
   position: absolute;
-  top: -2px;
-  right: -2px;
+  top: -3px;
+  right: -3px;
   width: 8px;
   height: 8px;
-  background: #4CAF50;
+  background: #2ecc71;
   border-radius: 50%;
   opacity: 0;
   transition: opacity 0.2s;
@@ -2399,25 +2443,28 @@ onUnmounted(() => {
   .user-section {
     top: 0.5rem;
     right: 0.5rem;
-    gap: 0.5rem;
+    gap: 0.4rem;
     flex-wrap: wrap;
-    max-width: 50%;
+    max-width: 55%;
     justify-content: flex-end;
   }
   
   .queue-toggle-btn,
+  .year-retro-btn,
   .retrospective-btn,
   .about-btn,
   .friends-btn,
   .reconnect-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 1rem;
+    width: 34px;
+    height: 34px;
+    font-size: 0.9rem;
+    backdrop-filter: none;
+    background: rgba(0, 0, 0, 0.85);
   }
   
   .login-btn {
-    padding: 0.5rem 0.6rem;
-    font-size: 0.85rem;
+    padding: 0.45rem 0.55rem;
+    font-size: 0.8rem;
   }
   
   .login-btn span {
@@ -2425,7 +2472,9 @@ onUnmounted(() => {
   }
   
   .profile-btn {
-    padding: 0.4rem;
+    padding: 0.35rem;
+    backdrop-filter: none;
+    background: rgba(0, 0, 0, 0.85);
   }
   
   .user-name {
@@ -2433,8 +2482,8 @@ onUnmounted(() => {
   }
   
   .user-avatar {
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
   }
 }
 

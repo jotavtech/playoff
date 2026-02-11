@@ -444,21 +444,24 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   position: relative;
   padding: 2.5rem;
   padding-top: 2rem;
-  background: rgba(0, 0, 0, 0.85); /* Darker, solid fallback */
-  border: 2px solid #fff;
+  background: rgba(0, 0, 0, 0.88);
+  border: 2px solid rgba(255, 255, 255, 0.9);
   transform: skewX(-3deg);
-  box-shadow: 8px 8px 0 rgba(255, 107, 107, 0.8);
+  box-shadow: 
+    8px 8px 0 var(--accent-rgb, rgba(255, 107, 107, 0.8)),
+    0 20px 60px rgba(0, 0, 0, 0.5);
+  transition: box-shadow var(--color-transition), border-color 0.3s ease;
 }
 
 @media (min-width: 769px) {
   .player-card {
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(10px);
+    background: rgba(8, 8, 12, 0.7);
+    backdrop-filter: blur(20px) saturate(1.3);
   }
 }
 
 .player-card > * {
-  transform: skewX(3deg); /* Contra-inclinação para o conteúdo */
+  transform: skewX(3deg);
 }
 
 .track-info {
@@ -469,58 +472,65 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 
 .track-title {
   font-family: 'Space Grotesk', sans-serif !important;
-  font-size: 3rem;
+  font-size: 2.8rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
   color: #fff;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   text-transform: none;
+  line-height: 1.1;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
 }
 
 .track-artist {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 500;
-  color: #ff6b6b;
+  color: var(--accent-rgb, #ff6b6b);
   margin-bottom: 0.3rem;
+  transition: color var(--color-transition);
+  letter-spacing: 0.01em;
 }
 
 .track-album {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.55);
   margin-bottom: 2rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .player-controls {
   display: flex;
-  gap: 2rem;
+  gap: 1.5rem;
   justify-content: center;
   margin-bottom: 2.5rem;
   align-items: center;
 }
 
 .control-btn {
-  width: 65px;
-  height: 65px;
+  width: 56px;
+  height: 56px;
   border-radius: 0;
-  border: 3px solid #fff;
-  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.04);
   color: #fff;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.4rem;
+  font-size: 1.2rem;
 }
 
 .control-btn:hover {
-  background: #ff6b6b;
-  border-color: #ff6b6b;
+  background: var(--accent-rgb, #ff6b6b);
+  border-color: var(--accent-rgb, #ff6b6b);
   transform: translate(-2px, -2px);
   box-shadow: 2px 2px 0 #fff;
+  transition: all 0.15s ease, background var(--color-transition);
 }
 
 .play-pause-btn {
