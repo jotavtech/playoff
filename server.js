@@ -1210,49 +1210,74 @@ app.get('/api/songs', (req, res) => {
 // Rota para registrar um voto simples em uma música
 // Esta rota utiliza o padrão Observer para notificar automaticamente
 // todos os componentes interessados sobre o novo voto
+// Fix #12: Rate limit de votos por IP (1 voto por música a cada 5 segundos)
+const voteRateLimit = new Map(); // key: `${ip}:${songId}` -> timestamp
+
 app.post('/api/vote', (req, res) => {
   try {
     const { songId, votes } = req.body;
     
-    // Validação de entrada - songId é obrigatório
     if (!songId) {
-      console.log('❌ Tentativa de voto sem songId');
       return res.status(400).json({ 
         error: 'ID da música é obrigatório para votação', 
         success: false 
       });
     }
     
-    // Verifico se a música existe no sistema
+    // Fix #12: Verifica rate limit por IP
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+    const rateLimitKey = `${clientIp}:${songId}`;
+    const lastVoteTime = voteRateLimit.get(rateLimitKey) || 0;
+    const now = Date.now();
+    
+    if (now - lastVoteTime < 5000) {
+      return res.status(429).json({
+        error: 'Aguarde antes de votar novamente nesta música',
+        success: false
+      });
+    }
+    voteRateLimit.set(rateLimitKey, now);
+    
+    // Limpa entradas antigas do rate limit a cada 1000 votos
+    if (voteRateLimit.size > 1000) {
+      const cutoff = now - 10000;
+      for (const [key, time] of voteRateLimit) {
+        if (time < cutoff) voteRateLimit.delete(key);
+      }
+    }
+    
     const song = songs.find(s => s.id === songId);
     if (!song) {
-      console.log(`❌ Tentativa de voto em música inexistente: ${songId}`);
       return res.status(404).json({ 
         error: 'Música não encontrada no sistema', 
         success: false 
       });
     }
     
-    // Processo o voto usando o VoteManager (padrão Observer)
-    // Isso automaticamente notificará todos os observadores registrados
     const newVoteCount = (song.votes || 0) + 1;
     console.log(`🗳️ Processando voto para "${song.title}" - novo total: ${newVoteCount}`);
     voteManager.processVote(songId, newVoteCount);
     
-    // Obtenho estados atualizados após o voto
+    // Fix #11: Persiste votos no banco de dados em background
+    if (pool) {
+      pool.query(
+        'UPDATE songs SET votes = $1 WHERE id = $2 OR spotify_id = $2',
+        [song.votes, songId]
+      ).catch(err => console.warn('⚠️ Falha ao persistir voto no DB:', err.message));
+    }
+    
     const highestVoted = voteManager.getHighestVotedSong();
     const playerState = musicPlayer.getCurrentPlaying();
     
-    // Resposta com informações completas sobre o resultado do voto
     res.json({ 
-      song: song,                      // Música votada
-      highestVoted: highestVoted,      // Nova música líder (se mudou)
-      currentPlaying: playerState,     // Estado atual do player
+      song: song,
+      highestVoted: highestVoted,
+      currentPlaying: playerState,
       message: `Voto registrado para "${song.title}"! Total: ${song.votes} votos`,
       success: true 
     });
     
-    console.log(`✅ Voto registrado com sucesso para "${song.title}" por ${song.artist}`);
+    console.log(`✅ Voto registrado para "${song.title}" (IP: ${clientIp.substring(0, 10)}...)`);
   } catch (error) {
     console.error('❌ Erro ao registrar voto:', error);
     res.status(500).json({ 
@@ -1481,9 +1506,119 @@ app.get('/api/health', (req, res) => {
   console.log('✅ Health check respondido - Sistema funcionando normalmente');
 });
 
+// ============= Fix #7: PROXY SPOTIFY CLIENT CREDENTIALS =============
+// Endpoint backend para obter token Spotify sem expor secrets no frontend
+const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || '1fd9e79e2e074a33b258c30747f74e6b';
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || '3bc40e26370c43818ec3612d25fcbf96';
+let cachedClientToken = null;
+let cachedClientTokenExpiry = 0;
+
+app.get('/api/spotify/client-token', async (req, res) => {
+  try {
+    // Retorna token em cache se ainda válido
+    if (cachedClientToken && cachedClientTokenExpiry > Date.now()) {
+      return res.json({ access_token: cachedClientToken, expires_in: Math.floor((cachedClientTokenExpiry - Date.now()) / 1000) });
+    }
+    
+    const credentials = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
+    const response = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: 'grant_type=client_credentials'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Spotify auth failed: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    cachedClientToken = data.access_token;
+    cachedClientTokenExpiry = Date.now() + (data.expires_in * 1000) - 60000; // 1 min buffer
+    
+    res.json({ access_token: data.access_token, expires_in: data.expires_in });
+  } catch (error) {
+    console.error('❌ Erro no proxy Spotify client token:', error.message);
+    res.status(500).json({ error: 'Falha ao obter token Spotify' });
+  }
+});
+
+// ============= Fix #7: PROXY SPOTIFY SEARCH =============
+// Busca no Spotify sem expor client secret no frontend
+app.get('/api/spotify/search', async (req, res) => {
+  try {
+    // Garante token válido
+    if (!cachedClientToken || cachedClientTokenExpiry <= Date.now()) {
+      const credentials = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
+      const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'grant_type=client_credentials'
+      });
+      if (tokenRes.ok) {
+        const tokenData = await tokenRes.json();
+        cachedClientToken = tokenData.access_token;
+        cachedClientTokenExpiry = Date.now() + (tokenData.expires_in * 1000) - 60000;
+      }
+    }
+    
+    const { q, type, limit, market } = req.query;
+    const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=${type || 'track'}&limit=${limit || 3}&market=${market || 'BR'}`;
+    
+    const response = await fetch(searchUrl, {
+      headers: { 'Authorization': `Bearer ${cachedClientToken}` }
+    });
+    
+    if (!response.ok) throw new Error(`Spotify search failed: ${response.status}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('❌ Erro no proxy Spotify search:', error.message);
+    res.status(500).json({ error: 'Falha na busca Spotify' });
+  }
+});
+
+// ============= Fix #16: PROXY CORS PARA IMAGENS =============
+// Substitui dependência do allorigins.win por proxy próprio
+app.get('/api/proxy-image', async (req, res) => {
+  try {
+    const imageUrl = req.query.url;
+    if (!imageUrl) return res.status(400).json({ error: 'URL obrigatória' });
+    
+    // Valida que é uma URL de imagem conhecida (Spotify, Last.fm, etc.)
+    const allowedDomains = ['i.scdn.co', 'mosaic.scdn.co', 'lastfm.freetls.fastly.net', 'coverartarchive.org', 'is1-ssl.mzstatic.com'];
+    const url = new URL(imageUrl);
+    if (!allowedDomains.some(d => url.hostname.includes(d))) {
+      return res.status(403).json({ error: 'Domínio não permitido' });
+    }
+    
+    const response = await fetch(imageUrl);
+    if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`);
+    
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache 24h
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    
+    const buffer = await response.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch (error) {
+    console.error('❌ Erro no proxy de imagem:', error.message);
+    res.status(500).json({ error: 'Falha ao buscar imagem' });
+  }
+});
+
 // ============= ROTA DE TESTE TEMPORÁRIA =============
-// Cria usuário de teste e envia pedido de amizade
+// Fix #17: Protegida com verificação de autenticação admin
 app.get('/api/admin/create-test-friend', async (req, res) => {
+  // Fix #17: Requer header de admin ou query param secret
+  const adminSecret = process.env.ADMIN_SECRET || 'playoff-admin-2024';
+  if (req.query.secret !== adminSecret && req.headers['x-admin-secret'] !== adminSecret) {
+    return res.status(403).json({ error: 'Acesso não autorizado' });
+  }
+  
   const targetUsername = req.query.target || 'Jotaa';
   
   console.log(`🧪 Criando usuário de teste para enviar amizade para: ${targetUsername}`);

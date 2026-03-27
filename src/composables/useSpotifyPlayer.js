@@ -105,11 +105,38 @@ export function useSpotifyPlayer() {
 
     player.value = new window.Spotify.Player({
       name: 'PlayOff Music Player 🎵',
-      getOAuthToken: cb => { 
-        // Sempre pega o token mais recente do localStorage
-        const token = localStorage.getItem('spotify_access_token')
+      getOAuthToken: async cb => { 
+        // Fix #5: Proactive token refresh — verifica expiração antes de retornar
+        let token = localStorage.getItem('spotify_access_token')
+        const tokenExpiry = localStorage.getItem('spotify_token_expiry')
+        
+        // Se o token expira em menos de 5 minutos, tenta renovar proativamente
+        if (tokenExpiry && Date.now() > (parseInt(tokenExpiry, 10) - 300000)) {
+          console.log('🔄 Token próximo de expirar, renovando proativamente...')
+          try {
+            const response = await fetch('/auth/spotify/refresh', {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('spotify_id')}`,
+                'X-Spotify-Token': token || ''
+              }
+            })
+            if (response.ok) {
+              const data = await response.json()
+              if (data.access_token) {
+                token = data.access_token
+                localStorage.setItem('spotify_access_token', token)
+                if (data.expires_in) {
+                  localStorage.setItem('spotify_token_expiry', String(Date.now() + data.expires_in * 1000))
+                }
+                console.log('✅ Token renovado proativamente com sucesso')
+              }
+            }
+          } catch (e) {
+            console.warn('⚠️ Falha no refresh proativo, usando token atual:', e.message)
+          }
+        }
+        
         if (token) {
-          console.log('🔐 Spotify pediu token: fornecendo token atual')
           cb(token)
         } else {
           console.error('❌ Spotify pediu token mas não há token no storage')
@@ -122,48 +149,38 @@ export function useSpotifyPlayer() {
     // Event Listeners
 
     // Player pronto
-    player.value.addListener('ready', async ({ device_id }) => {
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      console.log('✅ SPOTIFY PLAYER READY EVENT!')
-      console.log(`   Device ID: ${device_id}`)
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    // Fix #2: Marca isReady IMEDIATAMENTE — o SDK já garante que o device existe
+    // A confirmação do device no servidor roda em background sem bloquear
+    player.value.addListener('ready', ({ device_id }) => {
+      console.log('✅ SPOTIFY PLAYER READY! Device ID:', device_id)
       
       deviceId.value = device_id
       isConnecting.value = false
+      isReady.value = true
       
-      // Aguarda o device ser registrado no servidor do Spotify
-      console.log('⏳ Aguardando registro do device no Spotify...')
-      
-      // Verifica se o device aparece na lista (até 10 tentativas)
-      let deviceConfirmed = false
-      for (let i = 1; i <= 10; i++) {
-        await new Promise(r => setTimeout(r, 1000))
-        
-        const devices = await getDevices()
-        const ourDevice = devices.find(d => d.id === device_id)
-        
-        console.log(`   Tentativa ${i}/10 - Devices: ${devices.length}`)
-        
-        if (ourDevice) {
-          console.log(`✅ Device confirmado: ${ourDevice.name} (${ourDevice.type})`)
-          deviceConfirmed = true
-          break
+      // Confirmação de device e transferência rodam em background (não bloqueiam)
+      const confirmDeviceInBackground = async () => {
+        try {
+          // Tenta transferir o playback automaticamente
+          const transferred = await transferPlayback()
+          console.log(`📡 Transferência de playback: ${transferred ? 'OK' : 'Falhou (normal se não há música tocando)'}`)
+          
+          // Confirma device na API em background (até 3 tentativas rápidas)
+          for (let i = 1; i <= 3; i++) {
+            await new Promise(r => setTimeout(r, 1000))
+            const devices = await getDevices()
+            const ourDevice = devices.find(d => d.id === device_id)
+            if (ourDevice) {
+              console.log(`✅ Device confirmado em background: ${ourDevice.name}`)
+              return
+            }
+          }
+          console.warn('⚠️ Device não confirmado na API após 3s (player continua funcional)')
+        } catch (e) {
+          console.warn('⚠️ Erro na confirmação em background:', e.message)
         }
       }
-      
-      if (!deviceConfirmed) {
-        console.warn('⚠️ Device não apareceu na lista após 10s')
-        console.log('💡 Isso pode indicar problema de rede ou token')
-        // Continua mesmo assim - às vezes funciona
-      }
-      
-      // Marca como pronto
-      isReady.value = true
-      console.log('✅ Player marcado como pronto!')
-      
-      // Tenta transferir o playback automaticamente
-      const transferred = await transferPlayback()
-      console.log(`📡 Transferência de playback: ${transferred ? 'OK' : 'Falhou (normal se não há música tocando)'}`)
+      confirmDeviceInBackground()
     })
 
     // Player não pronto
@@ -384,12 +401,12 @@ export function useSpotifyPlayer() {
 
       // PRIORIDADE ABSOLUTA: Web Player do PlayOff (som sai no navegador, não no celular)
       
-      // Aguarda Web Player ficar pronto (até 5 segundos)
+      // Fix #2: Aguarda Web Player ficar pronto (até 2 segundos — reduzido de 5s)
       if (!isReady.value || !deviceId.value) {
         console.log('⏳ Aguardando Web Player do navegador ficar pronto...')
         
         let waitAttempts = 0
-        while ((!isReady.value || !deviceId.value) && waitAttempts < 50) {
+        while ((!isReady.value || !deviceId.value) && waitAttempts < 20) {
           await new Promise(r => setTimeout(r, 100))
           waitAttempts++
         }
@@ -407,31 +424,24 @@ export function useSpotifyPlayer() {
       const targetDeviceId = deviceId.value
       console.log(`🎯 Device alvo (Web Player): ${targetDeviceId}`)
 
-      // PRIMEIRO: Verifica se o device está registrado no Spotify
-      console.log('🔍 Verificando se device está registrado no Spotify...')
-      let devices = await getDevices()
-      // Busca por ID exato OU por nome do player (fallback para quando ID muda após reconexão)
+      // Fix #2: Verifica device com retries rápidos (max 3s em vez de 15s)
       const PLAYER_NAME = 'PlayOff Music Player 🎵'
+      let devices = await getDevices()
       let ourDevice = devices.find(d => d.id === targetDeviceId) || devices.find(d => d.name === PLAYER_NAME)
       
-      // Se device não encontrado, aguarda e tenta novamente (até 5x com delay progressivo)
+      // Se device não encontrado, retries rápidos (3x, 1s cada = max 3s)
       if (!ourDevice) {
-        console.log('⏳ Device não encontrado na lista, aguardando registro...')
-        for (let attempt = 1; attempt <= 5; attempt++) {
-          await new Promise(r => setTimeout(r, attempt * 1000)) // 1s, 2s, 3s, 4s, 5s
+        console.log('⏳ Device não encontrado, retries rápidos...')
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          await new Promise(r => setTimeout(r, 1000))
           devices = await getDevices()
           ourDevice = devices.find(d => d.id === targetDeviceId) || devices.find(d => d.name === PLAYER_NAME)
-          
-          if (ourDevice) {
-            console.log(`✅ Device encontrado após ${attempt} tentativa(s)!`)
-            break
-          }
-          console.log(`   Tentativa ${attempt}/5 - Device ainda não registrado...`)
+          if (ourDevice) break
         }
       }
       
       if (!ourDevice) {
-        console.error('❌ Device não foi registrado no Spotify após 5 tentativas')
+        console.error('❌ Device não registrado no Spotify')
         error.value = 'Spotify Premium necessário para reprodução completa'
         isBuffering.value = false
         return false

@@ -22,23 +22,24 @@ const spotifyTokenExpiry = ref(null)   // Timestamp de expiração do token
 const currentSongsList = ref([])       // Lista atual de músicas para navegação
 let colorThief = null                  // Instância do ColorThief
 
+// Fix #8: Cache global de metadados para evitar buscas duplicadas
+const metadataCache = new Map() // key: `${artist}:${track}` -> resultado
+const CACHE_MAX_SIZE = 200
+const CACHE_TTL = 30 * 60 * 1000 // 30 minutos
+
 export function useCloudinaryAudio() {
   // ============= CONFIGURAÇÕES DAS APIS =============
-  // Credenciais e endpoints para integração com serviços externos
-  // Em produção, essas informações seriam armazenadas em variáveis de ambiente
+  // Fix #7: Credenciais sensíveis removidas do frontend — agora via backend proxy
   
   // Configuração Cloudinary - Plataforma de mídia para streaming de áudio
   const cloudName = 'dzwfuzxxw'
-  const apiKey = '888348989441951'
-  const apiSecret = 'SoIbMkMvEBoth_Xbt0I8Ew96JuY'
   
   // Configuração Last.fm - API de fallback para metadados musicais
+  // (API key do Last.fm é pública por design, não é secret)
   const lastFmApiKey = 'b25b959554ed76058ac220b7b2e0a026'
   const lastFmBaseUrl = 'https://ws.audioscrobbler.com/2.0/'
   
-  // Configuração Spotify Web API - Fonte principal para metadados e capas
-  const spotifyClientId = '1fd9e79e2e074a33b258c30747f74e6b'
-  const spotifyClientSecret = '3bc40e26370c43818ec3612d25fcbf96'
+  // Fix #7: Spotify agora usa proxy backend — sem client_secret no frontend
   const spotifyBaseUrl = 'https://api.spotify.com/v1'
   
   // ============= INICIALIZAÇÃO DE BIBLIOTECAS EXTERNAS =============
@@ -50,50 +51,31 @@ export function useCloudinaryAudio() {
   // Sistema de autenticação OAuth com Spotify usando Client Credentials Flow
   // Este método permite acesso a dados públicos sem necessidade de login do usuário
   // Implemento cache de token e renovação automática para eficiência
+  // Fix #7: Autenticação Spotify via backend proxy (sem secrets no frontend)
   const authenticateSpotify = async () => {
     try {
-      // Verifico se já tenho um token válido em cache
       if (spotifyToken.value && spotifyTokenExpiry.value > Date.now()) {
-        console.log('✅ Token Spotify em cache ainda válido')
         return spotifyToken.value
       }
       
-      console.log('🎵 Iniciando autenticação com Spotify API...')
-      console.log('🔐 Usando Client Credentials Flow para acesso a dados públicos')
+      console.log('🎵 Obtendo token Spotify via backend proxy...')
       
-      // Codifico credenciais em Base64 conforme especificação OAuth
-      const credentials = btoa(`${spotifyClientId}:${spotifyClientSecret}`)
-      
-      // Requisição de token seguindo padrão OAuth 2.0
-      const response = await fetch('https://accounts.spotify.com/api/token', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Basic ${credentials}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: 'grant_type=client_credentials'
-      })
+      const response = await fetch('/api/spotify/client-token')
       
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Falha na autenticação Spotify: ${response.status} - ${errorText}`)
+        throw new Error(`Backend proxy falhou: ${response.status}`)
       }
       
       const data = await response.json()
       
-      // Armazeno token com margem de segurança para renovação
       spotifyToken.value = data.access_token
-      spotifyTokenExpiry.value = Date.now() + (data.expires_in * 1000) - 60000 // 1 minuto de buffer
+      spotifyTokenExpiry.value = Date.now() + (data.expires_in * 1000) - 60000
       
-      console.log('✅ Spotify autenticado com sucesso!')
-      console.log(`⏰ Token válido até: ${new Date(spotifyTokenExpiry.value).toLocaleTimeString()}`)
-      console.log(`🔑 Tipo de acesso: ${data.token_type}`)
-      
+      console.log('✅ Token Spotify obtido via backend proxy')
       return spotifyToken.value
       
     } catch (error) {
-      console.error('❌ Erro crítico na autenticação Spotify:', error)
-      console.warn('⚠️ Fallback ativado: usando Last.fm e MusicBrainz como alternativas')
+      console.error('❌ Erro na autenticação Spotify:', error.message)
       return null
     }
   }
@@ -387,34 +369,7 @@ export function useCloudinaryAudio() {
     console.log('✅ Event listeners configurados com sucesso!')
   }
   
-  // Sistema de fade-in gradual do volume para experiência suave
-  // Implemento transição suave de 0% para 70% de volume em 2 segundos
-  // Isso evita o susto do volume alto repentino e melhora a experiência do usuário
-  const gradualVolumeIncrease = () => {
-    const targetVolume = 0.7      // Volume alvo (70% - confortável para ouvir)
-    const fadeTime = 2000         // Duração do fade-in (2 segundos)
-    const steps = 50              // Número de passos para transição suave
-    const stepTime = fadeTime / steps      // Tempo entre cada passo
-    const volumeStep = targetVolume / steps // Incremento de volume por passo
-    
-    let currentStep = 0
-    
-    console.log(`🔊 Iniciando fade-in suave: 0% → ${targetVolume * 100}% em ${fadeTime}ms`)
-    
-    const fadeInterval = setInterval(() => {
-      // Paro o fade se a música parou ou chegou no final
-      if (currentStep >= steps || !isPlaying.value) {
-        clearInterval(fadeInterval)
-        audioPlayer.value.volume = targetVolume
-        console.log(`✅ Fade-in concluído - volume final: ${Math.round(targetVolume * 100)}%`)
-        return
-      }
-      
-      // Incremento gradual do volume
-      audioPlayer.value.volume = volumeStep * currentStep
-      currentStep++
-    }, stepTime)
-  }
+  // Fix #23: gradualVolumeIncrease removida (código morto — play event já seta volume diretamente)
   
   // ============= BUSCA AVANÇADA DE CAPAS DE ÁLBUM =============
   
@@ -451,57 +406,58 @@ export function useCloudinaryAudio() {
     }
   }
 
-  // Sistema em cascata para buscar capas com múltiplas APIs como fallback
-  // Prioridade: Spotify > iTunes > Last.fm > MusicBrainz + Cover Art Archive
-  // Esta estratégia garante que sempre encontremos uma capa, mesmo que básica
+  // Fix #6: Busca paralela de metadados — Spotify primeiro, fallbacks em paralelo
+  // Fix #8: Com cache para evitar buscas duplicadas
   const searchAlbumCover = async (artist, track) => {
     try {
-      console.log(`🔍 Iniciando busca em cascata de capa para: "${artist}" - "${track}"`)
+      // Fix #8: Verifica cache primeiro
+      const cacheKey = `${artist.toLowerCase().trim()}:${track.toLowerCase().trim()}`
+      const cached = metadataCache.get(cacheKey)
+      if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+        console.log(`⚡ Cache hit para "${artist}" - "${track}"`)
+        return cached.data
+      }
       
-      // Tentativa 1: Spotify (melhor qualidade e confiabilidade)
-      console.log('1️⃣ Tentando Spotify API (fonte principal)...')
+      console.log(`🔍 Buscando metadados para: "${artist}" - "${track}"`)
+      
+      // Tentativa 1: Spotify (melhor qualidade — tenta primeiro sozinho pois é mais rápido)
       const spotifyInfo = await searchSpotifyTrack(artist, track)
       if (spotifyInfo && spotifyInfo.albumCover) {
-        console.log('✅ Sucesso via Spotify - usando resultado de alta qualidade')
+        console.log('✅ Sucesso via Spotify')
+        metadataCache.set(cacheKey, { data: spotifyInfo, timestamp: Date.now() })
+        if (metadataCache.size > CACHE_MAX_SIZE) {
+          const oldest = metadataCache.keys().next().value
+          metadataCache.delete(oldest)
+        }
         return spotifyInfo
       }
 
-      // Tentativa 2: iTunes (Fallback com áudio preview)
-      console.log('2️⃣ Tentando iTunes API (fallback com áudio)...')
-      const itunesInfo = await searchItunesPreview(artist, track)
-      if (itunesInfo && itunesInfo.albumCover) {
-        console.log('✅ Sucesso via iTunes')
-        return itunesInfo
+      // Fix #6: Fallbacks rodam em PARALELO em vez de sequencial
+      console.log('🔄 Spotify falhou — executando fallbacks em paralelo...')
+      const [itunesResult, lastfmResult, lastfmArtistResult, mbResult] = await Promise.allSettled([
+        searchItunesPreview(artist, track),
+        fetchLastFmTrackInfo(artist, track),
+        fetchLastFmArtistTopAlbum(artist),
+        fetchMusicBrainzCover(artist, track)
+      ])
+      
+      // Prioridade: iTunes > Last.fm track > Last.fm artist > MusicBrainz
+      const results = [itunesResult, lastfmResult, lastfmArtistResult, mbResult]
+      const sources = ['iTunes', 'Last.fm track', 'Last.fm artist', 'MusicBrainz']
+      
+      for (let i = 0; i < results.length; i++) {
+        if (results[i].status === 'fulfilled' && results[i].value?.albumCover) {
+          console.log(`✅ Sucesso via ${sources[i]}`)
+          const result = results[i].value
+          metadataCache.set(cacheKey, { data: result, timestamp: Date.now() })
+          return result
+        }
       }
       
-      // Tentativa 3: Last.fm informações de track específico
-      console.log('3️⃣ Tentando Last.fm track info (fallback 2)...')
-      const trackInfo = await fetchLastFmTrackInfo(artist, track)
-      if (trackInfo && trackInfo.albumCover) {
-        console.log('✅ Sucesso via Last.fm track info')
-        return trackInfo
-      }
-      
-      // Tentativa 3: Last.fm álbuns mais populares do artista
-      console.log('3️⃣ Tentando Last.fm artist top albums (fallback 2)...')
-      const artistInfo = await fetchLastFmArtistTopAlbum(artist)
-      if (artistInfo && artistInfo.albumCover) {
-        console.log('✅ Sucesso via Last.fm artist albums')
-        return artistInfo
-      }
-      
-      // Tentativa 4: MusicBrainz + Cover Art Archive (último recurso)
-      console.log('4️⃣ Tentando MusicBrainz + Cover Art Archive (último recurso)...')
-      const musicBrainzInfo = await fetchMusicBrainzCover(artist, track)
-      if (musicBrainzInfo && musicBrainzInfo.albumCover) {
-        console.log('✅ Sucesso via MusicBrainz')
-        return musicBrainzInfo
-      }
-      
-      console.log('❌ Todas as tentativas falharam - nenhuma capa encontrada')
+      console.log('❌ Todas as fontes falharam — nenhuma capa encontrada')
       return null
     } catch (error) {
-      console.error('❌ Erro crítico durante busca de capa:', error)
+      console.error('❌ Erro durante busca de metadados:', error)
       return null
     }
   }
@@ -623,18 +579,15 @@ export function useCloudinaryAudio() {
     return new Promise((resolve) => {
       console.log(`🎨 Iniciando análise de cores para: ${imageUrl}`)
       
-      // ========== PROXY CORS para imagens externas ==========
+      // Fix #16: Usa proxy CORS próprio no backend em vez de serviço externo
       let finalUrl = imageUrl
       const isExternalUrl = imageUrl.includes('i.scdn.co') || 
                            imageUrl.includes('mosaic.scdn.co') ||
                            imageUrl.includes('spotify.com')
       
       if (isExternalUrl) {
-        // Usa proxy CORS público para contornar restrições (allorigins é mais estável)
-        finalUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(imageUrl)}`
-        console.log('🔄 Usando proxy CORS para imagem do Spotify')
+        finalUrl = `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`
       }
-      // ========== FIM DO PROXY ==========
       
       // Crio elemento de imagem temporário para análise
       const img = new Image()
@@ -805,57 +758,11 @@ export function useCloudinaryAudio() {
     return 'neutral'
   }
   
-  // ============= MEDIA SESSION PARA iOS =============
-  // Atualiza os controles de mídia do sistema (Control Center no iOS, notificações no Android)
+  // Fix #22: Media Session centralizada no App.vue — aqui apenas dispara evento
+  // para evitar código duplicado entre useCloudinaryAudio e App.vue
   const updateMediaSessionForIOS = (track) => {
-    if (!('mediaSession' in navigator)) {
-      console.log('⚠️ Media Session API não disponível')
-      return
-    }
-    
-    try {
-      console.log('📱 Atualizando Media Session para:', track?.title)
-      
-      // Determina a URL da capa (usa logo do PlayOff como fallback)
-      const playoffLogo = 'https://res.cloudinary.com/dzwfuzxxw/image/upload/v1764087001/playoff_2_yvagtx.png'
-      
-      // Prioridade: capa do álbum > logo do PlayOff
-      let artworkUrl = playoffLogo
-      
-      if (track?.albumCover && !track.albumCover.includes('default-album')) {
-        // Garante que URLs usem HTTPS
-        if (track.albumCover.startsWith('http')) {
-          artworkUrl = track.albumCover.replace('http://', 'https://')
-        } else {
-          artworkUrl = track.albumCover
-        }
-      }
-      
-      console.log('📱 Artwork URL:', artworkUrl)
-      
-      // Cria artworks em múltiplos tamanhos
-      const artworks = [
-        { src: artworkUrl, sizes: '96x96', type: 'image/png' },
-        { src: artworkUrl, sizes: '128x128', type: 'image/png' },
-        { src: artworkUrl, sizes: '192x192', type: 'image/png' },
-        { src: artworkUrl, sizes: '256x256', type: 'image/png' },
-        { src: artworkUrl, sizes: '384x384', type: 'image/png' },
-        { src: artworkUrl, sizes: '512x512', type: 'image/png' },
-      ]
-      
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: track?.title || 'PlayOff',
-        artist: track?.artist || 'Unknown Artist',
-        album: track?.album || 'PlayOff Music',
-        artwork: artworks
-      })
-      
-      navigator.mediaSession.playbackState = 'playing'
-      console.log('✅ Media Session atualizado com sucesso!')
-      console.log('🎨 Artwork:', artworkUrl)
-    } catch (e) {
-      console.warn('⚠️ Erro ao atualizar Media Session:', e)
-    }
+    // Dispara evento para App.vue atualizar o Media Session (fonte única de verdade)
+    window.dispatchEvent(new CustomEvent('update-media-session', { detail: { track } }))
   }
 
   // Play song - INSTANT PLAYBACK FIRST, metadata in background

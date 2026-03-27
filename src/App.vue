@@ -454,6 +454,11 @@ const isPlayingPreview = ref(false) // Track if currently playing a preview (30s
 const sdkInitAttempted = ref(false) // Track if SDK initialization was attempted
 const profileImageError = ref(false) // Track profile image loading errors
 
+// Fix #4: Sistema de preloading da próxima música
+// Pré-resolve metadados quando a música atual atinge 80% de progresso
+const preloadedNextTrack = ref(null)
+let preloadTriggered = false
+
 // Aguarda 5 segundos antes de mostrar banner (dá tempo do SDK carregar)
 setTimeout(() => {
   sdkInitAttempted.value = true
@@ -546,16 +551,53 @@ const handleSeek = async (positionMs) => {
   }
 }
 
-// Sync lyrics with position
+// Sync lyrics with position + Fix #4: Preload next track at 80% progress
 watch(() => currentTime.value, (newPos) => {
   if (showLyrics.value) {
     updateCurrentLine(newPos / 1000)
+  }
+  
+  // Fix #4: Preload da próxima música quando atingir 80% do progresso
+  const dur = totalDuration.value
+  if (dur > 0 && newPos > 0 && !preloadTriggered && (newPos / dur) >= 0.8) {
+    preloadTriggered = true
+    const list = combinedSongs.value
+    if (list && list.length > 1 && currentTrack.value) {
+      const currentIndex = list.findIndex(s => s.id === currentTrack.value.id)
+      const nextIndex = (currentIndex + 1) % list.length
+      const nextSong = list[nextIndex]
+      if (nextSong && nextSong.id !== currentTrack.value.id) {
+        console.log(`⏳ Fix #4: Preloading próxima música: "${nextSong.title}"`)
+        // Pré-resolve metadados em background (não bloqueia)
+        const preload = async () => {
+          try {
+            const normalized = normalizeSongData({ ...nextSong })
+            // Se não tem audioUrl nem spotifyUrl, busca metadados antecipadamente
+            if (!normalized.audioUrl && !normalized.spotifyUrl) {
+              const albumInfo = await searchAlbumCover(normalized.artist, normalized.title)
+              if (albumInfo?.previewUrl) normalized.audioUrl = albumInfo.previewUrl
+              if (albumInfo?.albumCover) normalized.albumCover = albumInfo.albumCover
+              if (albumInfo?.spotifyUrl) normalized.spotifyUrl = albumInfo.spotifyUrl
+            }
+            preloadedNextTrack.value = normalized
+            console.log(`✅ Fix #4: Próxima música pré-carregada: "${normalized.title}"`)
+          } catch (e) {
+            console.warn('⚠️ Preload falhou:', e.message)
+          }
+        }
+        preload()
+      }
+    }
   }
 })
 
 // Fetch lyrics on track change if lyrics mode is active
 // Também reseta a posição para evitar flickering na troca de música
 watch(currentTrack, (newTrack, oldTrack) => {
+  // Fix #4: Reset preload state quando a música muda
+  preloadTriggered = false
+  preloadedNextTrack.value = null
+  
   // Se a música mudou, ativa modo de transição
   if (newTrack?.id !== oldTrack?.id) {
     console.log('🔄 Mudança de música detectada - Estabilizando barra de progresso...')
@@ -773,44 +815,22 @@ const handlePlaySong = async (song) => {
       console.log(`   ✓ deviceId: ${deviceId.value || '❌ NENHUM'}`)
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
-      // Se o player não estiver pronto, espera um pouco
+      // Fix #3: Espera rápida pelo player (max 3s em vez de 10s)
+      // Se não ficar pronto, cai direto para fallback HTML5
       if (!spotifyPlayerReady.value) {
-        console.log('⏳ AGUARDANDO PLAYER FICAR PRONTO...')
-        console.log('   Máximo: 10 segundos')
-        // Tenta esperar até 10 segundos
+        console.log('⏳ Aguardando player ficar pronto (max 3s)...')
         let attempts = 0
-        while (!spotifyPlayerReady.value && attempts < 100) {
+        while (!spotifyPlayerReady.value && attempts < 30) {
           await new Promise(resolve => setTimeout(resolve, 100))
           attempts++
-
-          // Log a cada 2 segundos
-          if (attempts % 20 === 0) {
-            console.log(`   ⏱️ ${attempts / 10}s - Player: ${spotifyPlayerReady.value ? 'PRONTO' : 'aguardando'} | Device: ${deviceId.value || 'nenhum'}`)
-          }
         }
 
-        console.log('')
         if (!spotifyPlayerReady.value) {
-          console.error('❌❌❌ TIMEOUT AGUARDANDO PLAYER (10s) ❌❌❌')
-          console.error('Estado após timeout:')
-          console.error(`   - spotifyPlayerReady: ${spotifyPlayerReady.value}`)
-          console.error(`   - deviceId: ${deviceId.value || 'NENHUM'}`)
-          console.error(`   - isAuthenticated: ${isAuthenticated.value}`)
-          console.error(`   - Token presente: ${!!spotifyAccessToken.value}`)
-          console.error('')
-          console.error('💡 O Player não inicializou. Verifique:')
-          console.error('   1. Se o Spotify Web Player/SDK carregou corretamente no navegador')
-          console.error('   2. Mensagens de erro do SDK acima (rede / autenticação)')
-          console.error('   3. Recarregue a página (F5) ou clique no botão 🔌 para tentar reconectar')
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-          // Continua para tentar HTML5
+          console.warn('⚠️ Player não ficou pronto em 3s — tentando fallback HTML5')
+          // Não bloqueia mais — continua para fallback
         } else {
-          console.log(`✅ PLAYER FICOU PRONTO após ${attempts * 100}ms`)
-          console.log(`   Device ID: ${deviceId.value}`)
+          console.log(`✅ Player pronto após ${attempts * 100}ms`)
         }
-      } else {
-        console.log('✅ PLAYER JÁ ESTAVA PRONTO')
-        console.log(`   Device ID: ${deviceId.value}`)
       }
 
       if (spotifyPlayerReady.value) {
@@ -1080,20 +1100,19 @@ const handleAddSpotifySong = async (track) => {
   }
 }
 
-// Handler para adicionar à fila
+// Fix #20: Handler para adicionar à fila — SEMPRE enfileira, nunca interrompe música atual
 const handleAddToQueue = async (song) => {
   try {
-    // Se já está tocando uma música, toca a nova IMEDIATAMENTE (completa, sem preview)
-    if (currentTrack.value && (isAudioPlaying.value || isSpotifyActive.value)) {
-      console.log(` Música tocando - reproduzindo "${song.title}" IMEDIATAMENTE (completa)`)
-      song = normalizeSongData(song)
+    song = normalizeSongData(song)
+
+    // Se nada está tocando, toca imediatamente em vez de enfileirar
+    if (!currentTrack.value && !isAudioPlaying.value && !isSpotifyActive.value) {
+      console.log(`▶️ Nada tocando — reproduzindo "${song.title}" diretamente`)
       const played = await handlePlaySong(song)
       if (played) {
-        showNotification(` Tocando agora: ${song.title}`, 'success')
+        showNotification(`▶️ Tocando agora: ${song.title}`, 'success')
         return
       }
-      // Se falhou, adiciona à fila como fallback
-      console.warn(' Não conseguiu tocar imediatamente, adicionando à fila')
     }
 
     const success = addToQueue(song)
@@ -1180,7 +1199,7 @@ watch(combinedSongs, (newSongs) => {
     // console.log(`🔄 App.vue: Atualizando lista de navegação com ${newSongs.length} músicas`)
     updateSongsList(newSongs)
   }
-}, { deep: true, immediate: true }) // deep: true para mudanças internas, immediate: true para execução inicial
+}, { immediate: true }) // Fix #10: Removido deep:true — computed já cria novo array ref quando inputs mudam
 
 // ============= HANDLERS DE NAVEGAÇÃO =============
 // Funções que permitem navegar entre músicas com tratamento de erro
@@ -1437,7 +1456,8 @@ let lastTrackNavigation = 0
 const handleNextTrack = async () => {
   // Proteção anti-loop: evita navegação muito frequente
   const now = Date.now()
-  if (isNavigatingTrack || (now - lastTrackNavigation < 1500)) {
+  // Fix #24: Reduzido de 1500ms para 800ms para permitir avanço de tracks curtas
+  if (isNavigatingTrack || (now - lastTrackNavigation < 800)) {
     console.log('⚠️ handleNextTrack ignorado (anti-loop)')
     return
   }
@@ -1482,7 +1502,13 @@ const handleNextTrack = async () => {
       nextIndex = 0
     }
     
-    const nextSong = list[nextIndex]
+    let nextSong = list[nextIndex]
+    
+    // Fix #4: Usa dados pré-carregados se disponíveis (evita busca de metadados)
+    if (preloadedNextTrack.value && preloadedNextTrack.value.id === nextSong.id) {
+      console.log(`⚡ Fix #4: Usando track pré-carregada: "${nextSong.title}"`)
+      nextSong = preloadedNextTrack.value
+    }
     
     // Verifico se a próxima música está na fila para removê-la
     const isNextInQueue = queue.value.some(q => q.id === nextSong.id)
@@ -1607,7 +1633,7 @@ const startSpotifySync = () => {
         return
       }
 
-      // Verifica se o device ativo é o próprio Web Player do PlayOff
+      // Fix #1: Verifica se o device ativo é o próprio Web Player do PlayOff
       const isLocalDevice = state.device && deviceId.value && state.device.id === deviceId.value
       
       // Se estiver tocando áudio HTML5 localmente, não deixa o Spotify externo atropelar
@@ -1615,8 +1641,20 @@ const startSpotifySync = () => {
         return
       }
 
-      // SEMPRE atualiza se estiver tocando no Spotify, independente do device
-      // O usuário quer ver o que está tocando no celular
+      // Fix #1: Se o device ativo é o nosso Web Player, NÃO sobrescreve via polling
+      // O SDK já envia eventos player_state_changed para o device local — polling é redundante
+      // e pode causar race conditions (sobrescrever com estado desatualizado)
+      if (isLocalDevice && state.is_playing) {
+        // Apenas sincroniza tempo para interpolação suave, sem trocar track
+        lastSpotifySyncTime.value = Date.now()
+        lastSpotifySyncPosition.value = state.progress_ms
+        spotifyPosition.value = state.progress_ms
+        spotifyDuration.value = state.item.duration_ms
+        isSpotifyPaused.value = false
+        return
+      }
+
+      // Sincroniza apenas quando é um device EXTERNO (celular, desktop app, etc.)
       if (state.is_playing || (state.item && !isLocalDevice)) {
         
         const track = {
