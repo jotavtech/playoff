@@ -136,14 +136,14 @@ const handleGoogleLogin = async () => {
 
 .login-modal {
   background: rgba(0, 0, 0, 0.95);
-  border: 4px solid #fff;
+  border: 4px solid var(--p5-white, #fff);
   padding: 3rem;
   max-width: 500px;
   width: 100%;
   margin: auto;
   position: relative;
   transform: skewX(-2deg);
-  box-shadow: 8px 8px 0 #ff6b6b, 0 0 40px rgba(255, 107, 107, 0.6);
+  box-shadow: 8px 8px 0 var(--accent-rgb, #ff6b6b), 0 0 40px var(--glow-color, rgba(255, 107, 107, 0.6));
 }
 
 .login-modal .login-content {
@@ -155,18 +155,19 @@ const handleGoogleLogin = async () => {
   top: 1rem;
   right: 1rem;
   background: transparent;
-  border: 2px solid #fff;
-  color: #fff;
+  border: 2px solid var(--p5-white, #fff);
+  color: var(--p5-white, #fff);
   width: 40px;
   height: 40px;
   font-size: 1.2rem;
   cursor: pointer;
   transform: skewX(2deg);
+  transition: all 0.15s ease;
 }
 
 .close-btn:hover {
-  background: #ff6b6b;
-  border-color: #ff6b6b;
+  background: var(--accent-rgb, #ff6b6b);
+  border-color: var(--accent-rgb, #ff6b6b);
 }
 
 .login-content {
@@ -185,20 +186,23 @@ const handleGoogleLogin = async () => {
 }
 
 .login-title {
-  font-family: 'Snuggle Punk', 'Impact', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 2.5rem;
-  color: #fff;
+  color: var(--p5-white, #fff);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 3px;
   margin: 0 0 0.5rem 0;
-  text-shadow: 3px 3px 0 #ff6b6b;
+  text-shadow: 3px 3px 0 var(--accent-rgb, #ff6b6b);
 }
 
 .login-subtitle {
-  font-family: 'Inter', sans-serif;
-  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Space Grotesk', sans-serif;
+  color: rgba(255, 255, 255, 0.6);
   font-size: 1rem;
+  font-weight: 600;
   margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .login-features {
@@ -212,15 +216,17 @@ const handleGoogleLogin = async () => {
   display: flex;
   align-items: center;
   gap: 1rem;
-  font-family: 'Cingire', sans-serif;
-  color: #fff;
-  font-size: 1.1rem;
-  letter-spacing: 0.05em;
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--p5-white, #fff);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .feature-item i {
   width: 30px;
-  color: #ff6b6b;
+  color: var(--accent-rgb, #ff6b6b);
   font-size: 1.3rem;
 }
 
@@ -229,10 +235,11 @@ const handleGoogleLogin = async () => {
   padding: 1.2rem 2rem;
   background: #1DB954;
   border: 3px solid #1DB954;
-  color: #fff;
-  font-family: 'Cingire', sans-serif;
+  color: var(--p5-white, #fff);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1.3rem;
-  letter-spacing: 0.1em;
+  font-weight: 700;
+  letter-spacing: 2px;
   text-transform: uppercase;
   cursor: pointer;
   display: flex;
@@ -240,13 +247,14 @@ const handleGoogleLogin = async () => {
   justify-content: center;
   gap: 1rem;
   margin: 2rem 0 1rem 0;
+  transition: all 0.15s ease;
 }
 
 .spotify-login-btn:hover {
-  background: #fff;
+  background: var(--p5-white, #fff);
   color: #1DB954;
   transform: translate(-3px, -3px);
-  box-shadow: 3px 3px 0 #1DB954;
+  box-shadow: 4px 4px 0 #1DB954;
 }
 
 .spotify-login-btn:disabled {
@@ -259,10 +267,11 @@ const handleGoogleLogin = async () => {
   padding: 1.2rem 2rem;
   background: #FF0000;
   border: 3px solid #FF0000;
-  color: #fff;
-  font-family: 'Cingire', sans-serif;
+  color: var(--p5-white, #fff);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1.3rem;
-  letter-spacing: 0.1em;
+  font-weight: 700;
+  letter-spacing: 2px;
   text-transform: uppercase;
   cursor: pointer;
   display: flex;
@@ -270,13 +279,14 @@ const handleGoogleLogin = async () => {
   justify-content: center;
   gap: 1rem;
   margin: 0 0 2rem 0;
+  transition: all 0.15s ease;
 }
 
 .youtube-login-btn:hover {
-  background: #fff;
+  background: var(--p5-white, #fff);
   color: #FF0000;
   transform: translate(-3px, -3px);
-  box-shadow: 3px 3px 0 #FF0000;
+  box-shadow: 4px 4px 0 #FF0000;
 }
 
 .youtube-login-btn:disabled {
@@ -296,23 +306,27 @@ const handleGoogleLogin = async () => {
   padding: 0.8rem 1rem;
   margin-top: 1.5rem;
   background: transparent;
-  border: 2px dashed #ff6b6b;
-  color: #ff6b6b;
-  font-family: 'Cingire', sans-serif;
+  border: 2px dashed var(--accent-rgb, #ff6b6b);
+  color: var(--accent-rgb, #ff6b6b);
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.9rem;
-  letter-spacing: 0.05em;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  transition: all 0.3s;
+  transition: all 0.15s ease;
 }
 
 .access-help-btn:hover {
-  background: #ff6b6b;
-  color: #000;
+  background: var(--accent-rgb, #ff6b6b);
+  color: var(--p5-black, #000);
   border-style: solid;
+  transform: translate(-2px, -2px);
+  box-shadow: 3px 3px 0 var(--p5-white, #fff);
 }
 
 .access-help-btn i {

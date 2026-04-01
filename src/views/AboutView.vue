@@ -178,18 +178,18 @@
 .card-glass {
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.1);
   padding: 3rem;
-  border-radius: 20px;
+  border-radius: 0;
   max-width: 800px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  box-shadow: 6px 6px 0 var(--accent-rgb, #ff6b6b);
   transform: rotate(-1deg);
-  transition: transform 0.3s;
+  transition: all 0.15s ease;
 }
 
 .card-glass:hover {
   transform: rotate(0deg) scale(1.02);
-  border-color: #ff6b6b;
+  border-color: var(--accent-rgb, #ff6b6b);
 }
 
 .intro-text {
@@ -213,11 +213,11 @@
 }
 
 .tech-term {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Space Grotesk', 'Space Mono', monospace;
   color: #42b883;
   background: rgba(66, 184, 131, 0.1);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .band-name {
@@ -260,7 +260,7 @@
   flex-direction: column;
   align-items: center;
   gap: 1rem;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Space Grotesk', 'Space Mono', monospace;
   font-weight: bold;
   color: #666;
   transition: all 0.3s;
@@ -306,20 +306,22 @@
 .social-btn {
   width: 50px;
   height: 50px;
-  border-radius: 50%;
-  border: 2px solid #fff;
+  border-radius: 0;
+  border: 2px solid var(--p5-white, #fff);
   display: flex;
   justify-content: center;
   align-items: center;
-  color: #fff;
+  color: var(--p5-white, #fff);
   font-size: 1.5rem;
-  transition: all 0.3s;
+  transition: all 0.15s ease;
+  transform: skewX(-5deg);
 }
 
 .social-btn:hover {
-  background: #fff;
-  color: #000;
-  transform: scale(1.1) rotate(10deg);
+  background: var(--p5-white, #fff);
+  color: var(--p5-black, #000);
+  transform: skewX(-5deg) translate(-2px, -2px);
+  box-shadow: 3px 3px 0 var(--accent-rgb, #ff6b6b);
 }
 
 /* Botão Fechar */
@@ -330,15 +332,16 @@
   width: 60px;
   height: 60px;
   background: rgba(0,0,0,0.5);
-  border: 2px solid #ff6b6b;
-  border-radius: 50%;
+  border: 2px solid var(--accent-rgb, #ff6b6b);
+  border-radius: 0;
   cursor: pointer;
   z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: all 0.15s ease;
   backdrop-filter: blur(5px);
+  transform: skewX(-5deg);
 }
 
 .close-about .x-stroke {
@@ -358,9 +361,9 @@
 }
 
 .close-about:hover {
-  background: #ff6b6b;
-  transform: rotate(90deg) scale(1.1);
-  box-shadow: 0 0 20px rgba(255, 107, 107, 0.6);
+  background: var(--accent-rgb, #ff6b6b);
+  transform: skewX(-5deg) rotate(90deg) scale(1.1);
+  box-shadow: 3px 3px 0 var(--p5-white, #fff);
 }
 
 .close-about:hover .x-stroke {

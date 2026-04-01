@@ -1,3 +1,8 @@
+/* ============================================================
+   PLAYOFF - PERSONA 5 / QOTSA AESTHETIC
+   Angular, manga-style, bold black/white/red with dynamic colors
+   ============================================================ */
+
 /* Reset and Base Styles */
 * {
   margin: 0;
@@ -6,10 +11,9 @@
 }
 
 /* ============= SISTEMA DE CORES DINÂMICAS ============= */
-/* Variáveis CSS globais baseadas na cor da capa do álbum */
 :root {
-  /* Cor primária (padrão vermelho coral) */
-  --accent-color: 255, 107, 107;
+  /* Cor primária (padrão vermelho Persona) */
+  --accent-color: 255, 0, 0;
   --accent-rgb: rgb(var(--accent-color));
   --accent-light: rgba(var(--accent-color), 0.8);
   --accent-medium: rgba(var(--accent-color), 0.6);
@@ -17,12 +21,12 @@
   --accent-subtle: rgba(var(--accent-color), 0.2);
   --accent-faint: rgba(var(--accent-color), 0.1);
   
-  /* Cor secundária (mais clara/saturada) */
-  --accent-secondary: 255, 150, 120;
+  /* Cor secundária */
+  --accent-secondary: 255, 50, 50;
   --accent-secondary-rgb: rgb(var(--accent-secondary));
   
   /* Cor terciária (mais escura) */
-  --accent-dark: 200, 80, 80;
+  --accent-dark: 180, 0, 0;
   --accent-dark-rgb: rgb(var(--accent-dark));
   
   /* Sombras e brilhos */
@@ -31,6 +35,18 @@
   
   /* Transição suave para mudança de cores */
   --color-transition: 0.8s ease;
+
+  /* Persona 5 specific tokens */
+  --p5-black: #0a0a0a;
+  --p5-white: #ffffff;
+  --p5-red: #FF0000;
+  --p5-dark-gray: #1a1a1a;
+  --p5-mid-gray: #2a2a2a;
+  --p5-skew: -3deg;
+  --p5-skew-inv: 3deg;
+  --p5-shadow-offset: 6px;
+  --p5-clip-angle: polygon(0 0, 100% 0, 97% 100%, 0% 100%);
+  --p5-clip-angle-reverse: polygon(3% 0, 100% 0, 100% 100%, 0% 100%);
 }
 
 html, body {
@@ -42,17 +58,16 @@ html, body {
 html {
   overflow-x: hidden;
   scrollbar-width: thin;
-  scrollbar-color: var(--accent-medium) rgba(20, 20, 20, 0.9);
-  /* Fundo escuro como fallback quando não há música */
-  background: #0a0a0c;
+  scrollbar-color: var(--accent-medium) var(--p5-black);
+  background: var(--p5-black);
 }
 
 body {
   overflow-x: hidden;
   overflow-y: auto;
   font-family: 'Space Grotesk', 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: transparent; /* Deixa o dynamic-background aparecer */
-  color: #e2e8f0;
+  background: transparent;
+  color: var(--p5-white);
   min-height: 100vh;
   min-height: 100dvh; 
   position: relative;
@@ -62,28 +77,28 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Global Scrollbar Styling - Usa cor dinâmica */
+/* Scrollbar - Angular Persona 5 style */
 body::-webkit-scrollbar {
-  width: 10px;
-  background: rgba(20, 20, 20, 0.9);
+  width: 8px;
+  background: var(--p5-black);
 }
 
 body::-webkit-scrollbar-track {
-  background: rgba(20, 20, 20, 0.9);
+  background: var(--p5-black);
 }
 
 body::-webkit-scrollbar-thumb {
-  background: var(--accent-medium);
-  border-radius: 5px;
-  border: 2px solid rgba(20, 20, 20, 0.9);
+  background: var(--accent-rgb);
+  border-radius: 0;
+  border: none;
   transition: background var(--color-transition);
 }
 
 body::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-light);
+  background: var(--p5-white);
 }
 
-/* Esconder scrollbars em elementos internos (exceto modais) */
+/* Esconder scrollbars em elementos internos */
 .app::-webkit-scrollbar,
 .container::-webkit-scrollbar,
 .main-content::-webkit-scrollbar,
@@ -98,7 +113,6 @@ body::-webkit-scrollbar-thumb:hover {
 
 @media (min-width: 769px) {
   body {
-    /* Desktop: fundo transparente para mostrar dynamic-background */
     background: transparent;
     transition: all 2s ease-in-out;
   }
@@ -106,31 +120,11 @@ body::-webkit-scrollbar-thumb:hover {
 
 /* Black theme for no music state */
 body.theme-black {
-  background: 
-    linear-gradient(135deg, 
-      rgba(8, 8, 10, 0.99) 0%, 
-      rgba(15, 15, 18, 0.97) 25%,
-      rgba(12, 12, 15, 0.98) 50%,
-      rgba(10, 10, 12, 0.96) 75%,
-      rgba(5, 5, 8, 1) 100%
-    ),
-    linear-gradient(45deg,
-      rgba(20, 20, 25, 0.5) 0%,
-      rgba(15, 15, 18, 0.4) 50%,
-      rgba(18, 18, 22, 0.45) 100%
-    ),
-    radial-gradient(ellipse at 30% 30%, 
-      rgba(30, 30, 35, 0.2) 0%, 
-      transparent 60%
-    ),
-    radial-gradient(ellipse at 70% 70%, 
-      rgba(25, 25, 30, 0.15) 0%, 
-      transparent 50%
-    );
-  color: #f1f5f9;
+  background: var(--p5-black);
+  color: var(--p5-white);
 }
 
-/* Ultra-Fine Frosted Glass Texture - Desktop Only */
+/* Halftone manga dots overlay - Desktop Only */
 @media (min-width: 769px) {
   body::before {
     content: '';
@@ -139,20 +133,20 @@ body.theme-black {
     left: 0;
     width: 100%;
     height: 100%;
-    background: 
-      /* Micro noise pattern for grain */
-      radial-gradient(circle at 20% 20%, rgba(255,255,255,0.008) 0.5px, transparent 0.5px),
-      radial-gradient(circle at 80% 40%, rgba(255,255,255,0.006) 0.5px, transparent 0.5px),
-      /* Reduced complexity */
-      linear-gradient(45deg, 
-        rgba(255,255,255,0.02) 0%, 
-        rgba(255,255,255,0.018) 100%
-      );
-    background-size: 2px 2px, 3px 3px, 100% 100%;
-    opacity: 0.2;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 8px 8px;
+    opacity: 0.5;
     z-index: 1;
     pointer-events: none;
   }
+}
+
+/* Speed lines decoration - can be toggled */
+@keyframes speedLines {
+  0% { transform: translateX(0) skewX(-15deg); opacity: 0; }
+  10% { opacity: 0.3; }
+  90% { opacity: 0.3; }
+  100% { transform: translateX(100vw) skewX(-15deg); opacity: 0; }
 }
 
 @keyframes subtleGrainFlow {
@@ -164,6 +158,23 @@ body.theme-black {
     transform: translate(-0.2%, -0.2%);
     opacity: 0.5;
   }
+}
+
+/* Persona 5 diagonal wipe animation */
+@keyframes p5DiagonalWipe {
+  0% { clip-path: polygon(0 0, 0 0, 0 100%, 0 100%); }
+  100% { clip-path: polygon(0 0, 110% 0, 100% 100%, 0 100%); }
+}
+
+/* Manga panel entrance */
+@keyframes p5SlideIn {
+  0% { transform: translateX(-30px) skewX(var(--p5-skew)); opacity: 0; }
+  100% { transform: translateX(0) skewX(0deg); opacity: 1; }
+}
+
+@keyframes p5SlashIn {
+  0% { clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%); opacity: 0; }
+  100% { clip-path: polygon(0 0, 100% 0, 97% 100%, 3% 100%); opacity: 1; }
 }
 
 /* Dynamic Background Based on Album Cover */
@@ -301,27 +312,27 @@ body.theme-black {
   backdrop-filter: blur(2px);
 }
 
-/* Player Card (Left Side) - Enhanced for dark theme */
+/* Player Card (Left Side) - Persona 5 Angular Panel */
 .player-card {
   flex: 0 0 450px;
-  background: rgba(30, 30, 35, 0.2);
-  border-radius: 25px;
+  background: rgba(0, 0, 0, 0.9);
+  border-radius: 0;
   padding: 2.5rem;
-  backdrop-filter: blur(40px) saturate(1.2);
-  border: 2px solid rgba(80, 80, 85, 0.35);
+  backdrop-filter: blur(30px);
+  border: 3px solid var(--p5-white);
+  border-left: 6px solid var(--accent-rgb);
   box-shadow: 
-    0 25px 50px rgba(0, 0, 0, 0.5),
-    0 8px 16px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+    8px 8px 0 rgba(var(--accent-color), 0.3),
+    0 20px 40px rgba(0, 0, 0, 0.6);
   z-index: 10;
-  transition: all 2s ease-in-out;
+  transition: all 0.8s ease-in-out;
   margin-top: 6rem;
   margin-left: 8rem;
   position: relative;
+  clip-path: polygon(0 0, 100% 0, 97% 100%, 0% 100%);
 }
 
-/* Dark theme details and accents */
+/* Persona 5 accent stripe */
 .player-card::before {
   content: '';
   position: absolute;
@@ -329,57 +340,56 @@ body.theme-black {
   left: 0;
   right: 0;
   bottom: 0;
-  border-radius: 25px;
   background: linear-gradient(135deg, 
-    rgba(80, 80, 85, 0.15) 0%, 
-    rgba(60, 60, 65, 0.08) 50%, 
-    rgba(80, 80, 85, 0.12) 100%
+    rgba(var(--accent-color), 0.05) 0%, 
+    transparent 50%, 
+    rgba(var(--accent-color), 0.03) 100%
   );
   pointer-events: none;
   z-index: -1;
 }
 
 .player-info h2 {
-  font-family: 'Inter', sans-serif;
-  font-size: 1.8rem;
-  font-weight: 800;
-  color: #f1f5f9;
-  line-height: 1.2;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--p5-white);
+  line-height: 1.1;
   margin-bottom: 0.5rem;
-  text-transform: none;
-  letter-spacing: -0.02em;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-shadow: 3px 3px 0 rgba(var(--accent-color), 0.4);
   transition: color 0.3s ease;
 }
 
 .player-info p {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 1.1rem;
-  color: rgba(226, 232, 240, 0.9);
-  font-weight: 500;
-  text-transform: none;
-  letter-spacing: 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
   margin-bottom: 2rem;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.8);
   transition: color 0.3s ease;
 }
 
 /* Conditional styles for white album covers */
 .player-card.white-album .player-info h2 {
   color: #1a202c;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .player-card.white-album .player-info p {
   color: rgba(26, 32, 44, 0.9);
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .player-card.white-album {
   border-color: rgba(26, 32, 44, 0.2);
 }
 
-/* PlayOff Logo - Enhanced for light background */
+/* PlayOff Logo - Persona 5 hard shadow */
 .playoff-logo {
   position: absolute;
   top: 2rem;
@@ -390,23 +400,21 @@ body.theme-black {
   z-index: 50;
   pointer-events: none;
   filter: 
-    drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1))
-    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.06))
-    contrast(1.1)
-    saturate(1.2);
+    drop-shadow(4px 4px 0 var(--accent-rgb))
+    drop-shadow(0 0 20px rgba(var(--accent-color), 0.3))
+    contrast(1.2);
   transition: all 0.3s ease;
 }
 
 .playoff-logo:hover {
   filter: 
-    drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15))
-    drop-shadow(0 3px 6px rgba(0, 0, 0, 0.08))
-    contrast(1.15)
-    saturate(1.3);
+    drop-shadow(6px 6px 0 var(--accent-rgb))
+    drop-shadow(0 0 30px rgba(var(--accent-color), 0.5))
+    contrast(1.3);
   transform: translateX(-50%) scale(1.05);
 }
 
-/* Vinyl Container - Enhanced glass effect */
+/* Vinyl Container - Persona 5 style */
 .vinyl-container {
   position: fixed;
   right: -600px;
@@ -425,31 +433,30 @@ body.theme-black {
   position: relative;
   width: 100vh;
   height: 100vh;
-  background: #2d3748; /* Solid fallback */
+  background: var(--p5-black);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   border-radius: 50%;
   transform-origin: center center;
-  border: 8px solid rgba(45, 55, 72, 0.8);
-  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  border: 8px solid var(--accent-medium);
+  box-shadow: 0 0 40px rgba(0,0,0,0.8), 0 0 80px rgba(var(--accent-color), 0.15);
   opacity: 0.85;
   will-change: transform;
   contain: layout style paint;
+  transition: border-color var(--color-transition), box-shadow var(--color-transition);
 }
 
 @media (min-width: 769px) {
   .vinyl-disc {
     background: 
-      radial-gradient(circle, rgba(45, 55, 72, 0.8) 20%, rgba(26, 32, 44, 0.9) 40%, rgba(45, 55, 72, 0.8) 60%, rgba(26, 32, 44, 0.9) 80%),
-      radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+      radial-gradient(circle, rgba(20, 20, 20, 0.9) 20%, rgba(10, 10, 10, 0.95) 40%, rgba(20, 20, 20, 0.9) 60%, rgba(10, 10, 10, 0.95) 80%),
+      radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
     box-shadow: 
-      inset 0 0 60px rgba(0, 0, 0, 0.4),
-      inset 0 0 100px rgba(255, 255, 255, 0.05),
-      0 0 0 12px rgba(45, 55, 72, 0.6),
-      0 0 0 20px rgba(45, 55, 72, 0.4),
-      0 0 40px rgba(45, 55, 72, 0.5),
-      0 0 80px rgba(45, 55, 72, 0.3);
+      inset 0 0 60px rgba(0, 0, 0, 0.6),
+      0 0 0 12px rgba(var(--accent-color), 0.3),
+      0 0 0 20px rgba(var(--accent-color), 0.15),
+      0 0 60px rgba(var(--accent-color), 0.2);
     transition: box-shadow 1s ease, border-color 1s ease;
   }
 }
@@ -476,24 +483,21 @@ body.theme-black {
 
 .vinyl-disc.playing {
   animation: vinylRotatePlaying 4s linear infinite;
-  border-color: rgba(99, 102, 241, 0.8);
+  border-color: var(--accent-light);
   box-shadow: 
-    inset 0 0 60px rgba(0, 0, 0, 0.4),
-    inset 0 0 100px rgba(255, 255, 255, 0.06),
-    0 0 0 12px rgba(99, 102, 241, 0.6),
-    0 0 0 20px rgba(99, 102, 241, 0.4),
-    0 0 50px rgba(99, 102, 241, 0.6),
-    0 0 100px rgba(99, 102, 241, 0.4);
+    inset 0 0 60px rgba(0, 0, 0, 0.6),
+    0 0 0 12px rgba(var(--accent-color), 0.5),
+    0 0 0 20px rgba(var(--accent-color), 0.3),
+    0 0 60px rgba(var(--accent-color), 0.4),
+    0 0 120px rgba(var(--accent-color), 0.2);
   opacity: 0.95;
 }
 
 .vinyl-disc.playing::before {
   background: linear-gradient(45deg, 
-    rgba(99, 102, 241, 0.3) 0%,
-    rgba(120, 120, 255, 0.2) 25%,
-    rgba(99, 102, 241, 0.25) 50%,
-    rgba(140, 140, 255, 0.15) 75%,
-    rgba(99, 102, 241, 0.2) 100%
+    rgba(var(--accent-color), 0.3) 0%,
+    rgba(var(--accent-color), 0.2) 50%,
+    rgba(var(--accent-color), 0.15) 100%
   );
   filter: blur(12px);
 }
@@ -521,10 +525,10 @@ body.theme-black {
 
 .vinyl-center:hover {
   transform: translate(-50%, -50%) scale(1.05);
-  border-color: #ff6b6b;
+  border-color: var(--accent-rgb);
   box-shadow: 
-    0 0 80px rgba(255, 107, 107, 0.6),
-    inset 0 0 40px rgba(255, 255, 255, 0.2);
+    0 0 60px rgba(var(--accent-color), 0.5),
+    inset 0 0 30px rgba(255, 255, 255, 0.15);
 }
 
 .vinyl-center img {
@@ -579,38 +583,43 @@ body.theme-black {
   to { transform: rotate(360deg); }
 }
 
-/* Spotify Section */
+/* Spotify Section - Persona 5 Angular */
 .spotify-section {
-  background: rgba(30, 215, 96, 0.1);
+  background: rgba(0, 0, 0, 0.85);
   padding: 1.5rem;
-  border-radius: 15px;
-  border: 1px solid rgba(30, 215, 96, 0.3);
+  border-radius: 0;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-left: 4px solid #1DB954;
 }
 
 .spotify-btn {
   width: 100%;
   padding: 1rem 1.5rem;
-  background: linear-gradient(45deg, #1DB954, #1ed760);
-  color: white;
+  background: #1DB954;
+  color: var(--p5-black);
   border: none;
-  border-radius: 25px;
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 600;
+  border-radius: 0;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  font-weight: 700;
   font-size: 1rem;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  transform: skewX(var(--p5-skew));
 }
 
+.spotify-btn > * { transform: skewX(var(--p5-skew-inv)); }
+
 .spotify-btn:hover {
-  background: linear-gradient(45deg, #1ed760, #1DB954);
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(30, 215, 96, 0.4);
+  background: var(--p5-white);
+  color: var(--p5-black);
+  box-shadow: 4px 4px 0 #1DB954;
+  transform: skewX(var(--p5-skew)) translate(-2px, -2px);
 }
 
 .spotify-status {
@@ -624,34 +633,42 @@ body.theme-black {
   justify-content: center;
   gap: 0.5rem;
   color: #1DB954;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 1rem;
-}
-
-.playoff-btn {
-  background: linear-gradient(45deg, #ff6b6b, #feca57);
-  color: white;
-  border: none;
-  padding: 0.8rem 1.5rem;
-  border-radius: 20px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
-.playoff-btn:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 10px 25px rgba(255, 107, 107, 0.4);
+.playoff-btn {
+  background: var(--accent-rgb);
+  color: var(--p5-white);
+  border: 2px solid var(--p5-white);
+  padding: 0.8rem 1.5rem;
+  border-radius: 0;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transform: skewX(var(--p5-skew));
 }
 
-/* Search Section */
+.playoff-btn > * { transform: skewX(var(--p5-skew-inv)); }
+
+.playoff-btn:hover {
+  background: var(--p5-white);
+  color: var(--p5-black);
+  box-shadow: 4px 4px 0 var(--accent-rgb);
+  transform: skewX(var(--p5-skew)) translate(-2px, -2px);
+}
+
+/* Search Section - Persona 5 Angular */
 .search-section {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.8);
   padding: 1.5rem;
-  border-radius: 15px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-left: 4px solid var(--accent-medium);
 }
 
 .search-container {
@@ -662,42 +679,50 @@ body.theme-black {
 .search-input {
   flex: 1;
   padding: 1rem 1.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 25px;
-  color: #ffffff;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0;
+  color: var(--p5-white);
   font-size: 1rem;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 500;
   outline: none;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .search-input::placeholder {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .search-input:focus {
-  border-color: #ff6b6b;
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
+  border-color: var(--accent-rgb);
+  background: rgba(0, 0, 0, 0.8);
+  box-shadow: 3px 3px 0 var(--accent-rgb);
 }
 
 .search-btn {
   padding: 1rem 1.5rem;
-  background: linear-gradient(45deg, #ff6b6b, #feca57);
-  border: none;
-  border-radius: 25px;
-  color: white;
+  background: var(--accent-rgb);
+  border: 2px solid var(--p5-white);
+  border-radius: 0;
+  color: var(--p5-white);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 700;
 }
 
 .search-btn:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 10px 25px rgba(255, 107, 107, 0.4);
+  background: var(--p5-white);
+  color: var(--p5-black);
+  box-shadow: 3px 3px 0 var(--accent-rgb);
+  transform: translate(-2px, -2px);
 }
 
 /* Voting Section - Dark glass for dynamic background */
@@ -748,52 +773,53 @@ body.theme-black {
   transition: border-color var(--color-transition);
 }
 
+/* Chat - Persona 5 Angular */
 .chat-container {
-  background: rgba(20, 20, 25, 0.5);
-  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 0;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  box-shadow: 
-    0 8px 20px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.15);
 }
 
 .chat-header {
-  background: rgba(30, 30, 35, 0.5);
+  background: rgba(0, 0, 0, 0.8);
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.15);
 }
 
 .chat-header h3 {
-  color: #fff;
-  font-family: 'Inter', sans-serif;
+  color: var(--p5-white);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 1.1rem;
   margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .chat-message {
-  background: rgba(20, 20, 25, 0.5);
-  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 0;
   padding: 1rem;
   margin: 0.5rem 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(15px);
-  transition: all 0.2s ease;
+  border-left: 3px solid var(--accent-soft);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.15s ease;
 }
 
 .chat-message:hover {
-  background: rgba(30, 30, 35, 0.6);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: rgba(var(--accent-color), 0.05);
+  border-left-color: var(--accent-rgb);
+  transform: translateX(4px);
 }
 
 .chat-username {
   font-weight: 700;
-  color: #fff;
+  color: var(--accent-rgb);
   margin-bottom: 0.3rem;
   font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .chat-text {
@@ -803,101 +829,89 @@ body.theme-black {
 }
 
 .chat-input {
-  background: rgba(20, 20, 25, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 15px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0;
   padding: 1rem 1.5rem;
-  color: #fff;
+  color: var(--p5-white);
   font-size: 1rem;
-  backdrop-filter: blur(20px);
-  transition: all 0.3s ease;
+  transition: all 0.15s ease;
   width: 100%;
 }
 
 .chat-input::placeholder {
   color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
 }
 
 .chat-input:focus {
   outline: none;
-  border-color: rgba(99, 102, 241, 0.4);
-  background: rgba(30, 30, 35, 0.6);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-color: var(--accent-rgb);
+  background: rgba(0, 0, 0, 0.8);
+  box-shadow: 3px 3px 0 var(--accent-rgb);
 }
 
-/* Player Controls - Dark theme */
+/* Player Controls - Persona 5 Angular */
 .control-btn {
-  background: rgba(20, 20, 25, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
+  background: var(--p5-black);
+  border: 2px solid var(--p5-white);
+  color: var(--p5-white);
+  width: 55px;
+  height: 55px;
+  border-radius: 0;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(20px);
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.2rem;
   position: relative;
   overflow: hidden;
-  box-shadow: 
-    0 4px 15px rgba(0, 0, 0, 0.2),
-    0 2px 8px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 3px 3px 0 rgba(var(--accent-color), 0.3);
 }
 
 .control-btn:hover {
-  background: rgba(40, 40, 45, 0.7);
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 
-    0 8px 25px rgba(0, 0, 0, 0.3),
-    0 4px 12px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--p5-white);
+  color: var(--p5-black);
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 var(--accent-rgb);
 }
 
 .play-pause {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.9) 0%, rgba(79, 70, 229, 0.95) 100%);
-  color: white;
-  width: 80px;
-  height: 80px;
+  background: var(--accent-rgb);
+  color: var(--p5-white);
+  width: 70px;
+  height: 70px;
   font-size: 1.5rem;
-  border: none;
-  box-shadow: 
-    0 6px 20px rgba(99, 102, 241, 0.3),
-    0 3px 10px rgba(99, 102, 241, 0.2);
+  border: 3px solid var(--p5-white);
+  box-shadow: 4px 4px 0 var(--p5-white);
 }
 
 .play-pause:hover {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 1) 0%, rgba(79, 70, 229, 1) 100%);
-  transform: translateY(-3px) scale(1.1);
-  box-shadow: 
-    0 10px 30px rgba(99, 102, 241, 0.4),
-    0 5px 15px rgba(99, 102, 241, 0.3);
+  background: var(--p5-white);
+  color: var(--p5-black);
+  transform: translate(-3px, -3px);
+  box-shadow: 7px 7px 0 var(--accent-rgb);
 }
 
-/* Progress Bar - Enhanced */
+/* Progress Bar - Persona 5 Angular */
 .progress-bar {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
-  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0;
+  height: 6px;
   overflow: hidden;
   position: relative;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .progress-fill {
-  background: linear-gradient(90deg, rgba(99, 102, 241, 0.9) 0%, rgba(79, 70, 229, 1) 100%);
+  background: var(--accent-rgb);
   height: 100%;
-  border-radius: 10px;
+  border-radius: 0;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 0 8px rgba(var(--accent-color), 0.4);
 }
 
 /* Animations */
@@ -932,38 +946,44 @@ body.theme-black {
 /* Scrollbar Styles - Unified globally above */
 /* Removed specific selectors to prevent override conflicts */
 
-/* Now playing display */
+/* Now playing display - Persona 5 */
 .now-playing {
   margin-top: 20px;
   padding: 15px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 10px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 0;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-left: 4px solid var(--accent-rgb);
 }
 
 .current-song-info {
   text-align: center;
-  color: #fff;
+  color: var(--p5-white);
 }
 
 .current-song-title {
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 900;
   margin-bottom: 5px;
-  color: #f39c12;
+  color: var(--accent-rgb);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
 }
 
 .current-song-artist {
   font-size: 14px;
-  color: #bbb;
+  color: rgba(255, 255, 255, 0.7);
   margin-bottom: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .current-song-album {
   font-size: 12px;
-  color: #888;
-  font-style: italic;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: normal;
+  text-transform: uppercase;
 }
 
 /* Music Controls */
@@ -975,63 +995,172 @@ body.theme-black {
   margin-top: 1.5rem;
 }
 
-.player-controls {
-  display: flex;
-  gap: 1.5rem;
-  align-items: center;
-  justify-content: center;
-  margin-top: 1.5rem;
+/* Notification styles - Persona 5 Angular */
+.notification {
+  position: fixed;
+  top: 2rem;
+  right: 2rem;
+  padding: 1rem 1.5rem;
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.95);
+  border: 2px solid var(--p5-white);
+  border-left: 5px solid var(--accent-rgb);
+  color: var(--p5-white);
+  font-weight: 700;
+  font-size: 0.9rem;
+  font-family: 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  z-index: 9999;
+  animation: p5NotifSlide 0.3s ease-out;
+  box-shadow: 5px 5px 0 rgba(var(--accent-color), 0.3);
+  max-width: 300px;
+  word-wrap: break-word;
 }
 
-/* Dynamic Color System */
+@keyframes p5NotifSlide {
+  from { transform: translateX(120%) skewX(var(--p5-skew)); opacity: 0; }
+  to { transform: translateX(0) skewX(0deg); opacity: 1; }
+}
+
+.notification-success {
+  border-left-color: #2ecc71;
+  color: #2ecc71;
+  box-shadow: 5px 5px 0 rgba(46, 204, 113, 0.3);
+}
+
+.notification-error {
+  border-left-color: #e74c3c;
+  color: #e74c3c;
+  box-shadow: 5px 5px 0 rgba(231, 76, 60, 0.3);
+}
+
+.notification-warning {
+  border-left-color: #f1c40f;
+  color: #f1c40f;
+  box-shadow: 5px 5px 0 rgba(241, 196, 15, 0.3);
+}
+
+.notification-info {
+  border-left-color: #3498db;
+  color: #3498db;
+  box-shadow: 5px 5px 0 rgba(52, 152, 219, 0.3);
+}
+
+/* Buttons - Persona 5 Angular */
+.retrospective-btn {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background: #000;
+  border: 2px solid #ff6b6b;
+  color: #ff6b6b;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+  font-family: 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.retrospective-btn:hover {
+  background: #ff6b6b;
+  color: #000;
+  transform: scale(1.1) rotate(10deg);
+}
+
+.about-btn {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background: #000;
+  border: 2px solid #4a5568;
+  color: #4a5568;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  font-family: 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.about-btn:hover {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+}
+
+/* Theme - Persona 5 Angular */
 body.theme-warm {
   background: linear-gradient(135deg, #2c1810 0%, #4a2c1a 50%, #3d2316 100%);
+  color: var(--p5-white);
 }
 
 body.theme-cool {
   background: linear-gradient(135deg, #0a1628 0%, #1a2a3a 50%, #162a3a 100%);
+  color: var(--p5-white);
 }
 
 body.theme-vibrant {
   background: linear-gradient(135deg, #4a0e4e 0%, #2a1a2e 50%, #3e1648 100%);
+  color: var(--p5-white);
 }
 
 body.theme-neutral {
   background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1e1e1e 100%);
+  color: var(--p5-white);
 }
 
-/* Player Card Dynamic Colors */
+/* Player Card Dynamic Colors - Persona 5 Angular */
 .player-card.theme-warm {
   background: rgba(139, 69, 19, 0.3);
   border-color: rgba(255, 140, 0, 0.3);
   box-shadow: 0 30px 60px rgba(139, 69, 19, 0.5);
+  color: var(--p5-white);
 }
 
 .player-card.theme-cool {
   background: rgba(25, 25, 112, 0.3);
   border-color: rgba(100, 149, 237, 0.3);
   box-shadow: 0 30px 60px rgba(25, 25, 112, 0.5);
+  color: var(--p5-white);
 }
 
 .player-card.theme-vibrant {
   background: rgba(128, 0, 128, 0.3);
   border-color: rgba(255, 20, 147, 0.3);
   box-shadow: 0 30px 60px rgba(128, 0, 128, 0.5);
+  color: var(--p5-white);
 }
 
 .player-card.theme-neutral {
   background: rgba(64, 64, 64, 0.3);
   border-color: rgba(169, 169, 169, 0.3);
   box-shadow: 0 30px 60px rgba(64, 64, 64, 0.5);
+  color: var(--p5-white);
 }
 
-/* Dynamic Text Colors */
+/* Dynamic Text Colors - Persona 5 Angular */
 .player-info h2.theme-warm {
   background: linear-gradient(45deg, #ff8c00, #ffa500, #ff6347, #ff4500);
   background-size: 400% 400%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  color: var(--p5-white);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
 }
 
 .player-info h2.theme-cool {
@@ -1040,6 +1169,10 @@ body.theme-neutral {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  color: var(--p5-white);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
 }
 
 .player-info h2.theme-vibrant {
@@ -1048,6 +1181,10 @@ body.theme-neutral {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  color: var(--p5-white);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
 }
 
 .player-info h2.theme-neutral {
@@ -1056,97 +1193,10 @@ body.theme-neutral {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-}
-
-/* Notification styles */
-.notification {
-  position: fixed;
-  top: 2rem;
-  right: 2rem;
-  padding: 1rem 1.5rem;
-  border-radius: 15px;
-  background: rgba(0, 0, 0, 0.9);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  font-weight: 600;
-  font-size: 0.9rem;
-  z-index: 9999;
-  animation: slideInRight 0.5s ease-out;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  max-width: 300px;
-  word-wrap: break-word;
-}
-
-.notification-success {
-  border-color: rgba(46, 204, 113, 0.5);
-  background: linear-gradient(135deg, rgba(46, 204, 113, 0.2), rgba(39, 174, 96, 0.2));
-  color: #2ecc71;
-}
-
-.notification-error {
-  border-color: rgba(231, 76, 60, 0.5);
-  background: linear-gradient(135deg, rgba(231, 76, 60, 0.2), rgba(192, 57, 43, 0.2));
-  color: #e74c3c;
-}
-
-.notification-warning {
-  border-color: rgba(241, 196, 15, 0.5);
-  background: linear-gradient(135deg, rgba(241, 196, 15, 0.2), rgba(243, 156, 18, 0.2));
-  color: #f1c40f;
-}
-
-.notification-info {
-  border-color: rgba(52, 152, 219, 0.5);
-  background: linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(41, 128, 185, 0.2));
-  color: #3498db;
-}
-
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-/* Loading states for audio player */
-.vinyl-disc.loading {
-  opacity: 0.7;
-  animation: loadingPulse 1.5s ease-in-out infinite;
-}
-
-@keyframes loadingPulse {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 0.7;
-  }
-  50% {
-    transform: scale(1.02);
-    opacity: 0.9;
-  }
-}
-
-/* Enhanced chat message styles */
-.message-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.message-user {
-  font-weight: 600;
-  color: #ff6b6b;
-  font-size: 0.9rem;
-}
-
-.message-time {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--p5-white);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
 }
 
 .message-content {
@@ -1296,53 +1346,6 @@ body.theme-neutral {
     margin: 0.5rem;
     padding: 1.5rem;
   }
-}
-
-.retrospective-btn {
-  width: 45px;
-  height: 45px;
-  border-radius: 50%;
-  background: #000;
-  border: 2px solid #ff6b6b;
-  color: #ff6b6b;
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
-}
-
-.about-btn {
-  width: 45px;
-  height: 45px;
-  border-radius: 50%;
-  background: #000;
-  border: 2px solid #4a5568;
-  color: #4a5568;
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-}
-
-.about-btn:hover {
-  background: #fff;
-  color: #000;
-  border-color: #fff;
-  transform: scale(1.1);
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
-}
-
-.retrospective-btn:hover {
-  background: #ff6b6b;
-  color: #000;
-  transform: scale(1.1) rotate(10deg);
-  box-shadow: 0 0 20px rgba(255, 107, 107, 0.6);
 }
 
 /* Dynamic Vinyl Disc Colors - Responds to music themes */

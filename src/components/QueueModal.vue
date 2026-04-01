@@ -94,12 +94,13 @@ defineEmits(['close'])
 </script>
 
 <style scoped>
+/* ============= QUEUE MODAL - Persona 5 Angular ============= */
 .modal-overlay {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(8px);
   z-index: 9999;
   display: flex;
@@ -108,48 +109,56 @@ defineEmits(['close'])
 }
 
 .modal-content {
-  background: #121212;
+  background: var(--p5-black, #0a0a0a);
   width: 90%;
   max-width: 500px;
   max-height: 85vh;
-  border: 2px solid #fff;
+  border: 3px solid var(--p5-white, #fff);
   display: flex;
   flex-direction: column;
   transform: skewX(-2deg);
-  box-shadow: 8px 8px 0 rgba(255, 107, 107, 0.5);
+  box-shadow: 8px 8px 0 var(--accent-rgb, #ff6b6b), 0 0 40px var(--glow-color, rgba(255, 107, 107, 0.3));
   position: relative;
   margin: auto;
 }
 
 .modal-header {
   padding: 1.5rem;
-  border-bottom: 1px solid #333;
+  border-bottom: 3px solid rgba(255, 255, 255, 0.15);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #1a1a1a;
+  background: linear-gradient(135deg, rgba(var(--accent-color, 255, 107, 107), 0.1), transparent);
 }
 
 .modal-title {
-  font-family: 'Cingire', sans-serif;
-  color: #fff;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  color: var(--p5-white, #fff);
   font-size: 1.5rem;
   margin: 0;
-  letter-spacing: 0.1em;
+  letter-spacing: 2px;
   text-transform: uppercase;
+  text-shadow: 2px 2px 0 rgba(var(--accent-color, 255, 107, 107), 0.3);
 }
 
 .close-btn {
+  width: 40px;
+  height: 40px;
   background: transparent;
-  border: none;
-  color: #fff;
-  font-size: 1.5rem;
+  border: 2px solid var(--p5-white, #fff);
+  color: var(--p5-white, #fff);
+  font-size: 1.2rem;
   cursor: pointer;
-  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
 }
 
 .close-btn:hover {
-  color: #ff6b6b;
+  background: var(--accent-rgb, #ff6b6b);
+  border-color: var(--accent-rgb, #ff6b6b);
+  transform: rotate(90deg);
 }
 
 .queue-list {
@@ -163,10 +172,11 @@ defineEmits(['close'])
   justify-content: space-between;
   align-items: center;
   padding: 0.8rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
   margin-bottom: 0.5rem;
-  border: 1px solid transparent;
-  transition: all 0.2s;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid transparent;
+  transition: all 0.15s ease;
   cursor: grab;
 }
 
@@ -175,17 +185,18 @@ defineEmits(['close'])
 }
 
 .queue-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: #ff6b6b;
+  background: rgba(var(--accent-color, 255, 107, 107), 0.08);
+  border-left-color: var(--accent-rgb, #ff6b6b);
+  transform: translateX(4px);
 }
 
 .queue-item.drag-over {
-  border-top: 2px solid #ff6b6b;
-  background: rgba(255, 107, 107, 0.1);
+  border-top: 3px solid var(--accent-rgb, #ff6b6b);
+  background: rgba(var(--accent-color, 255, 107, 107), 0.1);
 }
 
 .drag-handle {
-  color: #666;
+  color: rgba(255, 255, 255, 0.3);
   margin-right: 1rem;
   cursor: grab;
   display: flex;
@@ -193,7 +204,7 @@ defineEmits(['close'])
 }
 
 .drag-handle:hover {
-  color: #fff;
+  color: var(--p5-white, #fff);
 }
 
 .song-info {
@@ -205,17 +216,19 @@ defineEmits(['close'])
 }
 
 .song-number {
-  font-family: 'Cingire', sans-serif;
-  color: #ff6b6b;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  color: var(--accent-rgb, #ff6b6b);
   font-size: 1.2rem;
+  font-weight: 900;
   width: 20px;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
 }
 
 .song-cover {
   width: 40px;
   height: 40px;
   object-fit: cover;
-  border: 1px solid #fff;
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .text-info {
@@ -225,42 +238,75 @@ defineEmits(['close'])
 }
 
 .song-title {
-  color: #fff;
-  font-weight: bold;
+  color: var(--p5-white, #fff);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.song-artist {
-  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   font-size: 0.9rem;
 }
 
+.song-artist {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .remove-btn {
+  width: 32px;
+  height: 32px;
   background: transparent;
-  border: none;
-  color: #666;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.4);
   cursor: pointer;
-  padding: 0.5rem;
-  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
 }
 
 .remove-btn:hover {
-  color: #ff6b6b;
+  background: #ff4444;
+  border-color: #ff4444;
+  color: var(--p5-white, #fff);
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0 var(--p5-white, #fff);
 }
 
 .empty-queue {
   padding: 3rem;
   text-align: center;
-  color: #666;
+  color: rgba(255, 255, 255, 0.4);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1rem;
+  font-family: 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .empty-queue i {
   font-size: 3rem;
+  color: var(--accent-rgb, #ff6b6b);
+}
+
+/* Scrollbar */
+.queue-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.queue-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.queue-list::-webkit-scrollbar-thumb {
+  background: var(--accent-rgb, #ff6b6b);
+  border-radius: 0;
 }
 </style>

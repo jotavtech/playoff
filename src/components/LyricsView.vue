@@ -453,15 +453,16 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s;
+  transition: all 0.15s ease;
   z-index: 100;
-  border-radius: 50%;
+  border-radius: 0;
+  transform: skewX(-5deg);
 }
 
 .close-btn:hover {
   background: var(--accent-color);
   color: #000;
-  transform: rotate(90deg);
+  transform: skewX(-5deg) rotate(90deg);
 }
 
 .audio-source {
@@ -475,10 +476,12 @@ onUnmounted(() => {
   background: rgba(255, 0, 0, 0.4);
   border: 1px solid #ff0000;
   color: #fff;
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 0.85rem;
   z-index: 100;
-  border-radius: 20px;
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .lyrics-container {
@@ -587,7 +590,7 @@ onUnmounted(() => {
   height: 4px;
   background: rgba(255,255,255,0.2);
   margin-top: 8px;
-  border-radius: 2px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -618,8 +621,9 @@ onUnmounted(() => {
   background: rgba(0, 0, 0, 0.85);
   padding: 0.5rem;
   border: 2px solid var(--accent-color);
-  border-radius: 50px;
+  border-radius: 0;
   backdrop-filter: blur(10px);
+  transform: skewX(-3deg);
 }
 
 .mode-btn {
@@ -627,14 +631,16 @@ onUnmounted(() => {
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, 0.6);
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 0.9rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.3s;
-  border-radius: 50px;
+  transition: all 0.15s ease;
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .mode-btn:hover {
@@ -653,10 +659,12 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #fff;
-  font-family: 'Impact', sans-serif;
+  color: var(--p5-white, #fff);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1.5rem;
   z-index: 10;
+  text-transform: uppercase;
+  letter-spacing: 2px;
 }
 
 .video-placeholder {
@@ -684,11 +692,15 @@ onUnmounted(() => {
 .retry-btn {
   padding: 0.8rem 1.5rem;
   background: var(--accent-color);
-  border: none;
+  border: 2px solid var(--accent-color);
   color: #000;
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
   cursor: pointer;
-  border-radius: 25px;
+  border-radius: 0;
+  transition: all 0.15s ease;
 }
 
 @media (max-width: 768px) {

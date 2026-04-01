@@ -367,25 +367,31 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 </script>
 
 <style scoped>
-/* ============= ESTILOS DA LOGO PLAYOFF ============= */
+/* ============= ESTILOS DA LOGO PLAYOFF - Persona 5 ============= */
 .playoff-logo-header {
   text-align: center;
-  margin-bottom: 3rem;
-  padding-bottom: 0; /* Removendo padding já que não há mais linha */
+  margin-bottom: 2.5rem;
+  padding-bottom: 0;
   width: 100%;
 }
 
 .playoff-logo {
   height: 140px;
   width: auto;
-  border-radius: 16px;
-  transition: all 0.3s ease;
-  filter: var(--logo-glow, drop-shadow(0 10px 25px rgba(0, 0, 0, 0.35)));
+  border-radius: 0;
+  transition: all 0.2s ease;
+  filter: var(--logo-glow, 
+    drop-shadow(4px 4px 0 rgba(255,255,255,0.9))
+    drop-shadow(0 0 20px rgba(var(--accent-color), 0.4))
+  );
 }
 
 .playoff-logo:hover {
-  transform: scale(1.05);
-  filter: var(--logo-glow-hover, drop-shadow(0 14px 30px rgba(0, 0, 0, 0.45)));
+  transform: scale(1.05) skewX(-2deg);
+  filter: var(--logo-glow-hover, 
+    drop-shadow(6px 6px 0 rgba(255,255,255,1))
+    drop-shadow(0 0 30px rgba(var(--accent-color), 0.6))
+  );
 }
 
 /* Responsividade da logo */
@@ -395,7 +401,7 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   }
   
   .playoff-logo-header {
-    margin-bottom: 2.5rem;
+    margin-bottom: 2rem;
     padding-bottom: 0;
   }
 }
@@ -406,16 +412,15 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   }
   
   .playoff-logo-header {
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     padding-bottom: 0;
   }
 }
 
-/* ============= ESTILOS PRINCIPAIS DO HERO SECTION ============= */
-/* Estilos do componente HeroSection */
+/* ============= ESTILOS PRINCIPAIS DO HERO SECTION - Persona 5 ============= */
 .hero-section {
   display: flex;
-  flex-direction: column; /* Mudando para coluna para logo ficar acima */
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 2rem;
@@ -436,7 +441,7 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   gap: 3rem;
 }
 
-/* Estilos específicos para o player card */
+/* Player Card - Persona 5 Angular Panel */
 .player-card {
   width: 100%;
   max-width: 550px;
@@ -444,102 +449,110 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   position: relative;
   padding: 2.5rem;
   padding-top: 2rem;
-  background: rgba(0, 0, 0, 0.88);
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  transform: skewX(-3deg);
+  background: rgba(0, 0, 0, 0.92);
+  border: 3px solid var(--p5-white, #fff);
+  border-left: 6px solid var(--accent-rgb, #ff6b6b);
+  transform: skewX(var(--p5-skew, -3deg));
+  clip-path: polygon(0 0, 100% 0, 97% 100%, 0% 100%);
   box-shadow: 
     8px 8px 0 var(--accent-rgb, rgba(255, 107, 107, 0.8)),
-    0 20px 60px rgba(0, 0, 0, 0.5);
+    0 20px 60px rgba(0, 0, 0, 0.6);
   transition: box-shadow var(--color-transition), border-color 0.3s ease;
 }
 
 @media (min-width: 769px) {
   .player-card {
-    background: rgba(8, 8, 12, 0.7);
+    background: rgba(5, 5, 10, 0.85);
     backdrop-filter: blur(20px) saturate(1.3);
   }
 }
 
 .player-card > * {
-  transform: skewX(3deg);
+  transform: skewX(calc(var(--p5-skew, -3deg) * -1));
 }
 
 .track-info {
   margin-bottom: 2.5rem;
   margin-top: 0;
-  text-align: center;
+  text-align: left;
+  padding-left: 0.5rem;
+  border-left: 3px solid var(--accent-rgb, #ff6b6b);
 }
 
 .track-title {
-  font-family: 'Space Grotesk', sans-serif !important;
-  font-size: 2.8rem;
-  font-weight: 700;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif !important;
+  font-size: 2.6rem;
+  font-weight: 900;
   margin-bottom: 0.5rem;
-  color: #fff;
-  letter-spacing: -0.03em;
-  text-transform: none;
-  line-height: 1.1;
-  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+  color: var(--p5-white, #fff);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1.05;
+  text-shadow: 3px 3px 0 rgba(var(--accent-color, 255, 107, 107), 0.4);
 }
 
 .track-artist {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 1.3rem;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--accent-rgb, #ff6b6b);
   margin-bottom: 0.3rem;
   transition: color var(--color-transition);
-  letter-spacing: 0.01em;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .track-album {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 1rem;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
   margin-bottom: 2rem;
-  letter-spacing: 0.02em;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
 }
 
 .player-controls {
   display: flex;
-  gap: 1.5rem;
+  gap: 1rem;
   justify-content: center;
   margin-bottom: 2.5rem;
   align-items: center;
 }
 
 .control-btn {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 0;
-  border: 2px solid rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.04);
-  color: #fff;
+  border: 2px solid var(--p5-white, #fff);
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--p5-white, #fff);
   cursor: pointer;
   transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
+  box-shadow: 3px 3px 0 rgba(var(--accent-color, 255, 107, 107), 0.3);
 }
 
 .control-btn:hover {
-  background: var(--accent-rgb, #ff6b6b);
-  border-color: var(--accent-rgb, #ff6b6b);
+  background: var(--p5-white, #fff);
+  color: var(--p5-black, #0a0a0a);
+  border-color: var(--p5-white, #fff);
   transform: translate(-2px, -2px);
-  box-shadow: 2px 2px 0 #fff;
-  transition: all 0.15s ease, background var(--color-transition);
+  box-shadow: 5px 5px 0 var(--accent-rgb, #ff6b6b);
 }
 
 .play-pause-btn {
-  width: 100px;
-  height: 100px;
-  background: rgba(0, 0, 0, 0.5);
-  border: 4px solid #fff;
-  font-size: 2.5rem;
+  width: 80px;
+  height: 80px;
+  background: var(--accent-rgb, #ff6b6b);
+  border: 3px solid var(--p5-white, #fff);
+  font-size: 2rem;
   transform: skewX(-5deg);
+  box-shadow: 5px 5px 0 var(--p5-white, #fff);
+  transition: all 0.15s ease, background var(--color-transition);
 }
 
 @media (min-width: 769px) {
@@ -554,11 +567,11 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 }
 
 .play-pause-btn:hover {
-  background: var(--accent-rgb);
-  border-color: var(--accent-rgb);
+  background: var(--p5-white, #fff);
+  color: var(--p5-black, #0a0a0a);
+  border-color: var(--p5-white, #fff);
   transform: skewX(-5deg) translate(-3px, -3px);
-  box-shadow: 3px 3px 0 #fff;
-  transition: all var(--color-transition);
+  box-shadow: 7px 7px 0 var(--accent-rgb, #ff6b6b);
 }
 
 .lyrics-hero-btn {
@@ -569,51 +582,55 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 }
 
 .lyrics-hero-btn:hover {
-  background: #fff;
+  background: var(--p5-white, #fff);
   color: var(--accent-rgb);
-  box-shadow: 2px 2px 0 var(--accent-rgb);
+  box-shadow: 4px 4px 0 var(--accent-rgb);
 }
 
 .kanji-icon {
-  font-weight: bold;
+  font-weight: 900;
   line-height: 1;
   font-size: 1.8rem;
 }
 
-/* Botão de Curtir */
+/* Botão de Curtir - Persona 5 */
 .like-btn {
   background: transparent;
   border-color: var(--accent-medium);
   color: var(--accent-light);
-  transition: all 0.3s ease, border-color var(--color-transition), color var(--color-transition);
+  transition: all 0.15s ease, border-color var(--color-transition), color var(--color-transition);
 }
 
 .like-btn:hover {
-  background: var(--accent-subtle);
+  background: var(--accent-rgb);
   border-color: var(--accent-rgb);
-  color: var(--accent-rgb);
-  transform: scale(1.1);
+  color: var(--p5-white, #fff);
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 var(--p5-white, #fff);
 }
 
 .like-btn.liked {
   background: var(--accent-rgb);
-  border-color: var(--accent-rgb);
-  color: #fff;
-  animation: heartPulse 0.4s ease;
+  border-color: var(--p5-white, #fff);
+  color: var(--p5-white, #fff);
+  animation: heartPulse 0.3s ease;
+  box-shadow: 3px 3px 0 var(--p5-white, #fff);
 }
 
 .like-btn.liked:hover {
-  background: var(--accent-dark-rgb);
-  border-color: var(--accent-dark-rgb);
-  box-shadow: 0 0 15px var(--glow-color);
+  background: var(--p5-white, #fff);
+  color: var(--accent-rgb);
+  border-color: var(--accent-rgb);
+  box-shadow: 4px 4px 0 var(--accent-rgb);
 }
 
 @keyframes heartPulse {
   0% { transform: scale(1); }
-  50% { transform: scale(1.3); }
+  50% { transform: scale(1.2); }
   100% { transform: scale(1); }
 }
 
+/* Progress Section - Persona 5 Angular */
 .progress-section {
   display: flex;
   align-items: center;
@@ -622,16 +639,17 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 
 .progress-bar {
   flex: 1;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 0;
   position: relative;
   cursor: pointer;
   transition: height 0.15s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .progress-bar:hover {
-  height: 10px;
+  height: 8px;
 }
 
 .progress-bar:hover .progress-thumb {
@@ -641,10 +659,11 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent-rgb), var(--accent-secondary-rgb));
-  border-radius: 3px;
+  background: var(--accent-rgb, #ff6b6b);
+  border-radius: 0;
   transition: background var(--color-transition);
   pointer-events: none;
+  box-shadow: 0 0 8px rgba(var(--accent-color, 255, 107, 107), 0.4);
 }
 
 .progress-thumb {
@@ -652,33 +671,36 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   top: 50%;
   width: 14px;
   height: 14px;
-  background: #fff;
-  border-radius: 50%;
-  transform: translateX(-50%) translateY(-50%) scale(0);
+  background: var(--p5-white, #fff);
+  border-radius: 0;
+  transform: translateX(-50%) translateY(-50%) rotate(45deg) scale(0);
   opacity: 0;
   transition: opacity 0.15s ease, transform 0.15s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 2px 2px 0 var(--accent-rgb, #ff6b6b);
   pointer-events: none;
 }
 
 .progress-bar:active .progress-thumb {
-  transform: translateX(-50%) translateY(-50%) scale(1.2);
+  transform: translateX(-50%) translateY(-50%) rotate(45deg) scale(1.2);
   opacity: 1;
 }
 
 .time-display {
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.8);
+  font-family: 'Space Grotesk', monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
   min-width: 45px;
   user-select: none;
+  letter-spacing: 1px;
 }
 
+/* Vinyl Container - Persona 5 */
 .vinyl-container {
   position: relative;
   flex-shrink: 0;
   z-index: 5;
   transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-  /* Ajuste para laptops */
   transform: scale(0.9); 
   margin-left: -20px;
 }
@@ -698,12 +720,12 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   }
 
   .player-card {
-    width: 450px; /* Reduzido de 500+ */
+    width: 450px;
     padding: 2rem;
   }
   
   .track-title {
-    font-size: 2.2rem !important;
+    font-size: 2rem !important;
   }
   
   .vinyl-container {
@@ -714,7 +736,7 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 
 @media (max-width: 1200px) {
   .vinyl-container {
-    display: none; /* Esconde disco em telas menores que 1200px */
+    display: none;
   }
   
   .hero-content {
@@ -722,13 +744,13 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   }
 }
 
-/* ============= ANIMAÇÃO DE NOVA MÚSICA ============= */
+/* ============= ANIMAÇÃO DE NOVA MÚSICA - Persona 5 ============= */
 .vinyl-container.new-track-animation {
-  animation: vinylBounceIn 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: vinylBounceIn 1s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .vinyl-disc.pulse-glow {
-  animation: discPulseGlow 1.5s ease-out;
+  animation: discPulseGlow 1.2s ease-out;
 }
 
 /* Borda do disco com cor dinâmica */
@@ -739,21 +761,18 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
 
 @keyframes vinylBounceIn {
   0% {
-    transform: scale(0.8) rotate(-10deg);
-    opacity: 0.7;
+    transform: scale(0.7) skewX(-10deg);
+    opacity: 0;
   }
-  30% {
-    transform: scale(1.15) rotate(5deg);
+  40% {
+    transform: scale(1.1) skewX(3deg);
     opacity: 1;
   }
-  50% {
-    transform: scale(0.95) rotate(-3deg);
-  }
-  70% {
-    transform: scale(1.05) rotate(2deg);
+  60% {
+    transform: scale(0.95) skewX(-1deg);
   }
   100% {
-    transform: scale(1) rotate(0deg);
+    transform: scale(1) skewX(0deg);
   }
 }
 
@@ -761,25 +780,19 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   0% {
     box-shadow: 
       0 0 0 0 var(--accent-light),
-      0 0 30px var(--glow-color);
-    filter: brightness(1.3);
+      0 0 20px var(--glow-color);
+    filter: brightness(1.3) contrast(1.1);
   }
-  25% {
+  30% {
     box-shadow: 
       0 0 40px 20px var(--accent-medium),
       0 0 80px 40px var(--accent-soft);
-    filter: brightness(1.5);
+    filter: brightness(1.5) contrast(1.2);
   }
-  50% {
+  60% {
     box-shadow: 
-      0 0 60px 30px var(--glow-color),
-      0 0 100px 50px var(--accent-subtle);
-    filter: brightness(1.4) saturate(1.2);
-  }
-  75% {
-    box-shadow: 
-      0 0 30px 15px var(--accent-soft),
-      0 0 60px 30px var(--accent-subtle);
+      0 0 20px 10px var(--accent-soft),
+      0 0 40px 20px var(--accent-subtle);
     filter: brightness(1.2);
   }
   100% {
@@ -788,7 +801,7 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   }
 }
 
-/* Responsividade para dispositivos móveis */
+/* Responsividade - Persona 5 */
 @media (max-width: 768px) {
   .hero-section {
     gap: 1.5rem;
@@ -805,10 +818,24 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   .player-card {
     max-width: 100%;
     order: 2;
+    clip-path: none;
+    transform: none;
+  }
+
+  .player-card > * {
+    transform: none;
   }
   
   .vinyl-container {
     order: 1;
+  }
+
+  .track-info {
+    text-align: center;
+    border-left: none;
+    padding-left: 0;
+    border-bottom: 3px solid var(--accent-rgb, #ff6b6b);
+    padding-bottom: 1rem;
   }
 }
 
@@ -829,8 +856,8 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   }
   
   .control-btn {
-    width: 45px;
-    height: 45px;
+    width: 42px;
+    height: 42px;
     font-size: 1rem;
   }
   
@@ -841,26 +868,28 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   }
 }
 
-/* Estilos para capas claras - melhor contraste */
+/* Estilos para capas claras */
 .vinyl-center.white-album .placeholder-text {
   color: #333;
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
 }
 
+/* External Device Badge - Persona 5 */
 .external-device-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  background: rgba(29, 185, 84, 0.2);
-  border: 1px solid #1DB954;
+  background: rgba(29, 185, 84, 0.15);
+  border: 2px solid #1DB954;
   color: #1DB954;
-  padding: 0.2rem 0.6rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: bold;
+  padding: 0.15rem 0.6rem;
+  border-radius: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
   margin-right: 0.5rem;
   vertical-align: middle;
-  animation: pulse-green 2s infinite;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 @keyframes pulse-green {
@@ -868,4 +897,4 @@ watch(() => props.currentTrack, (newTrack, oldTrack) => {
   70% { box-shadow: 0 0 0 5px rgba(29, 185, 84, 0); }
   100% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0); }
 }
-</style> 
+</style>

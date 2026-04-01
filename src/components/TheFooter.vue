@@ -69,46 +69,48 @@ defineEmits(['open-about'])
 </script>
 
 <style scoped>
+/* ============= FOOTER - Persona 5 Angular ============= */
 .punk-footer {
-  background-color: #0a0a0a;
-  color: #fff;
+  background-color: var(--p5-black, #0a0a0a);
+  color: var(--p5-white, #fff);
   position: relative;
-  margin-top: auto; /* Push to bottom */
-  padding-bottom: 2rem; /* Give some breathing room at bottom */
+  margin-top: auto;
+  padding-bottom: 2rem;
   margin-bottom: 0;
-  border-top: 5px solid #fff;
-  overflow: visible; /* Allow pseudo-element to extend */
+  border-top: 4px solid var(--p5-white, #fff);
+  overflow: visible;
   width: 100%;
-  z-index: 10; /* Ensure it sits above background effects if any */
+  z-index: 10;
 }
 
-/* Extend footer background below to cover any visible dynamic background */
 .punk-footer::after {
   content: '';
   position: absolute;
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 100vh; /* Extend far below */
-  background-color: #0a0a0a;
+  height: 100vh;
+  background-color: var(--p5-black, #0a0a0a);
   transform: translateY(100%);
   z-index: -1;
   pointer-events: none;
 }
 
-/* Faixa estilo "fita de isolamento" - Cor dinâmica */
+/* Tape Banner - Persona 5 Dynamic */
 .footer-tape {
-  background: var(--accent-rgb);
-  color: #000;
-  font-family: 'Impact', sans-serif;
+  background: var(--accent-rgb, #ff6b6b);
+  color: var(--p5-black, #0a0a0a);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1.2rem;
+  font-weight: 900;
+  letter-spacing: 3px;
   padding: 0.5rem 0;
   transform: rotate(-1deg) scale(1.05);
   width: 110%;
   margin-left: -5%;
   margin-bottom: 3rem;
-  border-top: 2px solid #fff;
-  border-bottom: 2px solid #fff;
+  border-top: 3px solid var(--p5-white, #fff);
+  border-bottom: 3px solid var(--p5-white, #fff);
   box-shadow: 0 5px 15px var(--shadow-color);
   white-space: nowrap;
   overflow: hidden;
@@ -137,7 +139,7 @@ defineEmits(['open-about'])
   z-index: 1;
 }
 
-/* Brand Section */
+/* Brand Section - Persona 5 */
 .footer-brand {
   display: flex;
   flex-direction: column;
@@ -147,50 +149,53 @@ defineEmits(['open-about'])
 .image-container {
   position: relative;
   margin-bottom: 1rem;
-  transition: transform 0.3s ease;
+  transition: transform 0.2s ease;
 }
 
 .footer-mascot {
   height: 180px;
   width: auto;
-  filter: drop-shadow(5px 5px 0 rgba(255, 107, 107, 0.5));
-  transition: all 0.3s ease;
+  filter: drop-shadow(5px 5px 0 rgba(var(--accent-color, 255, 107, 107), 0.5));
+  transition: all 0.2s ease;
   transform: rotate(-5deg);
 }
 
 .image-container:hover .footer-mascot {
-  transform: rotate(0deg) scale(1.1);
-  filter: drop-shadow(8px 8px 0 #ff6b6b) brightness(1.2);
+  transform: rotate(0deg) scale(1.1) skewX(-2deg);
+  filter: drop-shadow(8px 8px 0 var(--accent-rgb, #ff6b6b)) brightness(1.2);
 }
 
 .footer-logo {
   max-width: 200px;
   height: auto;
-  filter: drop-shadow(3px 3px 0 #ff6b6b);
+  filter: drop-shadow(4px 4px 0 var(--accent-rgb, #ff6b6b));
   transform: skewX(-5deg);
   margin: 0.5rem 0;
 }
 
 .footer-slogan {
-  font-family: 'Cingire', sans-serif;
-  color: #888;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  color: rgba(255, 255, 255, 0.4);
   font-size: 0.9rem;
-  letter-spacing: 0.2em;
+  font-weight: 700;
+  letter-spacing: 3px;
   margin-top: 0.5rem;
   margin-left: 0.5rem;
+  text-transform: uppercase;
 }
 
-/* Links Section */
+/* Links Section - Persona 5 */
 .links-title {
-  font-family: 'Cingire', sans-serif;
-  color: var(--accent-rgb);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  color: var(--accent-rgb, #ff6b6b);
   font-size: 1.5rem;
   margin-bottom: 1.5rem;
-  border-bottom: 2px solid #333;
+  border-bottom: 3px solid rgba(255, 255, 255, 0.15);
   padding-bottom: 0.5rem;
   display: inline-block;
-  transform: skewX(-5deg);
+  transform: skewX(var(--p5-skew, -3deg));
   transition: color var(--color-transition);
+  letter-spacing: 2px;
 }
 
 .punk-list {
@@ -201,31 +206,33 @@ defineEmits(['open-about'])
 
 .punk-link {
   display: block;
-  color: #fff;
+  color: var(--p5-white, #fff);
   text-decoration: none;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 1.1rem;
   padding: 0.5rem 0;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   position: relative;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .punk-link:hover {
-  color: var(--accent-rgb);
+  color: var(--accent-rgb, #ff6b6b);
   padding-left: 1rem;
-  text-shadow: 2px 2px 0 rgba(255,255,255,0.2);
+  text-shadow: 2px 2px 0 rgba(var(--accent-color, 255, 107, 107), 0.2);
 }
 
 .punk-link::before {
-  content: '\f714'; /* Skull icon from Font Awesome */
+  content: '\f714';
   font-family: 'Font Awesome 6 Free';
   font-weight: 900;
   position: absolute;
   left: 0;
   opacity: 0;
-  transition: all 0.2s, color var(--color-transition);
-  color: var(--accent-rgb);
+  transition: all 0.15s ease, color var(--color-transition);
+  color: var(--accent-rgb, #ff6b6b);
   font-size: 0.9em;
 }
 
@@ -234,7 +241,7 @@ defineEmits(['open-about'])
   left: -20px;
 }
 
-/* Social Section */
+/* Social Section - Persona 5 */
 .social-icons {
   display: flex;
   gap: 1rem;
@@ -244,45 +251,47 @@ defineEmits(['open-about'])
 .social-btn {
   width: 50px;
   height: 50px;
-  background: #222;
-  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--p5-white, #fff);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  border: 2px solid #fff;
-  transition: all 0.2s;
+  border: 2px solid var(--p5-white, #fff);
+  transition: all 0.15s ease;
   transform: skewX(-5deg);
 }
 
 .social-btn:hover {
-  background: #fff;
-  color: #000;
+  background: var(--p5-white, #fff);
+  color: var(--p5-black, #0a0a0a);
   transform: skewX(-5deg) translate(-3px, -3px);
-  box-shadow: 3px 3px 0 #ff6b6b;
+  box-shadow: 4px 4px 0 var(--accent-rgb, #ff6b6b);
 }
 
-/* Botão do Spotify com cor verde característica */
 .social-btn.spotify-btn:hover {
   background: #1DB954;
-  color: #fff;
+  color: var(--p5-white, #fff);
   border-color: #1DB954;
-  box-shadow: 3px 3px 0 #fff;
+  box-shadow: 4px 4px 0 var(--p5-white, #fff);
 }
 
 .footer-credit {
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.8rem;
-  color: #666;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.3);
   line-height: 1.5;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .copy {
-  color: #444;
+  color: rgba(255, 255, 255, 0.2);
   margin-top: 0.5rem;
 }
 
-/* Responsividade */
+/* Responsive - Persona 5 */
 @media (max-width: 768px) {
   .footer-content {
     grid-template-columns: 1fr;
@@ -296,6 +305,7 @@ defineEmits(['open-about'])
 
   .links-title {
     margin: 0 auto 1.5rem;
+    transform: none;
   }
 
   .punk-link:hover {
@@ -308,6 +318,14 @@ defineEmits(['open-about'])
 
   .social-icons {
     justify-content: center;
+  }
+
+  .social-btn {
+    transform: none;
+  }
+
+  .social-btn:hover {
+    transform: translate(-2px, -2px);
   }
 }
 </style>

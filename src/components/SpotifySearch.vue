@@ -444,6 +444,7 @@ const addSong = (track) => {
 </script>
 
 <style scoped>
+/* ============= SPOTIFY SEARCH - Persona 5 Angular ============= */
 .spotify-search {
   width: 100%;
   max-width: 600px;
@@ -452,63 +453,76 @@ const addSong = (track) => {
 }
 
 .search-header {
-  text-align: center;
+  text-align: left;
   margin-bottom: 1rem;
+  padding-left: 0.5rem;
+  border-left: 4px solid var(--accent-rgb, #ff6b6b);
 }
 
 .search-title {
-  font-family: 'Cingire', 'Impact', sans-serif;
-  color: #fff;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  color: var(--p5-white, #fff);
   font-size: 1.8rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   margin: 0;
-  text-shadow: 2px 2px 0 #ff6b6b;
+  text-shadow: 3px 3px 0 rgba(var(--accent-color, 255, 107, 107), 0.4);
 }
 
 .search-box {
   display: flex;
   gap: 0;
-  background: rgba(0, 0, 0, 0.5);
-  border: none;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-left: 4px solid var(--accent-rgb, #ff6b6b);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4);
 }
 
 .search-input {
   flex: 1;
   padding: 1rem 1.5rem;
-  font-size: 1.1rem;
-  font-family: 'Cingire', sans-serif;
-  letter-spacing: 0.05em;
-  background: rgba(0, 0, 0, 0.7);
+  font-size: 1rem;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  letter-spacing: 1px;
+  background: transparent;
   border: none;
-  color: #fff;
+  color: var(--p5-white, #fff);
   outline: none;
+  text-transform: uppercase;
 }
 
 .search-input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.search-input:focus {
+  background: rgba(var(--accent-color, 255, 107, 107), 0.05);
 }
 
 .search-btn {
   padding: 1rem 1.5rem;
-  background: #ff6b6b;
+  background: var(--accent-rgb, #ff6b6b);
   border: none;
-  color: #fff;
+  border-left: 2px solid var(--p5-white, #fff);
+  color: var(--p5-white, #fff);
   font-size: 1.2rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .search-btn:hover:not(:disabled) {
-  background: #fff;
-  color: #000;
+  background: var(--p5-white, #fff);
+  color: var(--p5-black, #0a0a0a);
 }
 
+/* Search Results - Persona 5 Angular */
 .search-results {
   margin-top: 1rem;
   border: 2px solid rgba(255, 255, 255, 0.2);
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.9);
 }
 
 .result-item {
@@ -516,13 +530,16 @@ const addSong = (track) => {
   align-items: center;
   gap: 1rem;
   padding: 0.8rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid transparent;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.15s ease;
 }
 
 .result-item:hover {
-  background: rgba(255, 107, 107, 0.2);
+  background: rgba(var(--accent-color, 255, 107, 107), 0.1);
+  border-left-color: var(--accent-rgb, #ff6b6b);
+  transform: translateX(4px);
 }
 
 .result-item:last-child {
@@ -533,7 +550,7 @@ const addSong = (track) => {
   width: 50px;
   height: 50px;
   object-fit: cover;
-  border: 2px solid #fff;
+  border: 2px solid var(--p5-white, #fff);
 }
 
 .result-info {
@@ -544,15 +561,19 @@ const addSong = (track) => {
 }
 
 .result-name {
-  font-family: 'Cingire', sans-serif;
-  color: #fff;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  color: var(--p5-white, #fff);
   font-size: 1rem;
   letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .result-artist {
-  color: #ff6b6b;
+  color: var(--accent-rgb, #ff6b6b);
   font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .result-actions {
@@ -564,39 +585,45 @@ const addSong = (track) => {
   width: 36px;
   height: 36px;
   background: transparent;
-  border: 2px solid #fff;
-  color: #fff;
+  border: 2px solid var(--p5-white, #fff);
+  color: var(--p5-white, #fff);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .add-btn:hover {
   background: #1DB954;
   border-color: #1DB954;
+  transform: translate(-2px, -2px);
+  box-shadow: 3px 3px 0 var(--p5-white, #fff);
 }
 
 .queue-btn:hover {
-  background: #ff6b6b;
-  border-color: #ff6b6b;
+  background: var(--accent-rgb, #ff6b6b);
+  border-color: var(--accent-rgb, #ff6b6b);
+  transform: translate(-2px, -2px);
+  box-shadow: 3px 3px 0 var(--p5-white, #fff);
 }
 
 .no-results {
   text-align: center;
   padding: 2rem;
   color: rgba(255, 255, 255, 0.5);
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-/* ============= MINHAS PLAYLISTS ============= */
+/* ============= MINHAS PLAYLISTS - Persona 5 ============= */
 .my-playlists {
   margin-top: 1rem;
   padding: 1rem;
-  background: rgba(0, 0, 0, 0.5);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-left: 4px solid #1DB954;
 }
 
 .my-playlists-header {
@@ -607,13 +634,15 @@ const addSong = (track) => {
 }
 
 .my-playlists-header h4 {
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   color: #1DB954;
   font-size: 1rem;
   margin: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .refresh-btn {
@@ -626,12 +655,14 @@ const addSong = (track) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .refresh-btn:hover:not(:disabled) {
   border-color: #1DB954;
   color: #1DB954;
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0 #1DB954;
 }
 
 .refresh-btn:disabled {
@@ -654,21 +685,22 @@ const addSong = (track) => {
 
 .playlists-grid::-webkit-scrollbar-thumb {
   background: #1DB954;
-  border-radius: 2px;
+  border-radius: 0;
 }
 
 .playlist-card {
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.1);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   overflow: hidden;
 }
 
 .playlist-card:hover {
   background: rgba(30, 215, 96, 0.15);
   border-color: #1DB954;
-  transform: translateY(-2px);
+  transform: translate(-2px, -2px);
+  box-shadow: 3px 3px 0 #1DB954;
 }
 
 .playlist-card-cover {
@@ -685,17 +717,22 @@ const addSong = (track) => {
 }
 
 .playlist-card-name {
-  color: #fff;
+  color: var(--p5-white, #fff);
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .playlist-card-tracks {
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 .loading-playlists, .no-playlists {
@@ -707,6 +744,9 @@ const addSong = (track) => {
   color: rgba(255, 255, 255, 0.5);
   text-align: center;
   gap: 0.5rem;
+  font-family: 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .loading-playlists i {
@@ -723,7 +763,7 @@ const addSong = (track) => {
   opacity: 0.7;
 }
 
-/* ============= SEARCH RESULTS HEADER ============= */
+/* ============= SEARCH RESULTS HEADER - Persona 5 ============= */
 .search-results-header {
   margin-top: 1rem;
   display: flex;
@@ -738,28 +778,32 @@ const addSong = (track) => {
   background: transparent;
   border: 2px solid #1DB954;
   color: #1DB954;
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .back-to-playlists-btn:hover {
   background: #1DB954;
-  color: #fff;
+  color: var(--p5-white, #fff);
+  transform: translate(-2px, -2px);
+  box-shadow: 3px 3px 0 var(--p5-white, #fff);
 }
 
 .back-to-playlists-btn i {
   font-size: 0.85rem;
 }
 
-/* ============= TABS ============= */
+/* ============= TABS - Persona 5 ============= */
 .search-tabs {
   display: flex;
   margin-top: 1rem;
   border: 2px solid rgba(255, 255, 255, 0.2);
   border-bottom: none;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
 }
 
 .tab-btn {
@@ -767,49 +811,54 @@ const addSong = (track) => {
   padding: 0.8rem 1rem;
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.6);
-  font-family: 'Cingire', sans-serif;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 0.95rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   border-bottom: 3px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .tab-btn:hover {
-  color: #fff;
+  color: var(--p5-white, #fff);
   background: rgba(255, 255, 255, 0.05);
 }
 
 .tab-btn.active {
-  color: #fff;
-  background: rgba(255, 107, 107, 0.15);
-  border-bottom: 3px solid #ff6b6b;
+  color: var(--p5-white, #fff);
+  background: rgba(var(--accent-color, 255, 107, 107), 0.15);
+  border-bottom: 3px solid var(--accent-rgb, #ff6b6b);
 }
 
 .tab-count {
-  background: #ff6b6b;
-  color: #fff;
+  background: var(--accent-rgb, #ff6b6b);
+  color: var(--p5-white, #fff);
   font-size: 0.75rem;
+  font-weight: 700;
   padding: 0.1rem 0.5rem;
-  border-radius: 10px;
-  font-family: 'Inter', sans-serif;
+  border-radius: 0;
+  font-family: 'Space Grotesk', sans-serif;
 }
 
-/* ============= PLAYLIST ITEMS ============= */
+/* ============= PLAYLIST ITEMS - Persona 5 ============= */
 .playlist-item {
   background: rgba(30, 215, 96, 0.05);
+  border-left-color: transparent;
 }
 
 .playlist-item:hover {
-  background: rgba(30, 215, 96, 0.15);
+  background: rgba(30, 215, 96, 0.12);
+  border-left-color: #1DB954;
 }
 
 .playlist-cover {
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .playlist-tracks {
@@ -827,19 +876,22 @@ const addSong = (track) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .view-btn:hover {
   background: #1DB954;
-  color: #fff;
+  color: var(--p5-white, #fff);
+  transform: translate(-2px, -2px);
+  box-shadow: 3px 3px 0 var(--p5-white, #fff);
 }
 
-/* ============= PLAYLIST DETAILS ============= */
+/* ============= PLAYLIST DETAILS - Persona 5 ============= */
 .playlist-details {
   margin-top: 1rem;
   border: 2px solid rgba(255, 255, 255, 0.2);
-  background: rgba(0, 0, 0, 0.85);
+  border-left: 4px solid #1DB954;
+  background: rgba(0, 0, 0, 0.9);
   max-height: 60vh;
   overflow-y: auto;
 }
@@ -849,8 +901,8 @@ const addSong = (track) => {
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: linear-gradient(135deg, rgba(30, 215, 96, 0.2), transparent);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(30, 215, 96, 0.15), transparent);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -860,26 +912,28 @@ const addSong = (track) => {
   width: 36px;
   height: 36px;
   background: transparent;
-  border: 2px solid #fff;
-  color: #fff;
+  border: 2px solid var(--p5-white, #fff);
+  color: var(--p5-white, #fff);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   flex-shrink: 0;
 }
 
 .back-btn:hover {
-  background: #fff;
-  color: #000;
+  background: var(--p5-white, #fff);
+  color: var(--p5-black, #0a0a0a);
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0 var(--accent-rgb, #ff6b6b);
 }
 
 .playlist-cover-large {
   width: 60px;
   height: 60px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 0;
   border: 2px solid #1DB954;
   flex-shrink: 0;
 }
@@ -890,13 +944,15 @@ const addSong = (track) => {
 }
 
 .playlist-title {
-  font-family: 'Cingire', sans-serif;
-  color: #fff;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  color: var(--p5-white, #fff);
   font-size: 1.1rem;
   margin: 0 0 0.3rem 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .playlist-meta {
@@ -904,13 +960,16 @@ const addSong = (track) => {
   gap: 1rem;
   color: rgba(255, 255, 255, 0.6);
   font-size: 0.85rem;
+  font-weight: 600;
   margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-/* ============= PLAYLIST ACTIONS ============= */
+/* ============= PLAYLIST ACTIONS - Persona 5 ============= */
 .playlist-actions {
   padding: 0.8rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
   display: flex;
   gap: 0.5rem;
 }
@@ -918,20 +977,26 @@ const addSong = (track) => {
 .action-btn {
   padding: 0.6rem 1.2rem;
   background: #1DB954;
-  border: none;
-  color: #fff;
-  font-family: 'Cingire', sans-serif;
+  border: 2px solid #1DB954;
+  color: var(--p5-white, #fff);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 0.9rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
 }
 
 .action-btn:hover {
-  background: #1ed760;
-  transform: translateY(-2px);
+  background: var(--p5-white, #fff);
+  color: #1DB954;
+  border-color: var(--p5-white, #fff);
+  transform: translate(-2px, -2px);
+  box-shadow: 3px 3px 0 #1DB954;
 }
 
 .action-btn:disabled {
@@ -940,7 +1005,7 @@ const addSong = (track) => {
   transform: none;
 }
 
-/* ============= PLAYLIST TRACKS LIST ============= */
+/* ============= PLAYLIST TRACKS LIST - Persona 5 ============= */
 .playlist-tracks-list {
   padding: 0;
 }
@@ -951,17 +1016,21 @@ const addSong = (track) => {
   gap: 0.8rem;
   padding: 0.6rem 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  transition: background 0.2s;
+  border-left: 3px solid transparent;
+  transition: all 0.15s ease;
 }
 
 .track-item:hover {
   background: rgba(255, 255, 255, 0.05);
+  border-left-color: var(--accent-rgb, #ff6b6b);
 }
 
 .track-number {
   width: 24px;
   color: rgba(255, 255, 255, 0.4);
+  font-family: 'Space Grotesk', monospace;
   font-size: 0.85rem;
+  font-weight: 700;
   text-align: center;
   flex-shrink: 0;
 }
@@ -970,7 +1039,8 @@ const addSong = (track) => {
   width: 40px;
   height: 40px;
   object-fit: cover;
-  border-radius: 2px;
+  border-radius: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   flex-shrink: 0;
 }
 
@@ -983,8 +1053,10 @@ const addSong = (track) => {
 }
 
 .track-name {
-  color: #fff;
+  color: var(--p5-white, #fff);
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.9rem;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -993,9 +1065,12 @@ const addSong = (track) => {
 .track-artist {
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.8rem;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .track-actions {
@@ -1018,7 +1093,9 @@ const addSong = (track) => {
   gap: 0.8rem;
   padding: 3rem;
   color: rgba(255, 255, 255, 0.6);
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .loading-tracks i {
@@ -1026,18 +1103,18 @@ const addSong = (track) => {
   font-size: 1.5rem;
 }
 
-/* ============= SCROLLBAR ============= */
+/* ============= SCROLLBAR - Persona 5 ============= */
 .playlist-details::-webkit-scrollbar {
   width: 6px;
 }
 
 .playlist-details::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .playlist-details::-webkit-scrollbar-thumb {
   background: #1DB954;
-  border-radius: 3px;
+  border-radius: 0;
 }
 
 /* ============= RESPONSIVE ============= */

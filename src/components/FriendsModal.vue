@@ -448,13 +448,14 @@ const handleImageError = (event, displayName) => {
 }
 
 .modal-title {
-  font-family: 'Cingire', 'Impact', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1.8rem;
-  color: #fff;
+  color: var(--p5-white, #fff);
   margin: 0;
   display: flex;
   align-items: center;
   gap: 0.8rem;
+  letter-spacing: 2px;
 }
 
 .modal-title i {
@@ -466,13 +467,13 @@ const handleImageError = (event, displayName) => {
   width: 40px;
   height: 40px;
   background: transparent;
-  border: 2px solid #fff;
-  color: #fff;
+  border: 2px solid var(--p5-white, #fff);
+  color: var(--p5-white, #fff);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .close-btn:hover {
@@ -492,19 +493,22 @@ const handleImageError = (event, displayName) => {
   padding: 1rem;
   background: transparent;
   border: none;
-  color: #888;
-  font-family: 'Inter', sans-serif;
-  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.85rem;
 }
 
 .tab:hover {
-  color: #fff;
+  color: var(--p5-white, #fff);
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -515,12 +519,13 @@ const handleImageError = (event, displayName) => {
 }
 
 .badge {
-  background: var(--accent-rgb);
-  color: #000;
+  background: var(--accent-rgb, #ff6b6b);
+  color: var(--p5-black, #000);
   font-size: 0.75rem;
   padding: 0.15rem 0.5rem;
-  border-radius: 10px;
+  border-radius: 0;
   font-weight: bold;
+  font-family: 'Space Grotesk', sans-serif;
 }
 
 .badge.pending {
@@ -558,21 +563,25 @@ const handleImageError = (event, displayName) => {
 
 .action-btn {
   padding: 0.8rem 1.5rem;
-  background: var(--accent-rgb);
-  border: 2px solid var(--accent-rgb);
-  color: #fff;
-  font-family: 'Inter', sans-serif;
-  font-weight: 600;
+  background: var(--accent-rgb, #ff6b6b);
+  border: 2px solid var(--accent-rgb, #ff6b6b);
+  color: var(--p5-white, #fff);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .action-btn:hover {
-  background: #fff;
-  color: var(--accent-rgb);
+  background: var(--p5-white, #fff);
+  color: var(--accent-rgb, #ff6b6b);
+  transform: translate(-2px, -2px);
+  box-shadow: 3px 3px 0 var(--accent-rgb, #ff6b6b);
 }
 
 /* Search */
@@ -625,8 +634,8 @@ const handleImageError = (event, displayName) => {
 .friend-avatar, .user-avatar, .request-avatar {
   width: 50px;
   height: 50px;
-  border-radius: 50%;
-  border: 2px solid var(--accent-rgb);
+  border-radius: 0;
+  border: 2px solid var(--accent-rgb, #ff6b6b);
   object-fit: cover;
 }
 
@@ -636,11 +645,13 @@ const handleImageError = (event, displayName) => {
 }
 
 .friend-name, .user-name, .request-name {
-  font-family: 'Inter', sans-serif;
-  font-weight: 600;
-  color: #fff;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  color: var(--p5-white, #fff);
   margin: 0 0 0.3rem 0;
   font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .friend-stats, .friend-last-song, .request-time {
@@ -719,7 +730,7 @@ const handleImageError = (event, displayName) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 0;
 }
 
 .status-badge.friends {
@@ -809,15 +820,17 @@ const handleImageError = (event, displayName) => {
 .activity-avatar {
   width: 50px;
   height: 50px;
-  border-radius: 50%;
-  border: 3px solid var(--accent-rgb);
+  border-radius: 0;
+  border: 3px solid var(--accent-rgb, #ff6b6b);
 }
 
 .activity-header h3 {
-  font-family: 'Cingire', sans-serif;
-  color: #fff;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  color: var(--p5-white, #fff);
   margin: 0;
   font-size: 1.3rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .activity-content {
@@ -846,9 +859,9 @@ const handleImageError = (event, displayName) => {
 }
 
 .stat span {
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1.5rem;
-  color: #fff;
+  color: var(--p5-white, #fff);
 }
 
 .stat small {
@@ -861,13 +874,16 @@ const handleImageError = (event, displayName) => {
 }
 
 .activity-section h4 {
-  font-family: 'Inter', sans-serif;
-  color: var(--accent-rgb);
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--accent-rgb, #ff6b6b);
   font-size: 0.9rem;
+  font-weight: 700;
   margin: 0 0 0.8rem 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .activity-list {

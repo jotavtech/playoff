@@ -249,14 +249,14 @@ onUnmounted(() => {
   width: 500px;
   min-height: 850px;
   background: #050505;
-  border: 4px solid #ff6b6b;
-  border-radius: 0; /* Canto reto hardcore */
+  border: 4px solid var(--accent-rgb, #ff6b6b);
+  border-radius: 0;
   position: relative;
   overflow: hidden;
   padding: 2.5rem;
   box-shadow: 
-    10px 10px 0 #ff6b6b,
-    0 0 100px rgba(255, 107, 107, 0.15);
+    10px 10px 0 var(--accent-rgb, #ff6b6b),
+    0 0 100px rgba(var(--accent-color, 255, 107, 107), 0.15);
   display: flex;
   flex-direction: column;
   transform: rotate(-1deg); /* Leve inclinação geral */
@@ -296,12 +296,12 @@ onUnmounted(() => {
 }
 
 .retro-title {
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 4.5rem;
-  color: #fff;
+  color: var(--p5-white, #fff);
   line-height: 0.85;
   margin: 0;
-  text-shadow: 4px 4px 0px #ff6b6b;
+  text-shadow: 4px 4px 0px var(--accent-rgb, #ff6b6b);
   transform: skewX(-5deg);
   width: 75%;
   text-transform: uppercase;
@@ -311,7 +311,7 @@ onUnmounted(() => {
 .retro-logo {
   width: 90px;
   height: auto;
-  filter: drop-shadow(2px 2px 0 #ff6b6b);
+  filter: drop-shadow(2px 2px 0 var(--accent-rgb, #ff6b6b));
   transform: rotate(5deg);
 }
 
@@ -335,8 +335,8 @@ onUnmounted(() => {
 }
 
 .section-title {
-  font-family: 'Space Mono', monospace;
-  color: #ff6b6b;
+  font-family: 'Space Grotesk', 'Space Mono', monospace;
+  color: var(--accent-rgb, #ff6b6b);
   font-size: 1rem;
   margin-bottom: 1.5rem;
   text-transform: uppercase;
@@ -382,19 +382,19 @@ onUnmounted(() => {
 }
 
 .song-row:hover {
-  border-color: #ff6b6b;
-  background: rgba(255, 107, 107, 0.1);
+  border-color: var(--accent-rgb, #ff6b6b);
+  background: rgba(var(--accent-color, 255, 107, 107), 0.1);
   transform: skewX(-2deg);
 }
 
 .rank-number {
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 3rem;
-  color: #fff;
+  color: var(--p5-white, #fff);
   width: 50px;
   text-align: center;
   line-height: 1;
-  text-shadow: 3px 3px 0 #ff6b6b;
+  text-shadow: 3px 3px 0 var(--accent-rgb, #ff6b6b);
   transform: rotate(-5deg);
 }
 
@@ -424,8 +424,8 @@ onUnmounted(() => {
 }
 
 .song-title {
-  font-family: 'Cingire', sans-serif; /* Fonte Hardcore */
-  color: #fff;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  color: var(--p5-white, #fff);
   font-size: 1.8rem; /* Aumentado */
   line-height: 1;
   white-space: nowrap;
@@ -437,8 +437,8 @@ onUnmounted(() => {
 }
 
 .song-artist {
-  font-family: 'Space Mono', monospace;
-  color: #ff6b6b;
+  font-family: 'Space Grotesk', 'Space Mono', monospace;
+  color: var(--accent-rgb, #ff6b6b);
   font-size: 0.8rem;
   white-space: nowrap;
   overflow: hidden;
@@ -449,13 +449,13 @@ onUnmounted(() => {
 }
 
 .song-stats {
-  font-family: 'Cingire', sans-serif;
-  color: #fff;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  color: var(--p5-white, #fff);
   font-size: 1.2rem;
   display: flex;
   align-items: center;
   gap: 5px;
-  background: #ff6b6b;
+  background: var(--accent-rgb, #ff6b6b);
   padding: 2px 8px;
   transform: skewX(-10deg);
   border: 1px solid #fff;
@@ -499,9 +499,9 @@ onUnmounted(() => {
 }
 
 .source-tag {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Space Grotesk', 'Space Mono', monospace;
   font-size: 0.6rem;
-  color: #ff6b6b;
+  color: var(--accent-rgb, #ff6b6b);
   font-weight: bold;
 }
 
@@ -539,21 +539,23 @@ onUnmounted(() => {
 }
 
 .export-btn {
-  background: #ff6b6b;
-  color: #fff;
-  border: none;
+  background: var(--accent-rgb, #ff6b6b);
+  color: var(--p5-white, #fff);
+  border: 3px solid var(--accent-rgb, #ff6b6b);
   padding: 1rem 2rem;
-  border-radius: 30px;
-  font-family: 'Space Grotesk', sans-serif;
+  border-radius: 0;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-weight: bold;
   font-size: 1.1rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   gap: 10px;
   margin-top: 10px;
-  box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
+  box-shadow: 4px 4px 0 var(--p5-white, #fff);
 }
 
 .export-btn:disabled {
@@ -562,9 +564,10 @@ onUnmounted(() => {
 }
 
 .export-btn:hover:not(:disabled) {
-  transform: scale(1.05);
-  background: #fff;
-  color: #ff6b6b;
+  background: var(--p5-white, #fff);
+  color: var(--accent-rgb, #ff6b6b);
+  transform: translate(-3px, -3px);
+  box-shadow: 6px 6px 0 var(--accent-rgb, #ff6b6b);
 }
 
 @keyframes popIn {

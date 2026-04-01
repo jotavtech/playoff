@@ -2177,8 +2177,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* ============= ESTILOS PRINCIPAIS DA APLICAÇÃO ============= */
-/* Estilos do componente principal */
+/* ============= APP - Persona 5 Angular ============= */
 .app {
   width: 100%;
   max-width: 100vw;
@@ -2221,7 +2220,7 @@ onUnmounted(() => {
   }
 }
 
-/* ============= BOTÕES DE LOGIN/PERFIL ============= */
+/* ============= TOOLBAR - Persona 5 Angular ============= */
 .user-section {
   position: fixed;
   top: 1.2rem;
@@ -2235,7 +2234,7 @@ onUnmounted(() => {
 .queue-toggle-btn {
   width: 38px;
   height: 38px;
-  background: rgba(10, 10, 12, 0.85);
+  background: rgba(var(--p5-black-rgb, 10, 10, 12), 0.9);
   border: 2px solid rgba(255, 255, 255, 0.6);
   color: rgba(255, 255, 255, 0.85);
   font-size: 1rem;
@@ -2250,11 +2249,11 @@ onUnmounted(() => {
 }
 
 .queue-toggle-btn:hover {
-  background: #fff;
-  color: #000;
-  border-color: #fff;
+  background: var(--p5-white, #fff);
+  color: var(--p5-black, #000);
+  border-color: var(--p5-white, #fff);
   transform: skewX(-5deg) translate(-2px, -2px);
-  box-shadow: 2px 2px 0 var(--accent-rgb, #ff6b6b);
+  box-shadow: 3px 3px 0 var(--accent-rgb, #ff6b6b);
 }
 
 .reconnect-btn {
@@ -2275,7 +2274,7 @@ onUnmounted(() => {
 
 .reconnect-btn:hover {
   background: #ff4757;
-  color: #fff;
+  color: var(--p5-white, #fff);
   transform: skewX(-5deg) scale(1.08);
 }
 
@@ -2285,25 +2284,6 @@ onUnmounted(() => {
   100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
 }
 
-.queue-badge {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  background: var(--accent-rgb, #ff6b6b);
-  color: #fff;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.65rem;
-  font-weight: 700;
-  width: 18px;
-  height: 18px;
-  border-radius: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1.5px solid #fff;
-  transform: skewX(5deg);
-}
-
 .login-btn {
   display: flex;
   align-items: center;
@@ -2311,11 +2291,11 @@ onUnmounted(() => {
   padding: 0.7rem 1.1rem;
   background: #1DB954;
   border: 2px solid #1DB954;
-  color: #fff;
-  font-family: 'Space Grotesk', 'Cingire', sans-serif;
+  color: var(--p5-white, #fff);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  letter-spacing: 2px;
   text-transform: uppercase;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -2323,10 +2303,10 @@ onUnmounted(() => {
 }
 
 .login-btn:hover {
-  background: #fff;
+  background: var(--p5-white, #fff);
   color: #1DB954;
   transform: skewX(-5deg) translate(-2px, -2px);
-  box-shadow: 2px 2px 0 #1DB954;
+  box-shadow: 3px 3px 0 #1DB954;
 }
 
 .login-btn i {
@@ -2338,13 +2318,14 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 0.8rem 0.4rem 0.4rem;
-  background: rgba(10, 10, 12, 0.85);
+  background: rgba(var(--p5-black-rgb, 10, 10, 12), 0.9);
   border: 2px solid rgba(255, 255, 255, 0.25);
-  color: #fff;
+  color: var(--p5-white, #fff);
   font-family: 'Space Grotesk', sans-serif;
   font-size: 0.85rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
   cursor: pointer;
   transition: all 0.15s ease;
   transform: skewX(-3deg);
@@ -2361,8 +2342,8 @@ onUnmounted(() => {
 .user-avatar {
   width: 30px;
   height: 30px;
-  border-radius: 50%;
-  border: 2px solid var(--accent-rgb, #1DB954);
+  border-radius: 0;
+  border: 2px solid var(--accent-rgb, #ff6b6b);
   object-fit: cover;
   transition: border-color var(--color-transition);
 }
@@ -2371,43 +2352,11 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--accent-rgb, #6366f1);
+  background: var(--accent-rgb, #ff6b6b);
   color: #fff;
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 0.85rem;
-}
-
-.user-name {
-  max-width: 110px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Year Retrospective Button */
-.year-retro-btn {
-  width: 38px;
-  height: 38px;
-  background: rgba(10, 10, 12, 0.85);
-  border: 2px solid var(--accent-medium, rgba(255, 107, 107, 0.6));
-  color: var(--accent-light, #ff6b6b);
-  font-size: 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease, border-color var(--color-transition), color var(--color-transition);
-  transform: skewX(-5deg);
-  backdrop-filter: blur(12px);
-}
-
-.year-retro-btn:hover {
-  background: var(--accent-rgb, #ff6b6b);
-  color: #fff;
-  border-color: var(--accent-rgb, #ff6b6b);
-  transform: skewX(-5deg) translate(-2px, -2px);
-  box-shadow: 2px 2px 0 #fff;
 }
 
 .retrospective-btn,
@@ -2415,7 +2364,7 @@ onUnmounted(() => {
 .friends-btn {
   width: 38px;
   height: 38px;
-  background: rgba(10, 10, 12, 0.85);
+  background: rgba(var(--p5-black-rgb, 10, 10, 12), 0.9);
   border: 2px solid rgba(255, 255, 255, 0.5);
   color: rgba(255, 255, 255, 0.8);
   font-size: 1rem;
@@ -2431,11 +2380,11 @@ onUnmounted(() => {
 .retrospective-btn:hover,
 .about-btn:hover,
 .friends-btn:hover {
-  background: #fff;
-  color: #000;
-  border-color: #fff;
+  background: var(--p5-white, #fff);
+  color: var(--p5-black, #000);
+  border-color: var(--p5-white, #fff);
   transform: skewX(-5deg) translate(-2px, -2px);
-  box-shadow: 2px 2px 0 var(--accent-rgb, #ff6b6b);
+  box-shadow: 3px 3px 0 var(--accent-rgb, #ff6b6b);
 }
 
 .friends-btn {
@@ -2450,7 +2399,7 @@ onUnmounted(() => {
   width: 8px;
   height: 8px;
   background: #2ecc71;
-  border-radius: 50%;
+  border-radius: 0;
   opacity: 0;
   transition: opacity 0.2s;
 }
@@ -2554,10 +2503,10 @@ onUnmounted(() => {
 
 .banner-text strong {
   display: block;
-  color: #fff;
+  color: var(--p5-white, #fff);
   font-size: 1.2rem;
-  font-family: 'Cingire', 'Impact', sans-serif;
-  letter-spacing: 0.05em;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  letter-spacing: 2px;
   text-transform: uppercase;
   margin-bottom: 0.3rem;
 }
@@ -2569,24 +2518,24 @@ onUnmounted(() => {
 }
 
 .premium-link {
-  background: #fff;
-  color: #ff6b6b;
+  background: var(--p5-white, #fff);
+  color: var(--accent-rgb, #ff6b6b);
   padding: 0.8rem 1.5rem;
-  border: 2px solid #fff;
-  font-weight: bold;
+  border: 2px solid var(--p5-white, #fff);
+  font-weight: 700;
   text-decoration: none;
   text-transform: uppercase;
-  font-family: 'Cingire', sans-serif;
-  letter-spacing: 0.05em;
-  transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  letter-spacing: 2px;
+  transition: all 0.15s ease;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
 }
 
 .premium-link:hover {
   background: #1DB954;
-  color: #fff;
+  color: var(--p5-white, #fff);
   transform: translate(-2px, -2px);
-  box-shadow: 3px 3px 0 #fff;
+  box-shadow: 4px 4px 0 var(--p5-white, #fff);
 }
 
 @media (max-width: 768px) {

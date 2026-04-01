@@ -144,18 +144,18 @@ _Enviado pelo formulário do PlayOff_`
 }
 
 .access-modal {
-  background: #0a0a0a;
-  border: 4px solid #ff6b6b;
+  background: var(--p5-black, #0a0a0a);
+  border: 4px solid var(--accent-rgb, #ff6b6b);
   padding: 2rem;
   max-width: 550px;
   width: 100%;
   margin: auto;
   position: relative;
   box-shadow: 
-    0 0 0 2px #000,
-    0 0 0 6px #ff6b6b,
-    0 0 60px rgba(255, 107, 107, 0.5),
-    inset 0 0 100px rgba(255, 107, 107, 0.1);
+    0 0 0 2px var(--p5-black, #000),
+    0 0 0 6px var(--accent-rgb, #ff6b6b),
+    0 0 60px var(--glow-color, rgba(255, 107, 107, 0.5)),
+    inset 0 0 100px rgba(var(--accent-color, 255, 107, 107), 0.1);
 }
 
 .close-btn {
@@ -163,18 +163,19 @@ _Enviado pelo formulário do PlayOff_`
   top: 1rem;
   right: 1rem;
   background: transparent;
-  border: 2px solid #fff;
-  color: #fff;
+  border: 2px solid var(--p5-white, #fff);
+  color: var(--p5-white, #fff);
   width: 40px;
   height: 40px;
   font-size: 1.2rem;
   cursor: pointer;
   z-index: 10;
+  transition: all 0.15s ease;
 }
 
 .close-btn:hover {
-  background: #ff6b6b;
-  border-color: #ff6b6b;
+  background: var(--accent-rgb, #ff6b6b);
+  border-color: var(--accent-rgb, #ff6b6b);
 }
 
 .access-content {
@@ -186,18 +187,18 @@ _Enviado pelo formulário do PlayOff_`
 }
 
 .glitch-title {
-  font-family: 'Snuggle Punk', 'Impact', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 2rem;
-  color: #ff6b6b;
+  color: var(--accent-rgb, #ff6b6b);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 3px;
   margin: 0;
   text-shadow: 
-    2px 2px 0 #000,
-    -2px -2px 0 #000,
-    2px -2px 0 #000,
-    -2px 2px 0 #000,
-    0 0 20px #ff6b6b;
+    2px 2px 0 var(--p5-black, #000),
+    -2px -2px 0 var(--p5-black, #000),
+    2px -2px 0 var(--p5-black, #000),
+    -2px 2px 0 var(--p5-black, #000),
+    0 0 20px var(--accent-rgb, #ff6b6b);
   animation: glitch 2s infinite;
 }
 
@@ -217,27 +218,27 @@ _Enviado pelo formulário do PlayOff_`
 .apology-section {
   margin-bottom: 2rem;
   padding: 1rem;
-  background: rgba(255, 107, 107, 0.1);
-  border-left: 4px solid #ff6b6b;
+  background: rgba(var(--accent-color, 255, 107, 107), 0.1);
+  border-left: 4px solid var(--accent-rgb, #ff6b6b);
 }
 
 .punk-text {
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1.1rem;
-  color: #fff;
+  color: var(--p5-white, #fff);
   margin: 0 0 0.5rem 0;
   line-height: 1.6;
 }
 
 .highlight {
-  color: #ff6b6b;
+  color: var(--accent-rgb, #ff6b6b);
   font-size: 1.3rem;
 }
 
 .explanation {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.7);
   margin: 0;
 }
 
@@ -246,11 +247,12 @@ _Enviado pelo formulário do PlayOff_`
 }
 
 .form-title {
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1.3rem;
-  color: #fff;
+  color: var(--p5-white, #fff);
   text-align: center;
   margin: 0 0 1.5rem 0;
+  letter-spacing: 2px;
 }
 
 .input-group {
@@ -259,28 +261,30 @@ _Enviado pelo formulário do PlayOff_`
 
 .input-group label {
   display: block;
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 0.9rem;
-  color: #ff6b6b;
+  color: var(--accent-rgb, #ff6b6b);
   margin-bottom: 0.5rem;
-  letter-spacing: 0.1em;
+  letter-spacing: 2px;
 }
 
 .punk-input {
   width: 100%;
   padding: 0.8rem 1rem;
-  background: #1a1a1a;
-  border: 2px solid #333;
-  color: #fff;
-  font-family: 'Inter', sans-serif;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: var(--p5-white, #fff);
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 1rem;
-  transition: all 0.3s;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  letter-spacing: 0.5px;
 }
 
 .punk-input:focus {
   outline: none;
-  border-color: #ff6b6b;
-  box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+  border-color: var(--accent-rgb, #ff6b6b);
+  box-shadow: 3px 3px 0 var(--accent-rgb, #ff6b6b);
 }
 
 .punk-input::placeholder {
@@ -295,17 +299,20 @@ _Enviado pelo formulário do PlayOff_`
 .platform-btn {
   flex: 1;
   padding: 0.8rem;
-  border: 2px solid #333;
-  background: #1a1a1a;
-  color: #fff;
-  font-family: 'Cingire', sans-serif;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--p5-white, #fff);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 0.85rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .platform-btn.spotify.active {
@@ -324,7 +331,9 @@ _Enviado pelo formulário do PlayOff_`
 }
 
 .platform-btn:hover:not(.active) {
-  border-color: #ff6b6b;
+  border-color: var(--accent-rgb, #ff6b6b);
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0 rgba(255, 255, 255, 0.2);
 }
 
 .submit-btn {
@@ -333,24 +342,25 @@ _Enviado pelo formulário do PlayOff_`
   margin-top: 1.5rem;
   background: #25D366;
   border: 3px solid #25D366;
-  color: #fff;
-  font-family: 'Cingire', sans-serif;
+  color: var(--p5-white, #fff);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1.1rem;
-  letter-spacing: 0.1em;
+  font-weight: 700;
+  letter-spacing: 2px;
   text-transform: uppercase;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.8rem;
-  transition: all 0.3s;
+  transition: all 0.15s ease;
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: #fff;
+  background: var(--p5-white, #fff);
   color: #25D366;
   transform: translate(-3px, -3px);
-  box-shadow: 3px 3px 0 #25D366;
+  box-shadow: 4px 4px 0 #25D366;
 }
 
 .submit-btn:disabled {
@@ -365,10 +375,13 @@ _Enviado pelo formulário do PlayOff_`
 }
 
 .footer-note p {
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.9rem;
-  color: #ff6b6b;
+  font-weight: 700;
+  color: var(--accent-rgb, #ff6b6b);
   margin: 0;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 @media (max-width: 500px) {

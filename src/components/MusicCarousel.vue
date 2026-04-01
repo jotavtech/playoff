@@ -515,27 +515,33 @@ watch(() => props.songs.length, (newLength, oldLength) => {
 }
 
 .cover-artist {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   color: rgba(255, 255, 255, 0.8);
   font-size: 1rem;
+  font-weight: 600;
   margin: 0;
   text-shadow: 1px 1px 0 #000;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .cover-votes {
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   color: var(--accent-rgb);
   font-size: 1.2rem;
+  font-weight: 700;
   transition: color var(--color-transition);
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.7);
   backdrop-filter: blur(8px);
   padding: 0.4rem 0.8rem;
   width: fit-content;
-  border: 1px solid rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.3);
+  border-left: 3px solid var(--accent-rgb);
   margin-top: 0.3rem;
+  letter-spacing: 1px;
 }
 
 /* Cover Action Buttons */
@@ -565,7 +571,7 @@ watch(() => props.songs.length, (newLength, oldLength) => {
   justify-content: center;
 }
 
-.vote-btn:hover, .vote-btn.voted {
+.vote-btn:hover:not(:disabled) {
   background: var(--accent-rgb);
   border-color: var(--accent-rgb);
   transform: translate(-2px, -2px);
@@ -573,7 +579,12 @@ watch(() => props.songs.length, (newLength, oldLength) => {
   transition: all 0.2s, background var(--color-transition), border-color var(--color-transition);
 }
 
-/* Botão de Curtir - Sincronizado com o player */
+.vote-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Botão de Curtir - Persona 5 Angular */
 .like-btn {
   width: 50px;
   height: 50px;
@@ -582,31 +593,33 @@ watch(() => props.songs.length, (newLength, oldLength) => {
   color: var(--accent-light);
   font-size: 1.2rem;
   cursor: pointer;
-  transition: all 0.2s, border-color var(--color-transition), color var(--color-transition);
+  transition: all 0.15s ease, border-color var(--color-transition), color var(--color-transition);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .like-btn:hover {
-  background: var(--accent-subtle);
+  background: var(--accent-rgb);
   border-color: var(--accent-rgb);
-  color: var(--accent-rgb);
+  color: #fff;
   transform: translate(-2px, -2px);
-  box-shadow: 2px 2px 0 #fff;
+  box-shadow: 3px 3px 0 #fff;
 }
 
 .like-btn.liked {
   background: var(--accent-rgb);
-  border-color: var(--accent-rgb);
+  border-color: #fff;
   color: #fff;
-  animation: likeHeartPulse 0.4s ease;
+  animation: likeHeartPulse 0.3s ease;
+  box-shadow: 3px 3px 0 #fff;
 }
 
 .like-btn.liked:hover {
-  background: var(--accent-dark-rgb);
-  border-color: var(--accent-dark-rgb);
-  box-shadow: 0 0 15px var(--glow-color);
+  background: #fff;
+  color: var(--accent-rgb);
+  border-color: var(--accent-rgb);
+  box-shadow: 3px 3px 0 var(--accent-rgb);
 }
 
 @keyframes likeHeartPulse {
@@ -701,8 +714,7 @@ watch(() => props.songs.length, (newLength, oldLength) => {
   height: 70px;
   background: var(--accent-rgb);
   border: 4px solid #fff;
-  transition: all 0.3s, background var(--color-transition);
-  border-radius: 50%;
+  border-radius: 0;
   color: #fff;
   font-size: 2rem;
   display: flex;
@@ -710,19 +722,19 @@ watch(() => props.songs.length, (newLength, oldLength) => {
   justify-content: center;
   cursor: pointer;
   z-index: 100;
-  box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
-  transition: all 0.2s;
+  box-shadow: 5px 5px 0 rgba(0,0,0,0.5);
+  transition: all 0.15s ease, background var(--color-transition);
 }
 
 .lyrics-play-btn:hover {
-  transform: translateY(-50%) scale(1.1);
+  transform: translateY(-50%) translate(-2px, -2px);
   background: #fff;
   color: var(--accent-rgb);
-  box-shadow: 0 0 20px var(--glow-color);
+  box-shadow: 6px 6px 0 var(--accent-rgb);
 }
 
 .kanji-icon {
-  font-weight: bold;
+  font-weight: 900;
   line-height: 1;
 }
 

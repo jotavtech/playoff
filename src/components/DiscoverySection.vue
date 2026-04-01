@@ -297,10 +297,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ============= DISCOVERY SECTION - Persona 5 Angular ============= */
 .discovery-section {
   padding: 2rem;
-  background: rgba(0, 0, 0, 0.5);
-  border-top: 2px solid #ff6b6b;
+  background: rgba(0, 0, 0, 0.6);
+  border-top: 3px solid var(--accent-rgb, #ff6b6b);
 }
 
 .discovery-header {
@@ -313,17 +314,20 @@ onMounted(() => {
 }
 
 .discovery-title {
-  font-family: 'Snuggle Punk', 'Impact', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1.8rem;
-  color: #fff;
+  color: var(--p5-white, #fff);
   margin: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 3px 3px 0 rgba(var(--accent-color, 255, 107, 107), 0.3);
 }
 
 .discovery-title i {
-  color: #ff6b6b;
+  color: var(--accent-rgb, #ff6b6b);
 }
 
 .discovery-tabs {
@@ -334,27 +338,32 @@ onMounted(() => {
 
 .tab-btn {
   padding: 0.6rem 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid transparent;
-  color: rgba(255, 255, 255, 0.7);
-  font-family: 'Cingire', sans-serif;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .tab-btn:hover {
-  background: rgba(255, 107, 107, 0.2);
-  color: #fff;
+  background: rgba(var(--accent-color, 255, 107, 107), 0.15);
+  color: var(--p5-white, #fff);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .tab-btn.active {
-  background: #ff6b6b;
-  color: #000;
-  border-color: #ff6b6b;
+  background: var(--accent-rgb, #ff6b6b);
+  color: var(--p5-black, #0a0a0a);
+  border-color: var(--accent-rgb, #ff6b6b);
+  font-weight: 700;
+  box-shadow: 3px 3px 0 var(--p5-white, #fff);
 }
 
 .loading-state {
@@ -364,14 +373,17 @@ onMounted(() => {
   gap: 1rem;
   padding: 3rem;
   color: rgba(255, 255, 255, 0.7);
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .loading-state i {
   font-size: 1.5rem;
-  color: #ff6b6b;
+  color: var(--accent-rgb, #ff6b6b);
 }
 
+/* Tracks Grid - Persona 5 */
 .tracks-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -383,24 +395,28 @@ onMounted(() => {
   align-items: center;
   gap: 1rem;
   padding: 0.8rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-left: 3px solid transparent;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.15s ease;
 }
 
 .track-card:hover {
-  background: rgba(255, 107, 107, 0.1);
-  border-color: #ff6b6b;
+  background: rgba(var(--accent-color, 255, 107, 107), 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  border-left-color: var(--accent-rgb, #ff6b6b);
   transform: translateX(5px);
 }
 
 .track-rank {
-  font-family: 'Snuggle Punk', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1.5rem;
-  color: #ff6b6b;
+  font-weight: 900;
+  color: var(--accent-rgb, #ff6b6b);
   min-width: 30px;
   text-align: center;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
 }
 
 .track-image {
@@ -408,6 +424,7 @@ onMounted(() => {
   height: 60px;
   position: relative;
   flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
 .track-image img {
@@ -419,12 +436,12 @@ onMounted(() => {
 .play-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 0.15s ease;
 }
 
 .track-card:hover .play-overlay {
@@ -432,7 +449,7 @@ onMounted(() => {
 }
 
 .play-overlay i {
-  color: #ff6b6b;
+  color: var(--accent-rgb, #ff6b6b);
   font-size: 1.5rem;
 }
 
@@ -442,32 +459,40 @@ onMounted(() => {
 }
 
 .track-name {
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1rem;
-  color: #fff;
+  color: var(--p5-white, #fff);
   margin: 0 0 0.2rem 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .track-artist {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.85rem;
+  font-weight: 600;
   color: rgba(255, 255, 255, 0.6);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .track-plays {
+  font-family: 'Space Grotesk', monospace;
   font-size: 0.75rem;
+  font-weight: 700;
   color: rgba(255, 255, 255, 0.4);
   display: flex;
   align-items: center;
   gap: 0.3rem;
   margin-top: 0.3rem;
+  letter-spacing: 0.5px;
 }
 
 .track-actions {
@@ -481,22 +506,23 @@ onMounted(() => {
 .add-queue-btn {
   width: 28px;
   height: 28px;
-  background: rgba(255, 107, 107, 0.2);
-  border: 1px solid #ff6b6b;
-  color: #ff6b6b;
-  border-radius: 50%;
+  background: transparent;
+  border: 2px solid var(--accent-rgb, #ff6b6b);
+  color: var(--accent-rgb, #ff6b6b);
+  border-radius: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s;
+  transition: all 0.15s ease;
   flex-shrink: 0;
 }
 
 .add-queue-btn:hover {
-  background: #ff6b6b;
-  color: #000;
-  transform: scale(1.1);
+  background: var(--accent-rgb, #ff6b6b);
+  color: var(--p5-white, #fff);
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0 var(--p5-white, #fff);
 }
 
 .add-queue-btn i {
@@ -504,13 +530,18 @@ onMounted(() => {
 }
 
 .track-reason {
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.75rem;
-  color: #ff6b6b;
-  font-style: italic;
+  color: var(--accent-rgb, #ff6b6b);
+  font-weight: 600;
+  font-style: normal;
   margin-top: 0.3rem;
   display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
+/* Genre Chips - Persona 5 */
 .genre-chips {
   display: flex;
   gap: 0.5rem;
@@ -520,26 +551,32 @@ onMounted(() => {
 
 .genre-chip {
   padding: 0.5rem 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
-  font-family: 'Cingire', sans-serif;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 1px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.15s ease;
 }
 
 .genre-chip:hover {
-  background: rgba(255, 107, 107, 0.2);
+  background: rgba(var(--accent-color, 255, 107, 107), 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--p5-white, #fff);
 }
 
 .genre-chip.active {
-  background: #ff6b6b;
-  color: #000;
-  border-color: #ff6b6b;
+  background: var(--accent-rgb, #ff6b6b);
+  color: var(--p5-black, #0a0a0a);
+  border-color: var(--accent-rgb, #ff6b6b);
+  box-shadow: 3px 3px 0 var(--p5-white, #fff);
 }
 
+/* Connect Prompt - Persona 5 */
 .connect-prompt {
   text-align: center;
   padding: 3rem;
@@ -547,46 +584,57 @@ onMounted(() => {
 
 .connect-prompt i {
   font-size: 4rem;
-  color: #ff6b6b;
+  color: var(--accent-rgb, #ff6b6b);
   margin-bottom: 1rem;
 }
 
 .connect-prompt h3 {
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1.5rem;
-  color: #fff;
+  color: var(--p5-white, #fff);
   margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 2px;
 }
 
 .connect-prompt p {
   color: rgba(255, 255, 255, 0.6);
   margin: 0 0 1.5rem 0;
+  font-family: 'Space Grotesk', sans-serif;
 }
 
 .connect-btn {
   padding: 1rem 2rem;
   background: #d51007;
-  border: none;
-  color: #fff;
-  font-family: 'Cingire', sans-serif;
+  border: 2px solid #d51007;
+  color: var(--p5-white, #fff);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1rem;
+  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.3s;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .connect-btn:hover {
-  background: #ff6b6b;
+  background: var(--p5-white, #fff);
+  color: #d51007;
+  border-color: var(--p5-white, #fff);
   transform: translate(-3px, -3px);
-  box-shadow: 3px 3px 0 #d51007;
+  box-shadow: 4px 4px 0 #d51007;
 }
 
 .empty-state {
   text-align: center;
   padding: 3rem;
   color: rgba(255, 255, 255, 0.5);
+  font-family: 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .empty-state i {
@@ -594,21 +642,24 @@ onMounted(() => {
   margin-bottom: 1rem;
 }
 
+/* Match Bar - Persona 5 Angular */
 .match-bar {
   width: 100%;
   height: 4px;
   background: rgba(255, 255, 255, 0.1);
   margin-top: 0.5rem;
-  border-radius: 2px;
+  border-radius: 0;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .match-fill {
   height: 100%;
-  background: linear-gradient(90deg, #ff6b6b, #ffc107);
-  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent-rgb, #ff6b6b), #ffc107);
+  border-radius: 0;
 }
 
+/* Responsive - Persona 5 */
 @media (max-width: 768px) {
   .discovery-section {
     padding: 1rem;

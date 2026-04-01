@@ -427,8 +427,8 @@ onMounted(async () => {
 }
 
 .profile-modal {
-  background: rgba(0, 0, 0, 0.9);
-  border: 4px solid #fff;
+  background: var(--p5-black, #0a0a0a);
+  border: 4px solid var(--p5-white, #fff);
   padding: 2rem;
   max-width: 600px;
   width: 100%;
@@ -437,8 +437,8 @@ onMounted(async () => {
   position: relative;
   transform: skewX(-1deg);
   box-shadow: 
-    8px 8px 0 var(--accent-rgb),
-    0 0 40px var(--glow-color);
+    8px 8px 0 var(--accent-rgb, #ff6b6b),
+    0 0 40px var(--glow-color, rgba(255, 107, 107, 0.3));
   transition: box-shadow var(--color-transition);
   animation: slideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
@@ -463,19 +463,19 @@ onMounted(async () => {
   top: 1rem;
   right: 1rem;
   background: transparent;
-  border: 2px solid #fff;
-  color: #fff;
+  border: 2px solid var(--p5-white, #fff);
+  color: var(--p5-white, #fff);
   width: 40px;
   height: 40px;
   font-size: 1.2rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   z-index: 10;
 }
 
 .close-btn:hover {
-  background: var(--accent-rgb);
-  border-color: var(--accent-rgb);
+  background: var(--accent-rgb, #ff6b6b);
+  border-color: var(--accent-rgb, #ff6b6b);
   transform: skewX(1deg) rotate(90deg);
 }
 
@@ -496,8 +496,8 @@ onMounted(async () => {
 .profile-image {
   width: 100px;
   height: 100px;
-  border-radius: 50%;
-  border: 4px solid #1DB954;
+  border-radius: 0;
+  border: 4px solid var(--accent-rgb, #ff6b6b);
   object-fit: cover;
 }
 
@@ -508,7 +508,7 @@ onMounted(async () => {
   width: 30px;
   height: 30px;
   background: #1DB954;
-  border-radius: 50%;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -522,23 +522,25 @@ onMounted(async () => {
 }
 
 .profile-name {
-  font-family: 'Snuggle Punk', 'Impact', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 2rem;
-  color: #fff;
+  color: var(--p5-white, #fff);
   margin: 0 0 0.3rem 0;
-  text-shadow: 2px 2px 0 var(--accent-rgb);
+  text-shadow: 2px 2px 0 var(--accent-rgb, #ff6b6b);
   transition: text-shadow var(--color-transition);
+  text-transform: uppercase;
+  letter-spacing: 2px;
 }
 
 .profile-email {
-  font-family: 'Inter', sans-serif;
-  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Space Grotesk', sans-serif;
+  color: rgba(255, 255, 255, 0.5);
   font-size: 0.9rem;
   margin: 0 0 0.5rem 0;
 }
 
 .profile-country {
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.85rem;
   display: flex;
@@ -572,8 +574,8 @@ onMounted(async () => {
 .stat-icon {
   width: 40px;
   height: 40px;
-  background: rgba(255, 107, 107, 0.2);
-  border-radius: 8px;
+  background: rgba(var(--accent-color, 255, 107, 107), 0.2);
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -588,10 +590,10 @@ onMounted(async () => {
 }
 
 .stat-value {
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1.5rem;
-  color: #fff;
-  letter-spacing: 0.05em;
+  color: var(--p5-white, #fff);
+  letter-spacing: 2px;
 }
 
 .stat-label {
@@ -603,14 +605,15 @@ onMounted(async () => {
 
 /* Sections */
 .section-title {
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1.2rem;
-  color: #fff;
+  color: var(--p5-white, #fff);
   margin: 0 0 1rem 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  letter-spacing: 0.1em;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
 .section-title i {
@@ -697,7 +700,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Cingire', sans-serif;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1rem;
   font-weight: bold;
   color: #fff;
@@ -733,13 +736,14 @@ onMounted(async () => {
 
 .song-title {
   display: block;
-  font-family: 'Cingire', sans-serif;
-  color: #fff;
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
+  color: var(--p5-white, #fff);
   font-size: 0.95rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: 0.05em;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .song-artist {
@@ -755,8 +759,8 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  color: var(--accent-rgb);
-  font-family: 'Cingire', sans-serif;
+  color: var(--accent-rgb, #ff6b6b);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   transition: color var(--color-transition);
   font-size: 0.9rem;
 }
@@ -822,15 +826,15 @@ onMounted(async () => {
   width: 100%;
   padding: 1rem;
   background: transparent;
-  border: 2px solid var(--accent-rgb);
-  color: var(--accent-rgb);
-  transition: all 0.2s, border-color var(--color-transition), color var(--color-transition);
-  font-family: 'Cingire', sans-serif;
+  border: 2px solid var(--accent-rgb, #ff6b6b);
+  color: var(--accent-rgb, #ff6b6b);
+  font-family: 'Cingire', 'Space Grotesk', sans-serif;
   font-size: 1rem;
-  letter-spacing: 0.1em;
+  font-weight: 700;
+  letter-spacing: 2px;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -839,10 +843,10 @@ onMounted(async () => {
 }
 
 .logout-btn:hover {
-  background: var(--accent-rgb);
-  color: #000;
+  background: var(--accent-rgb, #ff6b6b);
+  color: var(--p5-black, #000);
   transform: translate(-2px, -2px);
-  box-shadow: 2px 2px 0 #fff;
+  box-shadow: 3px 3px 0 var(--p5-white, #fff);
 }
 
 /* Scrollbar */
