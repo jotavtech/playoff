@@ -16,10 +16,8 @@ if (DATABASE_URL) {
   console.log('📊 Tentando configurar Pool PostgreSQL...');
   console.log(`   URL presente? ${!!DATABASE_URL}`);
   
-  // Configuração SSL robusta para produção
-  const sslConfig = !DATABASE_URL.includes('localhost') 
-    ? { rejectUnauthorized: false } 
-    : false;
+  const isLocalDb = DATABASE_URL.includes('localhost') || DATABASE_URL.includes('127.0.0.1') || DATABASE_URL.includes('@db:');
+  const sslConfig = isLocalDb ? false : { rejectUnauthorized: false };
 
   pool = new Pool({
     connectionString: DATABASE_URL,
@@ -1408,15 +1406,17 @@ app.post('/api/songs', async (req, res) => {
       }
     }
     
-    // Tenta identificar usuário pelo token (opcional)
+    // Tenta identificar usuário pelo token (opcional — não bloqueia adição se DB falhar)
     let userId = null;
     const authHeader = req.headers.authorization;
     if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const user = await db.getUserBySpotifyId(token); // Assume que token é spotify_id ou access_token
-      // O requireAuth usa getUserBySpotifyId(token) onde token é passado no header
-      // No frontend, precisamos enviar o token correto
-      if (user) userId = user.id;
+      try {
+        const token = authHeader.replace('Bearer ', '');
+        const user = await db.getUserBySpotifyId(token);
+        if (user) userId = user.id;
+      } catch (authErr) {
+        console.warn('⚠️ Falha ao identificar usuário (DB offline?), continuando sem userId:', authErr.message);
+      }
     }
 
     // Crio nova música com dados completos

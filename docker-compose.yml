@@ -53,6 +53,7 @@ services:
     environment:
       - NODE_ENV=development
       - VITE_API_URL=http://localhost:3000
+      - DATABASE_URL=postgresql://playoff:playoff123@db:5432/playoff
       # Spotify API credentials (add your own)
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
