@@ -14,9 +14,12 @@ const { togglePlay } = useSpotifyPlayer()
     <div class="cinema__stage" :class="{ 'cinema__stage--hidden': cinematic.smartIdle }">
       <p class="microtext">{{ music.statusLabel }}</p>
 
-      <h2 class="cinema__title">
-        {{ music.currentTrack?.title ?? 'AWAITING SIGNAL' }}
-      </h2>
+      <!-- Título corta entre faixas como cartela nova, não troca seca de texto -->
+      <Transition name="title-cut" mode="out-in">
+        <h2 :key="music.currentTrack?.id ?? 'idle'" class="cinema__title">
+          {{ music.currentTrack?.title ?? 'AWAITING SIGNAL' }}
+        </h2>
+      </Transition>
 
       <p v-if="music.currentTrack" class="cinema__artist microtext microtext--bright">
         {{ music.currentTrack.artist }} — {{ music.currentTrack.album }}
@@ -75,6 +78,12 @@ const { togglePlay } = useSpotifyPlayer()
 .cinema__artist {
   letter-spacing: 0.3em;
 }
+
+/* Corte de cartela na troca de faixa */
+.title-cut-enter-active { transition: opacity 0.5s var(--ease-scene), transform 0.5s var(--ease-scene), filter 0.5s var(--ease-scene); }
+.title-cut-leave-active { transition: opacity 0.25s var(--ease-cut), transform 0.25s var(--ease-cut), filter 0.25s var(--ease-cut); }
+.title-cut-enter-from   { opacity: 0; transform: translateY(0.2em); filter: blur(4px); }
+.title-cut-leave-to     { opacity: 0; transform: translateY(-0.15em) scale(1.02); filter: blur(6px); }
 
 .cinema__controls {
   display: flex;

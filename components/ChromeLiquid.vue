@@ -17,8 +17,12 @@ const simplified = computed(() => cinematic.performanceTier === 'low')
   <div class="chrome-stage" aria-hidden="true">
     <div class="chrome-blob" :class="{ 'chrome-blob--simple': simplified }">
       <div class="chrome-blob__surface" />
+      <!-- Reflexo interno em contra-rotação: cria a interferência líquida do metal -->
+      <div v-if="!simplified" class="chrome-blob__inner" />
       <div v-if="!simplified" class="chrome-blob__sheen" />
     </div>
+    <!-- Sombra de contato: ancora o objeto na cena, dá distância real do fundo -->
+    <div class="chrome-shadow" />
   </div>
 </template>
 
@@ -30,6 +34,11 @@ const simplified = computed(() => cinematic.performanceTier === 'low')
   display: grid;
   place-items: center;
   pointer-events: none;
+}
+
+/* Blob e sombra ocupam a mesma célula — empilhados, não em linhas separadas */
+.chrome-stage > * {
+  grid-area: 1 / 1;
 }
 
 .chrome-blob {
@@ -48,7 +57,11 @@ const simplified = computed(() => cinematic.performanceTier === 'low')
 .chrome-blob__surface {
   position: absolute;
   inset: 0;
+  /* Superfície metálica: cônico (reflexos de ambiente) fundido com dois
+     radiais (luz de estúdio + oclusão inferior) — o blend cria o metal */
   background:
+    radial-gradient(58% 48% at 30% 24%, rgba(255, 255, 255, 0.85), transparent 62%),
+    radial-gradient(70% 60% at 68% 82%, rgba(0, 0, 0, 0.75), transparent 58%),
     conic-gradient(from 210deg,
       var(--chrome-lo) 0%,
       var(--chrome-hi) 18%,
@@ -57,9 +70,12 @@ const simplified = computed(() => cinematic.performanceTier === 'low')
       var(--chrome-lo) 72%,
       var(--chrome-hi) 90%,
       var(--chrome-lo) 100%);
+  background-blend-mode: screen, multiply, normal;
   border-radius: 58% 42% 55% 45% / 48% 56% 44% 52%;
   box-shadow:
     inset 0 0 60px rgba(0, 0, 0, calc(var(--cinema-depth-shadow) * 0.9)),
+    inset 0 -18px 40px rgba(0, 0, 0, calc(var(--cinema-depth-shadow) * 0.6)),
+    inset 0 2px 6px rgba(255, 255, 255, 0.35),
     0 30px 90px rgba(0, 0, 0, var(--cinema-depth-shadow));
   animation:
     blob-morph calc(18s / max(var(--chrome-speed), 0.05)) ease-in-out infinite alternate,
@@ -74,6 +90,31 @@ const simplified = computed(() => cinematic.performanceTier === 'low')
 
 @keyframes blob-spin {
   to { rotate: 360deg; }
+}
+
+/* Reflexo interno: gradiente girando ao contrário do corpo — a defasagem
+   entre as duas rotações produz a sensação de líquido se reorganizando */
+.chrome-blob__inner {
+  position: absolute;
+  inset: 9%;
+  background: conic-gradient(from 30deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 12%,
+    transparent 30%,
+    rgba(0, 0, 0, 0.55) 52%,
+    transparent 70%,
+    rgba(255, 255, 255, 0.3) 86%,
+    transparent 100%);
+  border-radius: 52% 48% 46% 54% / 50% 46% 54% 50%;
+  mix-blend-mode: soft-light;
+  filter: blur(calc(6px + var(--chrome-distortion) * 14px));
+  animation:
+    blob-morph calc(14s / max(var(--chrome-speed), 0.05)) ease-in-out infinite alternate-reverse,
+    blob-spin-reverse calc(46s / max(var(--chrome-speed), 0.05)) linear infinite;
+}
+
+@keyframes blob-spin-reverse {
+  to { rotate: -360deg; }
 }
 
 .chrome-blob__sheen {
@@ -92,6 +133,22 @@ const simplified = computed(() => cinematic.performanceTier === 'low')
   to   { transform: scale(1.05) translateX(2%); }
 }
 
+.chrome-shadow {
+  position: absolute;
+  width: min(34vmin, 380px);
+  height: min(7vmin, 80px);
+  translate: 0 min(27vmin, 305px);
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at center, rgba(0, 0, 0, calc(var(--cinema-depth-shadow) * 0.9)), transparent 70%);
+  filter: blur(10px);
+  animation: shadow-drift calc(34s / max(var(--chrome-speed), 0.05)) ease-in-out infinite alternate;
+}
+
+@keyframes shadow-drift {
+  from { transform: translateX(-2%) scaleX(0.96); opacity: 0.85; }
+  to   { transform: translateX(2%) scaleX(1.06); opacity: 1; }
+}
+
 .chrome-blob--simple {
   filter: saturate(0);
 }
@@ -105,5 +162,9 @@ const simplified = computed(() => cinematic.performanceTier === 'low')
 [data-immersive] .chrome-blob {
   width: min(62vmin, 720px);
   height: min(62vmin, 720px);
+}
+
+[data-immersive] .chrome-shadow {
+  translate: 0 min(36vmin, 420px);
 }
 </style>

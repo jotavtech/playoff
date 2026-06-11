@@ -58,6 +58,15 @@ const trackLine = computed(() => {
   opacity: var(--cinema-bar-opacity);
 }
 
+/* Textura interna — espelho da barra superior, volume em vez de retângulo chapado */
+.bar__mask::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.05), transparent 45%);
+  opacity: calc(0.4 + 0.6 * var(--motion-intensity));
+}
+
 .bar__mask::after {
   content: '';
   position: absolute;
@@ -79,6 +88,7 @@ const trackLine = computed(() => {
 }
 
 .bar__line-progress {
+  position: relative;
   height: 100%;
   width: calc(var(--music-progress, 0) * 100%);
   background: var(--ink);
@@ -86,6 +96,21 @@ const trackLine = computed(() => {
   transition: width 1s linear;
   /* Acento mínimo da capa como brilho na borda (PRD §5.1.2) */
   box-shadow: 0 0 calc(var(--cinema-vibration) * 12px) var(--music-accent, var(--ink));
+}
+
+/* Cabeça do progresso: ponto de luz que marca a posição atual da faixa */
+.bar__line-progress::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  translate: 0 -50%;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 6px rgba(255, 255, 255, calc(0.3 + 0.5 * var(--music-reactivity)));
+  opacity: calc(var(--cinema-line-opacity) * 2);
 }
 
 .bar__metadata {

@@ -2,18 +2,23 @@
 import { useCinematicStore } from '~/stores/cinematic'
 import { useMusicVisualStore } from '~/stores/musicVisual'
 import { useAuthStore } from '~/stores/auth'
+import { useRoomStore } from '~/stores/room'
 import { useSpotifySearch } from '~/composables/useSpotifySearch'
 import { useSpotifyPlayer } from '~/composables/useSpotifyPlayer'
 import { useAuth } from '~/composables/useAuth'
+import { useRoom } from '~/composables/useRoom'
 import type { CommandAction, MonochromeTheme, VisualPreset } from '~/types/cinematic'
 import type { SpotifyTrack } from '~/types/spotify'
 
 const cinematic = useCinematicStore()
 const music = useMusicVisualStore()
 const auth = useAuthStore()
+const roomStore = useRoomStore()
 const { results: searchResults, loading: searching, searchDebounced, clear: clearSearch } = useSpotifySearch()
 const { playTrack } = useSpotifyPlayer()
 const { login, logout } = useAuth()
+const { addTrack: addTrackToRoom, createRoom } = useRoom()
+const router = useRouter()
 
 const query = ref('')
 const activeIndex = ref(0)
@@ -24,7 +29,7 @@ const mode = computed(() => {
   const q = query.value.trim()
   if (!q) return 'commands'
   // Comandos começam com '>' ou são palavras-chave de sistema
-  if (q.startsWith('>') || SYSTEM_CMDS.some(c => c.label.toLowerCase().startsWith(q.toLowerCase()))) return 'commands'
+  if (q.startsWith('>') || SYSTEM_CMDS.value.some(c => c.label.toLowerCase().startsWith(q.toLowerCase()))) return 'commands'
   return auth.isAuthenticated ? 'search' : 'commands'
 })
 
@@ -54,6 +59,16 @@ const SYSTEM_CMDS = computed<CommandAction[]>(() => [
     hint: 'demo da cena reativa',
     group: 'music',
     run: () => { music.currentTrack ? music.clearTrack() : music.startSimulation() }
+  },
+  {
+    id: 'create-room',
+    label: 'Create room',
+    hint: 'sala em tempo real',
+    group: 'room',
+    run: async () => {
+      const id = await createRoom('PLAYOFF SESSION')
+      if (id) router.push(`/room/${id}`)
+    }
   },
   {
     id: 'cinema-view',
@@ -138,7 +153,9 @@ watch(() => cinematic.commandCenterOpen, async (open) => {
 
 // ─── Selecionar item ──────────────────────────────────────────────────────
 function selectTrack (track: SpotifyTrack) {
-  playTrack(track)
+  // Dentro de uma sala, buscar música = adicionar à fila; fora, tocar direto
+  if (roomStore.inRoom) addTrackToRoom(track)
+  else playTrack(track)
   cinematic.toggleCommandCenter()
 }
 
@@ -155,6 +172,12 @@ function onKeydown (e: KeyboardEvent) {
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
     activeIndex.value = Math.max(0, activeIndex.value - 1)
+  } else if (e.key === 'Home' && listLength.value > 0) {
+    e.preventDefault()
+    activeIndex.value = 0
+  } else if (e.key === 'End' && listLength.value > 0) {
+    e.preventDefault()
+    activeIndex.value = listLength.value - 1
   } else if (e.key === 'Enter') {
     if (mode.value === 'search') {
       const track = searchResults.value[activeIndex.value]
@@ -178,6 +201,7 @@ function coverOf (track: SpotifyTrack) {
       v-if="cinematic.commandCenterOpen"
       class="command"
       role="dialog"
+      aria-modal="true"
       aria-label="Command Center"
       @click.self="cinematic.toggleCommandCenter()"
     >
@@ -204,6 +228,11 @@ function coverOf (track: SpotifyTrack) {
             v-model="query"
             class="command__input"
             type="text"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="command-results"
+            aria-autocomplete="list"
+            :aria-activedescendant="listLength > 0 ? `command-option-${activeIndex}` : undefined"
             :placeholder="auth.isAuthenticated ? 'Search music or type a command (>)…' : 'Type a command or > for actions…'"
             spellcheck="false"
             autocomplete="off"
@@ -213,16 +242,17 @@ function coverOf (track: SpotifyTrack) {
         </div>
 
         <!-- Resultados de busca -->
-        <ul v-if="mode === 'search'" class="command__list" role="listbox">
+        <ul v-if="mode === 'search'" id="command-results" class="command__list" role="listbox">
           <li
             v-for="(track, i) in searchResults"
+            :id="`command-option-${i}`"
             :key="track.id"
             class="command__item command__item--track"
             :class="{ 'command__item--active': i === activeIndex }"
             role="option"
             :aria-selected="i === activeIndex"
             @click="selectTrack(track)"
-            @mousemove="activeIndex = i"
+            @mouseenter="activeIndex = i"
           >
             <img
               v-if="coverOf(track)"
@@ -246,18 +276,13 @@ function coverOf (track: SpotifyTrack) {
           <li v-if="!searching && searchResults.length === 0 && query.trim()" class="command__empty microtext">
             NO SIGNAL MATCHES — "{{ query }}"
           </li>
-
-          <li v-if="!auth.isAuthenticated" class="command__auth-cta">
-            <button class="command__login-btn microtext" @click="login()">
-              LOGIN WITH SPOTIFY TO SEARCH
-            </button>
-          </li>
         </ul>
 
         <!-- Comandos de sistema -->
-        <ul v-else class="command__list" role="listbox">
+        <ul v-else id="command-results" class="command__list" role="listbox">
           <li
             v-for="(action, i) in filteredCmds"
+            :id="`command-option-${i}`"
             :key="action.id"
             class="command__item"
             :class="{
@@ -267,7 +292,7 @@ function coverOf (track: SpotifyTrack) {
             role="option"
             :aria-selected="i === activeIndex"
             @click="runCmd(action)"
-            @mousemove="activeIndex = i"
+            @mouseenter="activeIndex = i"
           >
             <span class="command__label">{{ action.label }}</span>
             <span v-if="action.hint" class="command__hint microtext">{{ action.hint }}</span>
@@ -305,6 +330,7 @@ function coverOf (track: SpotifyTrack) {
 }
 
 .command__panel {
+  position: relative;
   width: min(660px, calc(100vw - 32px));
   max-height: 70dvh;
   display: flex;
@@ -312,6 +338,18 @@ function coverOf (track: SpotifyTrack) {
   background: var(--bg-soft);
   border: 1px solid var(--glass-border);
   box-shadow: 0 48px 140px rgba(0, 0, 0, 0.65);
+}
+
+/* Fio de luz na borda superior — o painel parece iluminado pela cena, não um popup */
+.command__panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--ink-dim), transparent);
+  pointer-events: none;
 }
 
 .command__head {
@@ -344,6 +382,13 @@ function coverOf (track: SpotifyTrack) {
   color: var(--ink-dim);
   user-select: none;
   flex-shrink: 0;
+  /* respiração lenta do prompt — terminal vivo, sem piscar nervoso */
+  animation: prompt-breathe 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes prompt-breathe {
+  from { opacity: 0.45; }
+  to   { opacity: 1; }
 }
 
 .command__input {
@@ -452,25 +497,6 @@ function coverOf (track: SpotifyTrack) {
   text-align: center;
 }
 
-.command__auth-cta {
-  padding: 12px 18px;
-  display: flex;
-  justify-content: center;
-}
-
-.command__login-btn {
-  padding: 12px 24px;
-  border: 1px solid var(--ink-dim);
-  color: var(--ink);
-  letter-spacing: 0.22em;
-  transition: background var(--t-fast) linear, color var(--t-fast) linear;
-}
-
-.command__login-btn:hover {
-  background: var(--ink);
-  color: var(--bg);
-}
-
 .command__footer {
   display: flex;
   gap: 20px;
@@ -478,11 +504,20 @@ function coverOf (track: SpotifyTrack) {
   border-top: 1px solid var(--glass-border);
 }
 
-/* Entrada como camada cinematográfica */
+/* Entrada como camada cinematográfica: o painel desce como cartela,
+   não como popup — e sai com corte rápido para cima */
 .command-enter-active { transition: opacity var(--t-fast) linear; }
 .command-enter-active .command__panel { transition: transform var(--t-scene) var(--ease-scene), opacity var(--t-scene) var(--ease-scene); }
-.command-leave-active { transition: opacity var(--t-fast) linear; }
+.command-leave-active { transition: opacity var(--t-fast) var(--ease-cut); }
+.command-leave-active .command__panel { transition: transform var(--t-fast) var(--ease-cut); }
 .command-enter-from { opacity: 0; }
-.command-enter-from .command__panel { transform: translateY(-14px) scale(0.99); opacity: 0; }
+.command-enter-from .command__panel { transform: translateY(-18px) scale(0.985); opacity: 0; }
 .command-leave-to { opacity: 0; }
+.command-leave-to .command__panel { transform: translateY(-8px); }
+
+@media (max-width: 768px) {
+  .command { padding-top: max(9vh, calc(var(--cinema-bar-top-height) + 24px)); }
+  .command__panel { max-height: 64dvh; }
+  .command__footer { gap: 12px; flex-wrap: wrap; }
+}
 </style>

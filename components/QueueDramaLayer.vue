@@ -1,18 +1,13 @@
 <script setup lang="ts">
 import { useRoomStore } from '~/stores/room'
 import { useRoom } from '~/composables/useRoom'
-import type { SpotifyTrack } from '~/types/spotify'
-
-const props = defineProps<{ addableTrack?: SpotifyTrack | null }>()
 
 const room = useRoomStore()
-const { vote, unvote, superVote, addTrack } = useRoom()
+const { vote, unvote, superVote } = useRoom()
 
 const maxVotes = computed(() =>
   room.queue.reduce((m, i) => Math.max(m, i.votes), 0)
 )
-
-/** Animação de entrada/saída dos itens (TransitionGroup). */
 </script>
 
 <template>
@@ -75,6 +70,7 @@ const maxVotes = computed(() =>
 }
 
 .queue-drama__list {
+  position: relative; /* ancora os itens absolutos durante o leave */
   list-style: none;
   overflow-y: auto;
   flex: 1;
@@ -92,10 +88,11 @@ const maxVotes = computed(() =>
   padding: 40px;
 }
 
-/* TransitionGroup */
-.queue-enter-active { transition: opacity 0.4s var(--ease-scene), transform 0.4s var(--ease-scene); }
-.queue-leave-active { transition: opacity 0.3s linear, transform 0.3s var(--ease-cut); }
-.queue-move         { transition: transform 0.5s var(--ease-scene); }
-.queue-enter-from   { opacity: 0; transform: translateX(-12px); }
-.queue-leave-to     { opacity: 0; transform: translateX(12px) scale(0.97); }
+/* TransitionGroup — entrada como sinal novo, saída como corte seco (PRD §5.7.5).
+   Itens saindo ficam absolutos para a disputa de posição reordenar com fluidez */
+.queue-enter-active { transition: opacity 0.45s var(--ease-scene), transform 0.45s var(--ease-scene), filter 0.45s var(--ease-scene); }
+.queue-leave-active { position: absolute; width: 100%; transition: opacity 0.25s var(--ease-cut), transform 0.25s var(--ease-cut); }
+.queue-move         { transition: transform 0.55s var(--ease-liquid); }
+.queue-enter-from   { opacity: 0; transform: translateX(-16px); filter: blur(3px); }
+.queue-leave-to     { opacity: 0; transform: translateX(20px) scaleY(0.7); }
 </style>

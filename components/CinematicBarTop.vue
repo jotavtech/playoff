@@ -58,6 +58,16 @@ const modeLabel = computed(() => {
   opacity: var(--cinema-bar-opacity);
 }
 
+/* Textura interna: a barra não é um retângulo chapado — tem um
+   brilho mínimo na borda externa que dá volume de superfície */
+.bar__mask::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), transparent 45%);
+  opacity: calc(0.4 + 0.6 * var(--motion-intensity));
+}
+
 .bar__mask::after {
   content: '';
   position: absolute;
@@ -81,6 +91,8 @@ const modeLabel = computed(() => {
   transform-origin: left center;
   transition: transform var(--t-scene) var(--ease-scene), opacity var(--t-fast) linear;
   animation: line-vibrate calc(2.4s / max(var(--motion-intensity), 0.1)) ease-in-out infinite alternate;
+  /* Ruído cromático monocromático: linha fantasma deslocada quando a cena tensiona */
+  box-shadow: 0 calc(var(--cinema-chromatic-noise) * 3px) 0 rgba(255, 255, 255, calc(var(--cinema-chromatic-noise) * 0.45));
 }
 
 @keyframes line-vibrate {

@@ -138,8 +138,8 @@ export function useSpotifyPlayer () {
         extractPalette(coverUrl).then(palette => {
           music.palette = palette
           // Aplica ajustes de mood à cena
-          const fakeTrack = {
-            id: track.id, name: track.title, artists: [{ name: track.artist }],
+          const fakeTrack: SpotifyTrack = {
+            id: track.id, name: track.title, artists: [{ id: '', name: track.artist }],
             popularity: 50, uri: '', duration_ms: track.durationMs,
             preview_url: null, album: { id: '', name: track.album, images: [], release_date: '' }
           }

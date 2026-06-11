@@ -14,12 +14,9 @@ const fps = ref(0)
 const webgl = ref<'available' | 'unavailable' | 'checking'>('checking')
 let rafId = 0
 
-onMounted(() => {
-  try {
-    const canvas = document.createElement('canvas')
-    webgl.value = (canvas.getContext('webgl2') || canvas.getContext('webgl')) ? 'available' : 'unavailable'
-  } catch { webgl.value = 'unavailable' }
-
+// O medidor de FPS só roda enquanto o overlay está visível —
+// diagnóstico não pode custar performance quando fechado
+function startFpsLoop () {
   let frames = 0
   let last = performance.now()
   const loop = (now: number) => {
@@ -32,9 +29,25 @@ onMounted(() => {
     rafId = requestAnimationFrame(loop)
   }
   rafId = requestAnimationFrame(loop)
+}
+
+function stopFpsLoop () {
+  cancelAnimationFrame(rafId)
+}
+
+onMounted(() => {
+  try {
+    const canvas = document.createElement('canvas')
+    webgl.value = (canvas.getContext('webgl2') || canvas.getContext('webgl')) ? 'available' : 'unavailable'
+  } catch { webgl.value = 'unavailable' }
+
+  watch(() => cinematic.diagnosticsOpen, (open) => {
+    stopFpsLoop()
+    if (open) startFpsLoop()
+  }, { immediate: true })
 })
 
-onBeforeUnmount(() => cancelAnimationFrame(rafId))
+onBeforeUnmount(stopFpsLoop)
 
 const rows = computed(() => [
   ['FPS', String(fps.value)],

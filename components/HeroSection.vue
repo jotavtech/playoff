@@ -3,17 +3,41 @@ import { useCinematicStore } from '~/stores/cinematic'
 import { useMusicVisualStore } from '~/stores/musicVisual'
 import { useAuthStore } from '~/stores/auth'
 import { useAuth } from '~/composables/useAuth'
+import { useRoom } from '~/composables/useRoom'
 
 const cinematic = useCinematicStore()
 const music = useMusicVisualStore()
 const auth = useAuthStore()
 const { login } = useAuth()
+const { createRoom } = useRoom()
+const router = useRouter()
+const creatingRoom = ref(false)
+
+async function onCreateRoom () {
+  if (creatingRoom.value) return
+  creatingRoom.value = true
+  const id = await createRoom('PLAYOFF SESSION')
+  creatingRoom.value = false
+  if (id) router.push(`/room/${id}`)
+}
+
+// CTA dinâmico (PRD §5.5.3): com música tocando vira `Enter Cinema View`;
+// sem música, abre a busca no Command Center
+function onPrimaryCta () {
+  if (music.currentTrack) cinematic.toggleCinemaView()
+  else cinematic.toggleCommandCenter()
+}
 </script>
 
 <template>
   <section class="hero editorial-grid">
     <div class="hero__composition">
-      <p class="hero__kicker microtext">CINEMATIC MUSIC SYSTEM — REBUILD 4.0</p>
+      <!-- Cartela de abertura: kicker flanqueado por réguas finas, como intertítulo de cinema mudo -->
+      <p class="hero__kicker microtext">
+        <span class="hero__rule" aria-hidden="true" />
+        CINEMATIC MUSIC SYSTEM — REBUILD 4.0
+        <span class="hero__rule" aria-hidden="true" />
+      </p>
 
       <!-- Tipografia massiva, cortada pelas bordas (PRD §5.5.1) -->
       <h1 class="hero__title" aria-label="PLAYOFF">PLAYOFF</h1>
@@ -25,11 +49,11 @@ const { login } = useAuth()
       <div class="hero__ctas">
         <!-- Autenticado: busca e cinema -->
         <template v-if="auth.isAuthenticated">
-          <button class="hero__cta hero__cta--primary" @click="cinematic.toggleCommandCenter()">
+          <button class="hero__cta hero__cta--primary" @click="onPrimaryCta">
             {{ music.currentTrack ? 'ENTER CINEMA VIEW' : 'SEARCH MUSIC' }}
           </button>
-          <button class="hero__cta" disabled title="Fase 3 — salas em tempo real">
-            CREATE ROOM
+          <button class="hero__cta" :disabled="creatingRoom" @click="onCreateRoom">
+            {{ creatingRoom ? 'OPENING…' : 'CREATE ROOM' }}
           </button>
         </template>
 
@@ -63,6 +87,7 @@ const { login } = useAuth()
   display: grid;
   place-items: center;
   overflow: hidden;
+  padding-inline: clamp(12px, 4vw, 48px);
 }
 
 .hero__composition {
@@ -76,7 +101,26 @@ const { login } = useAuth()
 }
 
 .hero__kicker {
+  display: flex;
+  align-items: center;
+  gap: 18px;
   letter-spacing: 0.34em;
+  /* cartela entra primeiro, como abertura de trailer mudo */
+  animation: card-reveal 1.1s var(--ease-scene) both;
+}
+
+.hero__rule {
+  display: inline-block;
+  width: clamp(28px, 6vw, 72px);
+  height: 1px;
+  background: var(--ink-faint);
+  transform-origin: center;
+  animation: rule-extend 1.4s var(--ease-cut) both;
+}
+
+@keyframes rule-extend {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
 }
 
 .hero__title {
@@ -90,6 +134,13 @@ const { login } = useAuth()
   user-select: none;
   mix-blend-mode: difference;
   color: #f2f2f2;
+  /* título sobe como cartela de cinema mudo — corte intencional, não fade genérico */
+  animation: title-card 1.3s var(--ease-cut) 0.15s both;
+}
+
+@keyframes title-card {
+  from { opacity: 0; transform: translateY(0.18em) scale(0.985); letter-spacing: -0.01em; }
+  to   { opacity: 1; transform: translateY(0) scale(1); letter-spacing: -0.04em; }
 }
 
 .hero__track {
@@ -100,6 +151,12 @@ const { login } = useAuth()
   display: flex;
   gap: 14px;
   margin-top: 10px;
+  animation: card-reveal 1s var(--ease-scene) 0.55s both;
+}
+
+@keyframes card-reveal {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .hero__cta {
@@ -135,10 +192,14 @@ const { login } = useAuth()
   display: flex;
   gap: 36px;
   margin-top: 18px;
+  animation: card-reveal 1s var(--ease-scene) 0.75s both;
 }
 
 @media (max-width: 768px) {
+  .hero__composition { gap: 16px; }
   .hero__ctas { flex-direction: column; width: min(320px, 80vw); }
-  .hero__footnotes { gap: 16px; flex-wrap: wrap; justify-content: center; }
+  .hero__cta { padding: 14px 24px; }
+  .hero__footnotes { gap: 12px 16px; flex-wrap: wrap; justify-content: center; }
+  .hero__rule { width: 20px; }
 }
 </style>

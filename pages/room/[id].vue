@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useRoomStore } from '~/stores/room'
 import { useCinematicStore } from '~/stores/cinematic'
-import { useMusicVisualStore } from '~/stores/musicVisual'
 import { useRoom } from '~/composables/useRoom'
 
 /**
@@ -13,7 +12,6 @@ const route = useRoute()
 const router = useRouter()
 const room = useRoomStore()
 const cinematic = useCinematicStore()
-const music = useMusicVisualStore()
 const { connect, disconnect, nextTrack } = useRoom()
 
 const roomId = computed(() => String(route.params.id || '').toUpperCase())
@@ -35,11 +33,22 @@ function leaveToHome () {
   router.push('/')
 }
 
+const linkCopied = ref(false)
+let copiedTimer: ReturnType<typeof setTimeout> | null = null
+
 async function copyLink () {
   try {
     await navigator.clipboard.writeText(window.location.href)
+    // Confirmação técnica curta no próprio botão — sem modal
+    linkCopied.value = true
+    if (copiedTimer) clearTimeout(copiedTimer)
+    copiedTimer = setTimeout(() => { linkCopied.value = false }, 1600)
   } catch { /* clipboard bloqueado */ }
 }
+
+onBeforeUnmount(() => {
+  if (copiedTimer) clearTimeout(copiedTimer)
+})
 </script>
 
 <template>
@@ -64,7 +73,7 @@ async function copyLink () {
           <p class="microtext">LIVE SESSION</p>
           <h2 class="room-stage__name">{{ room.room?.name }}</h2>
           <button class="room-stage__link microtext" title="Copiar link da sala" @click="copyLink">
-            {{ roomId }} ⧉
+            {{ linkCopied ? 'LINK COPIED' : `${roomId} ⧉` }}
           </button>
         </div>
         <RoomParticipants />
@@ -237,5 +246,13 @@ async function copyLink () {
 .room-stage__btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .room-stage { padding: 10px 12px; }
+  .room-stage__live { gap: 10px; }
+  .room-stage__now { padding: 10px 12px; gap: 10px; }
+  .room-stage__actions { gap: 8px; }
+  .room-stage__btn { padding: 12px 16px; flex: 1; }
 }
 </style>

@@ -7,7 +7,8 @@
 </script>
 
 <template>
-  <div class="cinematic-bars" aria-hidden="false">
+  <!-- Não usa aria-hidden: as barras carregam metadados legíveis e controles reais -->
+  <div class="cinematic-bars">
     <CinematicBarTop />
     <CinematicDepthMask />
     <CinematicBarBottom />

@@ -9,6 +9,7 @@ const cinematic = useCinematicStore()
     <button
       class="mode-switcher__btn microtext"
       :class="{ 'mode-switcher__btn--active': cinematic.cinemaView }"
+      :aria-pressed="cinematic.cinemaView"
       title="Cinema View (C)"
       @click="cinematic.toggleCinemaView()"
     >
@@ -17,6 +18,7 @@ const cinematic = useCinematicStore()
     <button
       class="mode-switcher__btn microtext"
       :class="{ 'mode-switcher__btn--active': cinematic.wallpaperMode }"
+      :aria-pressed="cinematic.wallpaperMode"
       title="OLED Wallpaper Mode (W)"
       @click="cinematic.toggleWallpaperMode()"
     >

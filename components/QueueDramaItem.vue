@@ -66,9 +66,11 @@ function fmt (ms: number) {
       <p class="drama-item__added microtext">ADDED BY {{ item.addedByName }}</p>
     </div>
 
-    <!-- Vote count (escala pelo volume de votos) -->
-    <div class="drama-item__votes" :style="{ transform: `scale(${voteScale})` }">
-      <span class="drama-item__vote-count">{{ item.votes }}</span>
+    <!-- Vote count (escala pelo volume de votos; cada voto novo dá um pulso) -->
+    <div class="drama-item__votes">
+      <Transition name="vote-pop" mode="out-in">
+        <span :key="item.votes" class="drama-item__vote-count">{{ item.votes }}</span>
+      </Transition>
       <span class="microtext">VOTES</span>
     </div>
 
@@ -78,6 +80,7 @@ function fmt (ms: number) {
         v-if="isMyVote"
         class="drama-item__btn drama-item__btn--voted microtext"
         title="Remover voto"
+        aria-label="Remover voto"
         @click.stop="emit('unvote', item.id)"
       >
         ✕
@@ -86,6 +89,7 @@ function fmt (ms: number) {
         v-else
         class="drama-item__btn microtext"
         title="Votar"
+        aria-label="Votar"
         @click.stop="emit('vote', item.id)"
       >
         ▲
@@ -93,6 +97,7 @@ function fmt (ms: number) {
       <button
         class="drama-item__btn drama-item__btn--super microtext"
         title="Super Vote (+3)"
+        aria-label="Super Vote, vale 3 votos"
         @click.stop="emit('superVote', item.id)"
       >
         ⚡
@@ -118,11 +123,15 @@ function fmt (ms: number) {
 .drama-item--winner {
   border-left-color: var(--ink);
   background: var(--glass);
+  /* spotlight interno — a vencedora ocupa o palco */
+  box-shadow: inset 0 0 40px rgba(255, 255, 255, 0.04);
 }
 
 .drama-item--tension {
   border-left-color: var(--ink-dim);
-  animation: tension-pulse 1.8s ease-in-out infinite alternate;
+  animation:
+    tension-pulse 1.8s ease-in-out infinite alternate,
+    tension-jitter 0.18s steps(2) infinite;
 }
 
 .drama-item--leading {
@@ -132,6 +141,12 @@ function fmt (ms: number) {
 @keyframes tension-pulse {
   from { background: transparent; }
   to   { background: var(--glass); }
+}
+
+/* Micro tremor de disputa — quase subliminar, só inquieta a cena */
+@keyframes tension-jitter {
+  from { translate: 0 0; }
+  to   { translate: 0.4px 0; }
 }
 
 .drama-item__rank {
@@ -205,7 +220,9 @@ function fmt (ms: number) {
   align-items: center;
   flex-shrink: 0;
   transform-origin: center;
-  transition: transform 0.6s var(--ease-scene);
+  /* escala dirigida por --vote-scale (setada no <li>) — quem tem mais votos cresce */
+  transform: scale(var(--vote-scale, 1));
+  transition: transform 0.6s var(--ease-liquid);
 }
 
 .drama-item__vote-count {
@@ -214,6 +231,12 @@ function fmt (ms: number) {
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
+
+/* Pulso a cada voto: o número novo entra com impacto, não troca seca */
+.vote-pop-enter-active { transition: transform 0.35s var(--ease-liquid), opacity 0.2s linear; }
+.vote-pop-leave-active { transition: transform 0.12s var(--ease-cut), opacity 0.12s linear; }
+.vote-pop-enter-from   { transform: scale(1.6); opacity: 0; }
+.vote-pop-leave-to     { transform: scale(0.7); opacity: 0; }
 
 .drama-item__actions {
   display: flex;
@@ -249,5 +272,12 @@ function fmt (ms: number) {
 /* Winner ganha destaque de escala */
 .drama-item--winner .drama-item__vote-count {
   color: var(--ink);
+}
+
+@media (max-width: 600px) {
+  .drama-item { gap: 10px; padding: 10px 12px; }
+  .drama-item__rank { display: none; }
+  .drama-item__added { display: none; }
+  .drama-item__cover { width: 40px; height: 40px; }
 }
 </style>
