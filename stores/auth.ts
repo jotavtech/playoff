@@ -13,7 +13,9 @@ export const useAuthStore = defineStore('auth', {
     tokenExpiry: 0,
     loading: false,
     deviceId: null as string | null,
-    isPremium: false
+    isPremium: false,
+    /** Erro do OAuth Spotify, lido do hash após o callback. */
+    authError: null as string | null
   }),
 
   getters: {
@@ -31,6 +33,7 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = accessToken
       if (refreshToken) this.refreshToken = refreshToken
       this.tokenExpiry = Date.now() + expiresIn * 1000
+      this.authError = null
 
       try {
         localStorage.setItem(TOKEN_KEY, accessToken)
@@ -89,6 +92,10 @@ export const useAuthStore = defineStore('auth', {
 
     setDeviceId (id: string) {
       this.deviceId = id
+    },
+
+    setAuthError (msg: string | null) {
+      this.authError = msg
     },
 
     logout () {
