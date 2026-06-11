@@ -32,6 +32,8 @@ export function useAuth () {
     const login_error = params.get('login_error')
     if (login_error) {
       console.warn('[playoff/auth] login error:', login_error)
+      // Mensagem clara para o usuário (PRD §UX/Login): erro de redirect URI é o caso comum
+      auth.setAuthError('Spotify connection failed. Check redirect URI or try again.')
       history.replaceState(null, '', window.location.pathname)
     }
     return false

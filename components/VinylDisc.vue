@@ -262,11 +262,18 @@ watch(() => [props.size, drawGrooves.value], () => nextTick(renderGrooves))
   position: absolute;
   inset: 0;
   border-radius: 50%;
+  /* CD holográfico: grafite escuro com bandas concêntricas sutis — base
+     escura o bastante para a refração espectral aparecer vívida por cima */
   background:
     radial-gradient(circle at 50% 50%,
-      #1a1a1a 0%, #0a0a0a 30%, #141414 45%, #050505 60%, #181818 72%, #020202 100%);
+      #050506 0%, #050506 17%,
+      #34353e 22%, #191a20 28%,
+      #43444e 35%, #212229 45%,
+      #4b4c57 55%, #1f2027 65%,
+      #3d3e48 74%, #17181d 85%,
+      #0c0c10 95%, #060608 100%);
   box-shadow:
-    inset 0 0 var(--disc-d-inset, 40px) rgba(0, 0, 0, 0.9),
+    inset 0 0 var(--disc-d-inset, 40px) rgba(0, 0, 0, 0.75),
     0 var(--disc-shadow-y, 30px) var(--disc-shadow-blur, 70px) rgba(0, 0, 0, 0.7),
     0 0 60px var(--music-glow, transparent);
   transform: rotate(var(--disc-angle));
@@ -281,27 +288,48 @@ watch(() => [props.size, drawGrooves.value], () => nextTick(renderGrooves))
   border-radius: 50%;
 }
 
-/* ── Reflexo cromático: conic com a cor da música, contra-rotação ──────── */
+/* ── Refração holográfica: espectro cônico mascarado num anel, como a
+   superfície de dados de um CD pegando a luz (PRD §estética chrome) ────── */
 .vinyl__chrome {
   position: absolute;
-  inset: 8%;
+  inset: 7%;
   border-radius: 50%;
+  /* espectro em arcos vivos com vãos escuros: refração de CD, não um anel
+     uniforme (que de longe vira cinza) */
   background: conic-gradient(
     from 0deg,
-    rgba(255, 255, 255, 0.02),
-    var(--music-accent-soft, rgba(255, 255, 255, 0.1)) 12%,
-    rgba(255, 255, 255, 0.01) 25%,
-    rgba(255, 255, 255, 0.14) 38%,
-    rgba(255, 255, 255, 0.01) 52%,
-    var(--music-accent-soft, rgba(255, 255, 255, 0.08)) 68%,
-    rgba(255, 255, 255, 0.02) 82%,
-    rgba(255, 255, 255, 0.12) 92%,
-    rgba(255, 255, 255, 0.02) 100%
+    hsl(195 100% 60%) 0%, transparent 9%,
+    hsl(280 100% 64%) 17%, transparent 26%,
+    hsl(330 100% 62%) 35%, transparent 43%,
+    hsl(48 100% 60%) 53%, transparent 61%,
+    hsl(150 100% 56%) 71%, transparent 80%,
+    hsl(210 100% 60%) 90%, transparent 99%
   );
+  /* anel: centro limpo para o rótulo, borda esvaece no aro */
+  -webkit-mask: radial-gradient(circle, transparent 26%, #000 33%, #000 92%, transparent 99%);
+  mask: radial-gradient(circle, transparent 26%, #000 33%, #000 92%, transparent 99%);
   mix-blend-mode: screen;
-  opacity: calc(0.5 + 0.5 * var(--music-reactivity, 0.4));
-  transform: rotate(calc(var(--disc-angle) * -0.45));
+  opacity: calc(0.78 + 0.22 * var(--music-reactivity, 0.4));
+  transform: rotate(calc(var(--disc-angle) * -0.5));
+  /* shimmer vivo mesmo com o disco parado */
+  animation: holo-breathe 7s ease-in-out infinite alternate;
   z-index: 2;
+}
+
+@keyframes holo-breathe {
+  from { filter: saturate(1.2) hue-rotate(0deg); transform: rotate(calc(var(--disc-angle) * -0.5)); }
+  to   { filter: saturate(1.6) hue-rotate(50deg); transform: rotate(calc(var(--disc-angle) * -0.5 + 8deg)); }
+}
+
+/* Segundo brilho espectral suave — bloom iridescente perto da luz */
+.vinyl__chrome::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(45% 38% at 36% 26%,
+    hsla(280, 90%, 70%, 0.5), hsla(190, 90%, 65%, 0.25) 45%, transparent 72%);
+  mix-blend-mode: screen;
 }
 
 /* ── Rótulo / capa ─────────────────────────────────────────────────────── */
@@ -366,22 +394,27 @@ watch(() => [props.size, drawGrooves.value], () => nextTick(renderGrooves))
   z-index: 5;
 }
 
-/* ── Variantes de cor do vinil (PRD Radiola §7.2) ──────────────────────── */
+/* ── Variantes por humor: o mesmo CD prata, com viés de temperatura no
+   metal (PRD Radiola §7.2) ─────────────────────────────────────────────── */
 .vinyl--noir .vinyl__body {
-  background:
-    radial-gradient(circle at 50% 50%, #161622 0%, #07070c 30%, #12121c 45%, #040408 60%, #16161f 72%, #020205 100%);
+  background: radial-gradient(circle at 50% 50%,
+    #050507 0%, #050507 17%, #2f3340 22%, #161922 28%, #3a3f50 35%, #1c2029 45%,
+    #42475a 55%, #1a1e27 65%, #353a48 74%, #14171e 85%, #0a0b10 95%, #050608 100%);
 }
 .vinyl--bright .vinyl__body {
-  background:
-    radial-gradient(circle at 50% 50%, #2a2620 0%, #100d08 30%, #1e1a12 45%, #0a0805 60%, #221e16 72%, #050402 100%);
+  background: radial-gradient(circle at 50% 50%,
+    #070605 0%, #070605 17%, #403a30 22%, #1f1c16 28%, #4e4736 35%, #28241b 45%,
+    #564e3c 55%, #25221a 65%, #453f30 74%, #1c1a14 85%, #100e0a 95%, #080705 100%);
 }
 .vinyl--heavy .vinyl__body {
-  background:
-    radial-gradient(circle at 50% 50%, #201414 0%, #0c0606 30%, #180e0e 45%, #070303 60%, #1c1010 72%, #030101 100%);
+  background: radial-gradient(circle at 50% 50%,
+    #070505 0%, #070505 17%, #403030 22%, #1f1616 28%, #4e3636 35%, #282020 45%,
+    #564242 55%, #251a1a 65%, #453030 74%, #1c1414 85%, #100a0a 95%, #080505 100%);
 }
 .vinyl--minimal .vinyl__body {
-  background:
-    radial-gradient(circle at 50% 50%, #24242a 0%, #131316 30%, #1d1d22 45%, #0d0d10 60%, #26262c 72%, #090909 100%);
+  background: radial-gradient(circle at 50% 50%,
+    #050506 0%, #050506 17%, #34353e 22%, #191a20 28%, #43444e 35%, #212229 45%,
+    #4b4c57 55%, #1f2027 65%, #3d3e48 74%, #17181d 85%, #0c0c10 95%, #060608 100%);
 }
 
 /* ── Corte de capa na troca de faixa ───────────────────────────────────── */

@@ -1,20 +1,18 @@
 <script setup lang="ts">
-import { useCinematicStore } from '~/stores/cinematic'
 import { useMusicVisualStore } from '~/stores/musicVisual'
+import { useAuthStore } from '~/stores/auth'
 
-const cinematic = useCinematicStore()
 const music = useMusicVisualStore()
+const auth = useAuthStore()
 
-const modeLabel = computed(() => {
-  switch (cinematic.mode) {
-    case 'oled-wallpaper': return 'WALLPAPER MODE'
-    case 'focus': return 'FOCUS LISTENING'
-    case 'room-live': return 'LIVE SESSION'
-    case 'voting-tension': return 'VOTE WINDOW ACTIVE'
-    case 'track-transition': return 'SCENE CUT'
-    case 'ambient-idle': return 'SYSTEM IDLE'
-    default: return 'HERO MODE'
-  }
+// SystemStatus (PRD §Componentes): estado claro e único no header
+const systemStatus = computed(() => {
+  if (auth.authError) return 'ERROR'
+  if (music.transitioning) return 'LOADING'
+  if (music.isPlaying) return 'PLAYING'
+  if (music.currentTrack) return 'HELD'
+  if (auth.isAuthenticated) return 'READY'
+  return 'OFFLINE'
 })
 </script>
 
@@ -26,11 +24,10 @@ const modeLabel = computed(() => {
     <!-- Camada 3: reactive line -->
     <div class="bar__line" aria-hidden="true" />
 
-    <!-- Camada 4: metadata overlay -->
+    <!-- Camada 4: metadata overlay — header limpo (PRD §Header) -->
     <div class="bar__metadata microtext">
-      <span class="bar__brand microtext--bright">PLAYOFF SYSTEM</span>
-      <span class="bar__meta-item">{{ modeLabel }}</span>
-      <span class="bar__meta-item bar__meta-item--status">{{ music.statusLabel }}</span>
+      <img class="bar__logo" src="/logo-playoff.png" alt="Playoff" draggable="false">
+      <span class="bar__meta-item bar__meta-item--status">STATUS: {{ systemStatus }}</span>
     </div>
 
     <!-- Camada 5: foreground UI -->
@@ -118,8 +115,11 @@ const modeLabel = computed(() => {
   to   { translate: calc(var(--motion-intensity) * 4px) 0; }
 }
 
-.bar__brand {
-  letter-spacing: 0.3em;
+.bar__logo {
+  height: 22px;
+  width: auto;
+  display: block;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.6));
 }
 
 .bar__meta-item--status {

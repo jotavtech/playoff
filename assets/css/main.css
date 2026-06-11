@@ -261,17 +261,21 @@ input {
   color: var(--ink-dim);
 }
 
-/* Grid editorial sutil (PRD §5.5.1) */
+/* Grid editorial sutil (PRD §5.5.1 + Rebuild 4.0 §Background):
+   linhas mais discretas com fade radial — presente no centro, recua nas bordas */
 .editorial-grid::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
   background-image:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.06), transparent 42%),
     linear-gradient(to right, var(--line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--line) 1px, transparent 1px);
-  background-size: calc(100% / 12) calc(100% / 8);
-  opacity: 0.25;
+  background-size: 100% 100%, calc(100% / 12) calc(100% / 8), calc(100% / 12) calc(100% / 8);
+  opacity: 0.18;
+  -webkit-mask-image: radial-gradient(circle at center, #000 30%, transparent 78%);
+  mask-image: radial-gradient(circle at center, #000 30%, transparent 78%);
 }
 
 /* ============================================================
