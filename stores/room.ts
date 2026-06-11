@@ -9,6 +9,8 @@ export const useRoomStore = defineStore('room', {
     room: null as RoomClientState | null,
     participantId: '',
     connected: false,
+    /** Realtime indisponível (ex.: host sem WebSocket como Vercel serverless). */
+    connectionFailed: false,
     tensionActive: false,
     lastDramaEvent: null as QueueDramaEvent | null,
     lastEventTrackId: null as string | null
@@ -86,12 +88,18 @@ export const useRoomStore = defineStore('room', {
 
     setConnected (v: boolean) {
       this.connected = v
+      if (v) this.connectionFailed = false
       if (!v) useCinematicStore().setMode('ambient-idle')
+    },
+
+    setConnectionFailed (v: boolean) {
+      this.connectionFailed = v
     },
 
     leave () {
       this.room = null
       this.connected = false
+      this.connectionFailed = false
       this.tensionActive = false
       useCinematicStore().setMode('ambient-idle')
       useCinematicStore().setBarsState('idle')

@@ -82,6 +82,14 @@ onBeforeUnmount(() => {
       <button class="room-stage__btn microtext" @click="leaveToHome">RETURN TO BASE</button>
     </div>
 
+    <!-- Realtime indisponível (host sem WebSocket) -->
+    <div v-else-if="room.connectionFailed" class="room-stage__missing">
+      <p class="microtext">REALTIME UNAVAILABLE</p>
+      <h2 class="room-stage__missing-title">NO LINK</h2>
+      <p class="microtext microtext--bright">SALAS PRECISAM DE UM HOST COM WEBSOCKET</p>
+      <button class="room-stage__btn microtext" @click="leaveToHome">RETURN TO BASE</button>
+    </div>
+
     <!-- Conectando -->
     <div v-else-if="!room.inRoom" class="room-stage__connecting">
       <p class="microtext room-stage__pulse">ESTABLISHING SIGNAL — {{ roomId }}</p>

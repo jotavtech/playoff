@@ -118,6 +118,12 @@ export function useRoom () {
 
   function _scheduleReconnect () {
     if (!currentRoomId) return
+    // Desiste após várias tentativas — em hosts sem WebSocket (Vercel serverless)
+    // nunca vai conectar; melhor avisar do que tentar pra sempre
+    if (reconnectAttempt >= 6) {
+      room.setConnectionFailed(true)
+      return
+    }
     const delay = RECONNECT_DELAYS[Math.min(reconnectAttempt, RECONNECT_DELAYS.length - 1)]
     reconnectAttempt++
     setTimeout(() => {

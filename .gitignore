@@ -9,6 +9,9 @@ dist
 # Dependencies
 node_modules
 
+# Vercel
+.vercel
+
 # Env — nunca commitar credenciais
 .env
 .env.*

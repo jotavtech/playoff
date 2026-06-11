@@ -1,19 +1,24 @@
 <script setup lang="ts">
 /**
  * Vinyl Arm (PRD Radiola §3.4) — o braço da radiola.
- * Pousa no disco com um micro-bounce de spring quando a música toca e
- * se levanta limpo quando pausa. Puramente decorativo e aria-hidden.
- * Omitido em telas estreitas pelo componente pai.
+ * Pivô no canto superior-direito do disco; o tubo desce e pousa a agulha
+ * sobre a superfície do vinil com micro-bounce de spring quando a música toca,
+ * e se levanta limpo quando pausa. Decorativo e aria-hidden.
  */
 defineProps<{ engaged: boolean }>()
 </script>
 
 <template>
   <div class="arm" :class="{ 'arm--engaged': engaged }" aria-hidden="true">
-    <div class="arm__pivot" />
+    <!-- Base / pivô -->
+    <div class="arm__base">
+      <div class="arm__base-cap" />
+    </div>
+
+    <!-- Tubo do braço, pivota a partir do centro da base -->
     <div class="arm__tube">
       <div class="arm__counterweight" />
-      <div class="arm__headshell">
+      <div class="arm__head">
         <div class="arm__needle" />
       </div>
     </div>
@@ -21,82 +26,91 @@ defineProps<{ engaged: boolean }>()
 </template>
 
 <style scoped>
-/* O braço vive no canto superior-direito do disco e pivota sobre a base. */
 .arm {
   position: absolute;
-  top: -6%;
-  right: -10%;
-  width: 22%;
-  height: 22%;
+  inset: 0;
   z-index: 6;
   pointer-events: none;
 }
 
-.arm__pivot {
+/* Base / pivô — disco metálico no canto superior-direito */
+.arm__base {
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 26%;
-  height: 26%;
+  top: 6%;
+  right: 8%;
+  width: 11%;
+  height: 11%;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 35% 30%, var(--chrome-hi, #e8e8e8), var(--chrome-lo, #2a2a2a) 80%);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), inset 0 1px 2px rgba(255, 255, 255, 0.4);
+  background: radial-gradient(circle at 36% 30%, #f0f0f0, #2a2a2a 78%);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.65), inset 0 1px 2px rgba(255, 255, 255, 0.5);
 }
 
-/* O tubo do braço pivota a partir do canto superior-direito (a base). */
+.arm__base-cap {
+  position: absolute;
+  inset: 32%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #d0d0d0, #161616);
+}
+
+/*
+ * Tubo: ancorado no centro da base (top/right batem com o centro do pivô).
+ * transform-origin no topo = o pivô. Rotação positiva balança a agulha para
+ * a esquerda, sobre o disco.
+ */
 .arm__tube {
   position: absolute;
-  top: 11%;
-  right: 11%;
-  width: 8%;
-  height: 120%;
+  top: 11.5%;
+  right: 13.5%;
+  width: 3.4%;
+  height: 42%;
   transform-origin: top center;
-  /* Levantado/retraído por padrão */
-  transform: rotate(18deg);
-  transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: rotate(14deg);   /* levantado/retraído, fora do disco */
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 999px;
-  background: linear-gradient(90deg, #3a3a3a, #cfcfcf 45%, #f4f4f4 50%, #cfcfcf 55%, #2c2c2c);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(90deg, #2c2c2c, #cccccc 42%, #f6f6f6 50%, #c4c4c4 58%, #242424);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.55);
 }
 
-/* Pouso com micro-bounce de spring quando engatado */
+/* Pouso sobre o disco com micro-bounce de spring */
 .arm--engaged .arm__tube {
-  transform: rotate(-27deg);
+  transform: rotate(40deg);
   transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* Contrapeso atrás do pivô */
 .arm__counterweight {
   position: absolute;
-  top: -14%;
+  top: -7%;
   left: 50%;
   translate: -50% 0;
-  width: 220%;
-  height: 14%;
+  width: 320%;
+  height: 9%;
   border-radius: 999px;
-  background: radial-gradient(circle at 40% 30%, #d8d8d8, #1c1c1c 85%);
+  background: radial-gradient(circle at 40% 30%, #dadada, #1a1a1a 85%);
   box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.3);
 }
 
-.arm__headshell {
+/* Headshell na ponta do tubo */
+.arm__head {
   position: absolute;
-  bottom: -6%;
+  bottom: -2%;
   left: 50%;
   translate: -50% 0;
-  width: 200%;
-  height: 12%;
+  width: 260%;
+  height: 9%;
   border-radius: 2px;
-  background: linear-gradient(180deg, #e0e0e0, #3a3a3a);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(180deg, #e4e4e4, #333);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
 }
 
+/* Agulha tocando o sulco */
 .arm__needle {
   position: absolute;
-  bottom: -55%;
+  bottom: -70%;
   left: 50%;
   translate: -50% 0;
-  width: 8%;
-  height: 60%;
-  background: linear-gradient(180deg, #bdbdbd, #f2f2f2);
+  width: 14%;
+  height: 70%;
+  background: linear-gradient(180deg, #c0c0c0, #f4f4f4);
 }
 </style>
