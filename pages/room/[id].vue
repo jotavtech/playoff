@@ -2,6 +2,7 @@
 import { useRoomStore } from '~/stores/room'
 import { useCinematicStore } from '~/stores/cinematic'
 import { useRoom } from '~/composables/useRoom'
+import type { SessionRecap as SessionRecapData } from '~/types/room'
 
 /**
  * Room Live Mode (PRD §5.2.4) — a sala é um ambiente vivo, não uma lista.
@@ -16,6 +17,9 @@ const { connect, disconnect, nextTrack } = useRoom()
 
 const roomId = computed(() => String(route.params.id || '').toUpperCase())
 const notFound = ref(false)
+const recap = ref<SessionRecapData | null>(null)
+const showRecap = ref(false)
+const recapLoading = ref(false)
 
 onMounted(async () => {
   // Valida a sala antes de abrir o socket
@@ -27,6 +31,17 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   disconnect()
 })
+
+async function openRecap () {
+  recapLoading.value = true
+  try {
+    const res = await fetch(`/api/room/${roomId.value}/recap`)
+    if (res.ok) recap.value = await res.json()
+  } finally {
+    recapLoading.value = false
+    showRecap.value = true
+  }
+}
 
 function leaveToHome () {
   disconnect()
@@ -103,11 +118,21 @@ onBeforeUnmount(() => {
         >
           LOCK WINNER ▶
         </button>
+        <button class="room-stage__btn microtext" :disabled="recapLoading" @click="openRecap">
+          {{ recapLoading ? '...' : 'SESSION RECAP' }}
+        </button>
         <button class="room-stage__btn microtext" @click="leaveToHome">
           LEAVE
         </button>
       </footer>
     </div>
+
+    <!-- Session Recap overlay -->
+    <SessionRecap
+      v-if="showRecap && recap"
+      :recap="recap"
+      @close="showRecap = false"
+    />
   </section>
 </template>
 

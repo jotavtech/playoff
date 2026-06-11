@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import type { Participant, TrackRef, QueueItem, RoomClientState, QueueDramaEvent } from '~/types/room'
+import type { Participant, TrackRef, QueueItem, RoomClientState, QueueDramaEvent, PlayedTrack, SessionRecap } from '~/types/room'
 
 interface ServerQueueItem {
   id: string
@@ -19,6 +19,12 @@ interface ServerRoom {
   currentTrack: TrackRef | null
   isPlaying: boolean
   createdAt: number
+  /** Histórico da sessão — alimenta o Recap (PRD §5.7.6) */
+  history: PlayedTrack[]
+  totalVotes: number
+  peakTension: { at: number; trackTitles: string[] } | null
+  /** Pico de participantes simultâneos da sessão */
+  maxParticipants: number
 }
 
 const rooms = new Map<string, ServerRoom>()
@@ -38,7 +44,11 @@ export function createRoom (name: string): string {
     queue: [],
     currentTrack: null,
     isPlaying: false,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    history: [],
+    totalVotes: 0,
+    peakTension: null,
+    maxParticipants: 0
   })
   return id
 }
@@ -55,6 +65,7 @@ export function joinRoom (roomId: string, peerId: string, participant: Participa
   const room = getRoom(roomId)
   if (!room) return false
   room.participants.set(participant.id, participant)
+  room.maxParticipants = Math.max(room.maxParticipants, room.participants.size)
   peerRoom.set(peerId, roomId)
   return true
 }
@@ -121,13 +132,21 @@ export function castVote (
   if (isSuper) {
     // Super Vote: vai direto para o topo (PRD original do Playoff)
     item.votes += 3
+    room.totalVotes += 3
   } else {
     if (item.voterIds.has(participantId)) return null  // já votou
     item.voterIds.add(participantId)
     item.votes += 1
+    room.totalVotes += 1
   }
 
   const result = calcDrama(room)
+
+  // Registra o momento de maior disputa da sessão (PRD §5.7.6)
+  if (result.tensionActive) {
+    const tense = result.queue.filter(i => i.dramaticState === 'tension' || i.dramaticState === 'winner')
+    room.peakTension = { at: Date.now(), trackTitles: tense.slice(0, 2).map(i => i.track.title) }
+  }
   const newLeaderId = result.queue[0]?.id
 
   let event: QueueDramaEvent = 'vote-cast'
@@ -170,7 +189,59 @@ export function nextTrack (
   room.currentTrack = winner.track
   room.isPlaying = true
 
+  // Histórico da sessão: faixa promovida com o placar do momento
+  room.history.push({
+    track: winner.track,
+    votesAtLock: winner.votes,
+    addedByName: winner.addedByName,
+    lockedAt: Date.now()
+  })
+
   return { ...calcDrama(room), track: winner.track, event: 'winner-locked' }
+}
+
+/** Listening Session Recap (PRD §5.7.6) — resumo visual da sessão. */
+export function buildRecap (roomId: string): SessionRecap | null {
+  const room = getRoom(roomId)
+  if (!room) return null
+
+  const topTrack = room.history.length > 0
+    ? [...room.history].sort((a, b) => b.votesAtLock - a.votesAtLock)[0]
+    : null
+
+  // Quem mais colocou música pra tocar
+  const adderCounts = new Map<string, number>()
+  for (const played of room.history) {
+    adderCounts.set(played.addedByName, (adderCounts.get(played.addedByName) ?? 0) + 1)
+  }
+  const topAdderEntry = [...adderCounts.entries()].sort((a, b) => b[1] - a[1])[0]
+
+  // Artistas mais presentes
+  const artistCounts = new Map<string, number>()
+  for (const played of room.history) {
+    for (const artist of played.track.artist.split(', ')) {
+      artistCounts.set(artist, (artistCounts.get(artist) ?? 0) + 1)
+    }
+  }
+  const topArtists = [...artistCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, count]) => ({ name, count }))
+
+  return {
+    roomId: room.id,
+    roomName: room.name,
+    createdAt: room.createdAt,
+    generatedAt: Date.now(),
+    durationMs: Date.now() - room.createdAt,
+    tracksPlayed: room.history,
+    topTrack,
+    topAdder: topAdderEntry ? { name: topAdderEntry[0], count: topAdderEntry[1] } : null,
+    topArtists,
+    totalVotes: room.totalVotes,
+    peakTension: room.peakTension,
+    participantCount: room.maxParticipants
+  }
 }
 
 export function toClientState (roomId: string): RoomClientState | null {

@@ -39,6 +39,29 @@ export interface RoomClientState {
   createdAt: number
 }
 
+/** Faixa que já tocou na sessão — base do Listening Session Recap (PRD §5.7.6). */
+export interface PlayedTrack {
+  track: TrackRef
+  votesAtLock: number
+  addedByName: string
+  lockedAt: number
+}
+
+export interface SessionRecap {
+  roomId: string
+  roomName: string
+  createdAt: number
+  generatedAt: number
+  durationMs: number
+  tracksPlayed: PlayedTrack[]
+  topTrack: PlayedTrack | null
+  topAdder: { name: string; count: number } | null
+  topArtists: { name: string; count: number }[]
+  totalVotes: number
+  peakTension: { at: number; trackTitles: string[] } | null
+  participantCount: number
+}
+
 export type WsClientMsg =
   | { type: 'join';       payload: { roomId: string; participantId: string; displayName: string; spotifyUserId?: string } }
   | { type: 'add_track';  payload: { track: TrackRef; participantId: string } }
