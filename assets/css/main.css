@@ -1,0 +1,287 @@
+/* ============================================================
+   PLAYOFF — fundação visual
+   Sistema de layers 00–11 (PRD §5.4), MonochromeThemeSystem (§5.6),
+   variáveis cinematográficas obrigatórias (§5.8.2).
+   ============================================================ */
+
+:root {
+  /* Variáveis obrigatórias do PRD */
+  --cinema-bar-top-height: 72px;
+  --cinema-bar-bottom-height: 96px;
+  --cinema-bar-opacity: 1;
+  --cinema-edge-blur: 18px;
+  --cinema-depth-shadow: 0.55;
+  --cinema-line-opacity: 0.38;
+  --scene-depth-z0: 0;
+  --scene-depth-z1: 10;
+  --scene-depth-z2: 20;
+  --scene-depth-z3: 30;
+  --scene-depth-z4: 40;
+  --music-reactivity: 0.65;
+  --motion-intensity: 0.8;
+  --chrome-distortion: 0.32;
+  --chrome-speed: 0.5;
+
+  /* Defaults das variáveis reativas — garantem primeiro paint correto
+     antes do CinematicViewport hidratar e assumir o controle */
+  --cinema-line-scale: 0.4;
+  --cinema-vibration: 0;
+  --cinema-metadata-opacity: 0.55;
+  --cinema-chromatic-noise: 0;
+  --music-progress: 0;
+  --music-accent: #9a9a9a;
+
+  /* Chromatic Engine (PRD Radiola §4) — cor da música, recuada por padrão */
+  --music-accent-soft: rgba(154, 154, 154, 0.12);
+  --music-glow: rgba(154, 154, 154, 0.08);
+  --music-bg-tint: rgba(154, 154, 154, 0.02);
+  --music-chromatic-intensity: 0.25;
+  --music-aberration: 0px;
+
+  /* Radiola — disco e visualizer (PRD Radiola §3, §5) */
+  --disc-rotation-sec: 1.8s;
+  --disc-spin-state: paused;
+  --viz-energy: 0;
+
+  /* Sistema de layers (PRD §5.4) */
+  --layer-00-base: 0;
+  --layer-01-gradient: 1;
+  --layer-02-album: 2;
+  --layer-03-chrome: 3;
+  --layer-04-bars: 4;
+  --layer-05-depth: 5;
+  --layer-06-content: 6;
+  --layer-07-panels: 7;
+  --layer-08-player: 8;
+  --layer-09-metadata: 9;
+  --layer-10-command: 10;
+  --layer-11-transition: 11;
+
+  /* Tipografia */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Timing cinematográfico */
+  --ease-scene: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-cut: cubic-bezier(0.83, 0, 0.17, 1);
+  --ease-liquid: cubic-bezier(0.34, 1.3, 0.4, 1);
+  --t-fast: 220ms;
+  --t-scene: 700ms;
+  --t-cut: 1200ms;
+}
+
+/* ============================================================
+   MonochromeThemeSystem — apenas variações preto/branco (PRD §5.1.2)
+   ============================================================ */
+
+/* Deep Black — default */
+:root, [data-theme='deep-black'] {
+  --bg: #060606;
+  --bg-soft: #0d0d0d;
+  --ink: #f2f2f2;
+  --ink-dim: rgba(242, 242, 242, 0.55);
+  --ink-faint: rgba(242, 242, 242, 0.28);
+  --bar: #000000;
+  --line: rgba(255, 255, 255, 0.14);
+  --chrome-hi: #e8e8e8;
+  --chrome-lo: #2a2a2a;
+  --glass: rgba(255, 255, 255, 0.04);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  color-scheme: dark;
+}
+
+[data-theme='oled-black'] {
+  --bg: #000000;
+  --bg-soft: #050505;
+  --ink: #ededed;
+  --ink-dim: rgba(237, 237, 237, 0.5);
+  --ink-faint: rgba(237, 237, 237, 0.22);
+  --bar: #000000;
+  --line: rgba(255, 255, 255, 0.1);
+  --chrome-hi: #cfcfcf;
+  --chrome-lo: #161616;
+  --glass: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  color-scheme: dark;
+}
+
+[data-theme='cinema-contrast'] {
+  --bg: #020202;
+  --bg-soft: #0a0a0a;
+  --ink: #ffffff;
+  --ink-dim: rgba(255, 255, 255, 0.62);
+  --ink-faint: rgba(255, 255, 255, 0.32);
+  --bar: #000000;
+  --line: rgba(255, 255, 255, 0.2);
+  --chrome-hi: #ffffff;
+  --chrome-lo: #1c1c1c;
+  --glass: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  color-scheme: dark;
+}
+
+[data-theme='ink-system'] {
+  --bg: #101010;
+  --bg-soft: #181818;
+  --ink: #e6e6e6;
+  --ink-dim: rgba(230, 230, 230, 0.55);
+  --ink-faint: rgba(230, 230, 230, 0.26);
+  --bar: #030303;
+  --line: rgba(255, 255, 255, 0.12);
+  --chrome-hi: #dadada;
+  --chrome-lo: #303030;
+  --glass: rgba(255, 255, 255, 0.045);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  color-scheme: dark;
+}
+
+[data-theme='monochrome-glass'] {
+  --bg: #0b0b0d;
+  --bg-soft: #141417;
+  --ink: #f4f4f6;
+  --ink-dim: rgba(244, 244, 246, 0.55);
+  --ink-faint: rgba(244, 244, 246, 0.28);
+  --bar: #000000;
+  --line: rgba(255, 255, 255, 0.16);
+  --chrome-hi: #f0f0f2;
+  --chrome-lo: #26262b;
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  color-scheme: dark;
+}
+
+[data-theme='pure-white'] {
+  --bg: #fafafa;
+  --bg-soft: #f0f0f0;
+  --ink: #0a0a0a;
+  --ink-dim: rgba(10, 10, 10, 0.6);
+  --ink-faint: rgba(10, 10, 10, 0.3);
+  --bar: #000000;
+  --line: rgba(0, 0, 0, 0.12);
+  --chrome-hi: #ffffff;
+  --chrome-lo: #b8b8b8;
+  --glass: rgba(0, 0, 0, 0.03);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  color-scheme: light;
+}
+
+[data-theme='editorial-white'] {
+  --bg: #f4f3f0;
+  --bg-soft: #eae9e5;
+  --ink: #111111;
+  --ink-dim: rgba(17, 17, 17, 0.62);
+  --ink-faint: rgba(17, 17, 17, 0.32);
+  --bar: #000000;
+  --line: rgba(0, 0, 0, 0.14);
+  --chrome-hi: #fcfcfa;
+  --chrome-lo: #aeaca6;
+  --glass: rgba(0, 0, 0, 0.035);
+  --glass-border: rgba(0, 0, 0, 0.11);
+  color-scheme: light;
+}
+
+[data-theme='frost-chrome'] {
+  --bg: #eef0f2;
+  --bg-soft: #e2e5e8;
+  --ink: #14161a;
+  --ink-dim: rgba(20, 22, 26, 0.58);
+  --ink-faint: rgba(20, 22, 26, 0.3);
+  --bar: #060708;
+  --line: rgba(20, 22, 26, 0.12);
+  --chrome-hi: #ffffff;
+  --chrome-lo: #c2c8ce;
+  --glass: rgba(255, 255, 255, 0.45);
+  --glass-border: rgba(20, 22, 26, 0.1);
+  color-scheme: light;
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #__nuxt {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-display);
+  background: var(--bg);
+  color: var(--ink);
+  overflow: hidden; /* a cena ocupa o viewport; scroll vive dentro de painéis */
+  -webkit-font-smoothing: antialiased;
+  transition: background var(--t-scene) var(--ease-scene), color var(--t-scene) var(--ease-scene);
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+}
+
+/* Foco visível — acessibilidade básica sem quebrar a estética:
+   contorno fino monocromático, apenas para navegação por teclado */
+:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Microtexto técnico — assinatura visual do sistema */
+.microtext {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.microtext--bright {
+  color: var(--ink-dim);
+}
+
+/* Grid editorial sutil (PRD §5.5.1) */
+.editorial-grid::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size: calc(100% / 12) calc(100% / 8);
+  opacity: 0.25;
+}
+
+/* ============================================================
+   Reduced motion — obrigatório desde o nascimento (PRD §5.12)
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
