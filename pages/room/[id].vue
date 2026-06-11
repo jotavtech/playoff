@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRoomStore } from '~/stores/room'
 import { useCinematicStore } from '~/stores/cinematic'
+import { useAuthStore } from '~/stores/auth'
 import { useRoom } from '~/composables/useRoom'
 import type { SessionRecap as SessionRecapData } from '~/types/room'
 
@@ -13,7 +14,13 @@ const route = useRoute()
 const router = useRouter()
 const room = useRoomStore()
 const cinematic = useCinematicStore()
+const auth = useAuthStore()
 const { connect, disconnect, nextTrack } = useRoom()
+
+// Nome do participante para o Signal Card pessoal (PRD Radiola §10.5)
+const myName = computed(() =>
+  auth.user?.display_name ?? (room.participantId ? `SIGNAL_${room.participantId.slice(0, 4)}` : '')
+)
 
 const roomId = computed(() => String(route.params.id || '').toUpperCase())
 const notFound = ref(false)
@@ -94,16 +101,29 @@ onBeforeUnmount(() => {
         <RoomParticipants />
       </header>
 
-      <!-- Música atual -->
-      <div v-if="room.room?.currentTrack" class="room-stage__now">
-        <p class="microtext">NOW PLAYING</p>
-        <p class="room-stage__now-title">{{ room.room.currentTrack.title }}</p>
-        <p class="microtext microtext--bright">{{ room.room.currentTrack.artist }}</p>
+      <!-- Palco: disco compartilhado + constelação de sinais (PRD Radiola §9) -->
+      <div class="room-stage__platform">
+        <div class="room-stage__disc">
+          <VinylDisc :size="180" :show-arm="false" />
+        </div>
+        <div class="room-stage__now-block">
+          <p class="microtext">NOW PLAYING</p>
+          <p class="room-stage__now-title">
+            {{ room.room?.currentTrack?.title ?? 'AWAITING WINNER' }}
+          </p>
+          <p v-if="room.room?.currentTrack" class="microtext microtext--bright">
+            {{ room.room.currentTrack.artist }}
+          </p>
+        </div>
+        <SignalConstellation class="room-stage__constel" />
       </div>
 
-      <!-- Fila dramática -->
-      <div class="room-stage__queue">
-        <QueueDramaLayer />
+      <!-- Fila dramática com medidor de tensão -->
+      <div class="room-stage__queue-row">
+        <QueueTensionMeter class="room-stage__tension" />
+        <div class="room-stage__queue">
+          <QueueDramaLayer />
+        </div>
       </div>
 
       <!-- Ações -->
@@ -131,6 +151,7 @@ onBeforeUnmount(() => {
     <SessionRecap
       v-if="showRecap && recap"
       :recap="recap"
+      :participant-name="myName"
       @close="showRecap = false"
     />
   </section>
@@ -214,20 +235,50 @@ onBeforeUnmount(() => {
   border-color: var(--ink-dim);
 }
 
-.room-stage__now {
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
-  padding: 12px 16px;
+/* Palco da sala: disco compartilhado, faixa atual, constelação */
+.room-stage__platform {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 18px;
   border: 1px solid var(--glass-border);
   background: var(--glass);
   flex-shrink: 0;
-  flex-wrap: wrap;
+}
+
+.room-stage__disc {
+  display: grid;
+  place-items: center;
+}
+
+.room-stage__now-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
 
 .room-stage__now-title {
-  font-size: 18px;
+  font-size: clamp(18px, 3vw, 28px);
   font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.room-stage__constel {
+  width: 180px;
+}
+
+.room-stage__queue-row {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+}
+
+.room-stage__tension {
+  flex-shrink: 0;
+  width: 28px;
 }
 
 .room-stage__queue {
@@ -276,7 +327,14 @@ onBeforeUnmount(() => {
 @media (max-width: 600px) {
   .room-stage { padding: 10px 12px; }
   .room-stage__live { gap: 10px; }
-  .room-stage__now { padding: 10px 12px; gap: 10px; }
+  .room-stage__platform {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+    gap: 12px;
+  }
+  .room-stage__now-block { align-items: center; }
+  .room-stage__constel { display: none; }
   .room-stage__actions { gap: 8px; }
   .room-stage__btn { padding: 12px 16px; flex: 1; }
 }

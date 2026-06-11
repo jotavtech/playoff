@@ -69,6 +69,8 @@ export type WsClientMsg =
   | { type: 'unvote';     payload: { trackId: string; participantId: string } }
   | { type: 'super_vote'; payload: { trackId: string; participantId: string } }
   | { type: 'next_track'; payload: { participantId: string } }
+  /** Beat local sincronizado para todos verem o disco pulsar junto (PRD Radiola §9.2). */
+  | { type: 'beat_sync';  payload: { energy: number } }
   | { type: 'ping' }
 
 export type WsServerMsg =
@@ -77,5 +79,9 @@ export type WsServerMsg =
   | { type: 'participant_left';    payload: { id: string } }
   | { type: 'queue_updated';       payload: { queue: QueueItem[]; event: QueueDramaEvent; trackId?: string; tensionActive: boolean } }
   | { type: 'track_changed';       payload: { track: TrackRef | null } }
+  /** Disco pulsa para todos (broadcast de beat de quem está com áudio). */
+  | { type: 'disc_pulse';          payload: { energy: number } }
+  /** Virada de música — dispara o flip do disco em todos (PRD Radiola §7.1, §9.2). */
+  | { type: 'disc_flip';           payload: { track: TrackRef | null } }
   | { type: 'error';               payload: { message: string } }
   | { type: 'pong' }

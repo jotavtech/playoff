@@ -17,6 +17,9 @@ function broadcastAll (peer: any, channel: string, msg: WsServerMsg) {
   send(peer, msg)
 }
 
+/** Throttle de beat por peer — no máx. 8 pulsos/s (PRD Radiola §14). */
+const lastBeatAt = new Map<string, number>()
+
 export default defineWebSocketHandler({
   open (peer) {
     // Conexão aberta — o cliente envia 'join' com roomId e dados do participante
@@ -28,6 +31,18 @@ export default defineWebSocketHandler({
     catch { return }
 
     if (msg.type === 'ping') { send(peer, { type: 'pong' }); return }
+
+    if (msg.type === 'beat_sync') {
+      const roomId = peerRoom.get(peer.id)
+      if (!roomId) return
+      const now = Date.now()
+      const last = lastBeatAt.get(peer.id) ?? 0
+      if (now - last < 125) return  // throttle: 8/s
+      lastBeatAt.set(peer.id, now)
+      // Pulso vai só para os outros (quem gerou já pulsou localmente)
+      broadcast(peer, `room:${roomId}`, { type: 'disc_pulse', payload: { energy: msg.payload.energy } })
+      return
+    }
 
     if (msg.type === 'join') {
       const { roomId, participantId, displayName, spotifyUserId } = msg.payload
@@ -110,6 +125,11 @@ export default defineWebSocketHandler({
       const result = nextTrack(roomId)
       if (!result) return
 
+      // Flip do disco para todos antes da troca de cena (PRD Radiola §7.1, §9.2)
+      broadcastAll(peer, `room:${roomId}`, {
+        type: 'disc_flip',
+        payload: { track: result.track }
+      })
       broadcastAll(peer, `room:${roomId}`, {
         type: 'track_changed',
         payload: { track: result.track }
@@ -122,6 +142,7 @@ export default defineWebSocketHandler({
   },
 
   close (peer) {
+    lastBeatAt.delete(peer.id)
     const left = leaveRoom(peer.id)
     if (!left) return
 

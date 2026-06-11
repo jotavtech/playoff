@@ -14,16 +14,27 @@ const { togglePlay } = useSpotifyPlayer()
 const clock = ref('')
 let timer: ReturnType<typeof setInterval> | null = null
 
+// Disco grande — máximo impacto visual (PRD Radiola §8.2: OLED 440–500px)
+const discSize = ref(460)
+function measure () {
+  if (!import.meta.client) return
+  const v = Math.min(window.innerWidth, window.innerHeight)
+  discSize.value = Math.max(260, Math.min(500, Math.round(v * 0.6)))
+}
+
 onMounted(() => {
   const tick = () => {
     clock.value = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
   }
   tick()
   timer = setInterval(tick, 10_000)
+  measure()
+  window.addEventListener('resize', measure, { passive: true })
 })
 
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer)
+  if (import.meta.client) window.removeEventListener('resize', measure)
 })
 </script>
 
@@ -31,6 +42,11 @@ onBeforeUnmount(() => {
   <section class="wallpaper">
     <div class="wallpaper__drift">
       <p class="wallpaper__clock">{{ clock }}</p>
+
+      <!-- Disco dominando o wallpaper -->
+      <div class="wallpaper__disc">
+        <VinylDisc :size="discSize" :show-arm="false" />
+      </div>
 
       <h2 class="wallpaper__track">
         {{ music.currentTrack?.title ?? 'SYSTEM IDLE' }}
@@ -40,6 +56,9 @@ onBeforeUnmount(() => {
         {{ music.currentTrack ? music.currentTrack.artist : 'AWAITING SIGNAL' }}
       </p>
     </div>
+
+    <!-- Visualizer espalhado pela base (PRD Radiola §5.5: OLED bottom spread) -->
+    <AudioVisualizer v-if="music.currentTrack" :height="80" class="wallpaper__viz" />
 
     <!-- Controles aparecem apenas quando há interação (Smart Idle inverso) -->
     <div class="wallpaper__controls" :class="{ 'wallpaper__controls--visible': !cinematic.smartIdle }">
@@ -69,6 +88,19 @@ onBeforeUnmount(() => {
   text-align: center;
   /* anti burn-in (PRD §5.10): deriva lenta de todo o bloco persistente */
   animation: oled-drift 120s ease-in-out infinite alternate;
+}
+
+.wallpaper__disc {
+  margin: 4px 0 10px;
+}
+
+.wallpaper__viz {
+  position: absolute;
+  bottom: 70px;
+  left: 50%;
+  translate: -50% 0;
+  width: min(880px, 88vw);
+  opacity: 0.85;
 }
 
 @keyframes oled-drift {

@@ -23,7 +23,26 @@ export const useRoomStore = defineStore('room', {
         .filter(i => i.voterIds.includes(state.participantId))
         .map(i => i.id) ?? []
     },
-    topTrack (state): QueueItem | null { return state.room?.queue[0] ?? null }
+    topTrack (state): QueueItem | null { return state.room?.queue[0] ?? null },
+
+    /**
+     * Nível de tensão da fila 0..1 (Queue Tension Meter — PRD Radiola §10.4).
+     * Cresce conforme 1º e 2º colocados se aproximam em votos.
+     */
+    tensionLevel (state): number {
+      const q = state.room?.queue ?? []
+      if (q.length < 2) return 0
+      const sorted = [...q].sort((a, b) => b.votes - a.votes)
+      const top1 = sorted[0].votes
+      const top2 = sorted[1].votes
+      if (top1 === 0) return 0
+      // Empate = tensão máxima; diferença grande = relaxado
+      const gap = (top1 - top2) / top1
+      const closeness = 1 - Math.min(1, gap)
+      // Escala pela quantidade de votos em disputa (mais votos = mais dramático)
+      const stakes = Math.min(1, (top1 + top2) / 10)
+      return closeness * (0.5 + 0.5 * stakes)
+    }
   },
 
   actions: {

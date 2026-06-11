@@ -57,6 +57,8 @@ export const useCinematicStore = defineStore('cinematic', {
     performanceTier: 'high' as PerformanceTier,
     reducedMotion: false,
     smartIdle: false,
+    /** Aura Mode (PRD Radiola §10.1): disco domina a tela após idle longo. */
+    auraMode: false,
     commandCenterOpen: false,
     diagnosticsOpen: false
   }),
@@ -164,6 +166,10 @@ export const useCinematicStore = defineStore('cinematic', {
 
     setSmartIdle (idle: boolean) {
       this.smartIdle = idle
+    },
+
+    setAuraMode (active: boolean) {
+      this.auraMode = active
     },
 
     setReducedMotion (value: boolean) {

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { downloadPoster } from '~/composables/usePosterGenerator'
+import { downloadSignalCard } from '~/composables/useSignalCard'
 import type { SessionRecap } from '~/types/room'
 
-const props = defineProps<{ recap: SessionRecap }>()
+const props = defineProps<{ recap: SessionRecap; participantName?: string }>()
 const emit = defineEmits<{ close: [] }>()
 
 function fmtDuration (ms: number): string {
@@ -82,7 +83,14 @@ function fmtTime (ts: number): string {
       <!-- Ações -->
       <footer class="recap__actions">
         <button class="recap__btn recap__btn--primary microtext" @click="downloadPoster(recap)">
-          DOWNLOAD POSTER ↓
+          ROOM POSTER ↓
+        </button>
+        <button
+          v-if="participantName"
+          class="recap__btn microtext"
+          @click="downloadSignalCard(recap, participantName)"
+        >
+          SIGNAL CARD ↓
         </button>
         <button class="recap__btn microtext" @click="emit('close')">
           CLOSE

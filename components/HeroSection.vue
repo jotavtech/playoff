@@ -27,10 +27,30 @@ function onPrimaryCta () {
   if (music.currentTrack) cinematic.toggleCinemaView()
   else cinematic.toggleCommandCenter()
 }
+
+// Disco em profundidade no Hero (PRD Radiola §8.2: Hero 280–320px)
+const heroDiscSize = ref(300)
+function measure () {
+  if (!import.meta.client) return
+  const v = Math.min(window.innerWidth, window.innerHeight)
+  heroDiscSize.value = Math.max(200, Math.min(320, Math.round(v * 0.42)))
+}
+onMounted(() => {
+  measure()
+  window.addEventListener('resize', measure, { passive: true })
+  onBeforeUnmount(() => window.removeEventListener('resize', measure))
+})
 </script>
 
 <template>
   <section class="hero editorial-grid">
+    <!-- Disco em profundidade: aparece quando há sinal vivo -->
+    <Transition name="hero-disc">
+      <div v-if="music.currentTrack" class="hero__disc" aria-hidden="true">
+        <VinylDisc :size="heroDiscSize" :show-arm="false" />
+      </div>
+    </Transition>
+
     <div class="hero__composition">
       <!-- Cartela de abertura: kicker flanqueado por réguas finas, como intertítulo de cinema mudo -->
       <p class="hero__kicker microtext">
@@ -92,6 +112,7 @@ function onPrimaryCta () {
 
 .hero__composition {
   position: relative;
+  z-index: 1;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -99,6 +120,21 @@ function onPrimaryCta () {
   gap: 22px;
   text-align: center;
 }
+
+/* Disco em profundidade atrás da tipografia */
+.hero__disc {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  z-index: 0;
+  opacity: 0.5;
+  filter: saturate(0.9);
+}
+
+.hero-disc-enter-active { transition: opacity 1.4s var(--ease-scene); }
+.hero-disc-leave-active { transition: opacity 0.6s var(--ease-cut); }
+.hero-disc-enter-from, .hero-disc-leave-to { opacity: 0; }
 
 .hero__kicker {
   display: flex;

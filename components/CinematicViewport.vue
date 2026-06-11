@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useCinematicStore } from '~/stores/cinematic'
 import { useMusicVisualStore } from '~/stores/musicVisual'
+import { useChromaticEngine } from '~/composables/useChromaticEngine'
 
 const cinematic = useCinematicStore()
 const music = useMusicVisualStore()
+const { tokens: chromaticTokens } = useChromaticEngine()
 
 /**
  * O viewport é o AppShell da cena: traduz o estado da CinematicStore
@@ -34,8 +36,8 @@ const sceneVars = computed(() => {
     '--music-reactivity': String(music.isPlaying ? 0.65 + 0.35 * cinematic.effectiveMotion : 0.2),
     '--chrome-speed': String(chromeSpeed * Math.max(0.05, cinematic.effectiveMotion)),
     '--music-progress': String(music.progress),
-    // Acento cromático mínimo da capa (reflexo no chrome, progress accent)
-    '--music-accent': music.palette.accent
+    // Chromatic Engine (PRD Radiola §4): accent, glow, bg-tint, aberração
+    ...chromaticTokens.value
   }
 })
 </script>
@@ -61,9 +63,12 @@ const sceneVars = computed(() => {
       class="layer-album"
       aria-hidden="true"
       :style="music.currentTrack?.coverUrl
-        ? { backgroundImage: `url(${music.currentTrack.coverUrl})`, opacity: '1' }
+        ? { backgroundImage: `url(${music.currentTrack.coverUrl})`, opacity: '0.3' }
         : {}"
     />
+
+    <!-- Layer 02b — tint cromático: a cor da música assombra a cena (PRD Radiola §4.2) -->
+    <div class="layer-chroma" aria-hidden="true" />
 
     <!-- Layer 03 — chrome liquid -->
     <ChromeLiquid />
@@ -131,6 +136,20 @@ const sceneVars = computed(() => {
   filter: blur(80px) saturate(0) contrast(0.7);
   opacity: 0;
   transition: opacity 2.5s var(--ease-scene);
+  mix-blend-mode: screen;
+}
+
+/* Tint cromático atmosférico — radial suave na cor da música, crossfade 1.8s (§4.3) */
+.layer-chroma {
+  position: absolute;
+  inset: 0;
+  z-index: var(--layer-02-album);
+  background:
+    radial-gradient(120% 100% at 50% 30%, var(--music-bg-tint, transparent) 0%, transparent 60%),
+    radial-gradient(80% 70% at 50% 108%, var(--music-glow, transparent) 0%, transparent 52%);
+  opacity: calc(0.25 + 0.35 * var(--music-reactivity, 0.4));
+  transition: background 1.8s var(--ease-liquid), opacity 1.8s var(--ease-scene);
+  pointer-events: none;
   mix-blend-mode: screen;
 }
 

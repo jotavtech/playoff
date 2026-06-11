@@ -1,6 +1,7 @@
 import { useRoomStore } from '~/stores/room'
 import { useAuthStore } from '~/stores/auth'
-import { useSpotifySearch } from '~/composables/useSpotifySearch'
+import { useMusicVisualStore } from '~/stores/musicVisual'
+import { useAudioAnalyser } from '~/composables/useAudioAnalyser'
 import type { WsClientMsg, WsServerMsg, TrackRef } from '~/types/room'
 import type { SpotifyTrack } from '~/types/spotify'
 
@@ -9,12 +10,15 @@ const RECONNECT_DELAYS = [2000, 4000, 8000, 16000]
 export function useRoom () {
   const room = useRoomStore()
   const auth = useAuthStore()
+  const music = useMusicVisualStore()
+  const analyser = useAudioAnalyser()
 
   let ws: WebSocket | null = null
   let reconnectAttempt = 0
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null
   let currentRoomId: string | null = null
   let currentParticipantId: string | null = null
+  let beatUnsub: (() => void) | null = null
 
   // ─── Participant ID persistido por sessão ────────────────────────────────
   function getOrCreateParticipantId (): string {
@@ -54,6 +58,7 @@ export function useRoom () {
         }
       })
       _startHeartbeat()
+      _startBeatBroadcast()
     }
 
     ws.onmessage = (e) => {
@@ -95,6 +100,14 @@ export function useRoom () {
       case 'track_changed':
         room.applyTrackChanged(msg.payload.track)
         break
+      case 'disc_pulse':
+        // Beat de outro participante → disco pulsa junto (PRD Radiola §9.2)
+        music.pulseBeat()
+        break
+      case 'disc_flip':
+        // Virada sincronizada do disco para todos
+        music.triggerFlip()
+        break
       case 'error':
         console.warn('[playoff/room]', msg.payload.message)
         break
@@ -119,6 +132,18 @@ export function useRoom () {
 
   function _stopHeartbeat () {
     if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null }
+  }
+
+  // Quem tem áudio rodando difunde seus beats; o servidor faz o throttle
+  function _startBeatBroadcast () {
+    _stopBeatBroadcast()
+    beatUnsub = analyser.subscribe((frame, beat) => {
+      if (beat && music.isPlaying) _send({ type: 'beat_sync', payload: { energy: frame.energy } })
+    })
+  }
+
+  function _stopBeatBroadcast () {
+    if (beatUnsub) { beatUnsub(); beatUnsub = null }
   }
 
   function _send (msg: WsClientMsg) {
@@ -164,6 +189,7 @@ export function useRoom () {
   function disconnect () {
     currentRoomId = null
     _stopHeartbeat()
+    _stopBeatBroadcast()
     ws?.close()
     ws = null
     room.leave()

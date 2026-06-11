@@ -93,6 +93,62 @@ export interface MonochromeMusicPalette {
   contrast: number
 }
 
+/**
+ * Paleta cromática rica do Chromatic Engine (PRD Radiola §4).
+ * A cor da música assombra a cena — progress, halo do disco, barras —
+ * mas o fundo continua preto/branco. Nunca vira tema colorido.
+ */
+export interface ChromaticPalette {
+  /** Cor mais expressiva: progress bar, barras do visualizer, bordas. */
+  accent: string
+  /** Halo do disco — accent em ~25% de opacidade. */
+  glow: string
+  /** Tint atmosférico — accent em ~4% de opacidade. */
+  bgTint: string
+  /** Cor dominante média da capa. */
+  dominant: string
+  /** Luminância 0..1. */
+  luminance: number
+  /** Saturação máxima encontrada 0..1. */
+  saturation: number
+  /** Temperatura cromática. */
+  temperature: 'warm' | 'cool' | 'neutral'
+}
+
+/** Estados de rotação do Disco Radiola (PRD Radiola §3.2). */
+export type VinylState =
+  | 'idle'
+  | 'loading'
+  | 'playing'
+  | 'paused'
+  | 'transitioning'
+  | 'tension'
+  | 'winner'
+
+/** Variantes de cor do vinil por humor da música (PRD Radiola §7.2). */
+export type VinylVariant = 'standard' | 'noir' | 'bright' | 'heavy' | 'minimal'
+
+/** Quadro de análise de áudio do visualizer (PRD Radiola §5). */
+export interface AudioAnalysisFrame {
+  /** Energia normalizada 0..1 por banda de frequência (escala log). */
+  bands: number[]
+  /** Energia geral 0..1. */
+  energy: number
+  /** Energia de grave 0..1 — alimenta o beat detector. */
+  bass: number
+}
+
+/** Ponto na linha do tempo de humor da sessão (PRD Radiola §10.2). */
+export interface MoodPoint {
+  trackId: string
+  title: string
+  artist: string
+  mood: MusicMood
+  accent: string
+  energy: number
+  at: number
+}
+
 export interface CurrentTrack {
   id: string
   title: string

@@ -2,9 +2,28 @@ import { useAuthStore } from '~/stores/auth'
 import { useMusicVisualStore } from '~/stores/musicVisual'
 import { useCinematicStore } from '~/stores/cinematic'
 import { inferMood } from '~/composables/useMoodMapper'
-import { extractPalette } from '~/composables/usePaletteExtractor'
+import { extractPalette, extractChromaticPalette } from '~/composables/usePaletteExtractor'
+import { useAudioAnalyser } from '~/composables/useAudioAnalyser'
 import type { SpotifyPlayerState, SpotifyTrack } from '~/types/spotify'
 import type { CurrentTrack } from '~/types/cinematic'
+
+/** Extrai paleta cromática + monocromática + mood de uma capa (Chromatic Engine). */
+async function applyCoverPalette (coverUrl: string | null, track: CurrentTrack) {
+  const music = useMusicVisualStore()
+  if (!coverUrl) return
+  const [mono, chroma] = await Promise.all([
+    extractPalette(coverUrl),
+    extractChromaticPalette(coverUrl)
+  ])
+  music.palette = mono
+  music.setChromatic(chroma)
+  const fakeTrack: SpotifyTrack = {
+    id: track.id, name: track.title, artists: [{ id: '', name: track.artist }],
+    popularity: 50, uri: '', duration_ms: track.durationMs,
+    preview_url: null, album: { id: '', name: track.album, images: [], release_date: '' }
+  }
+  music.currentMood = inferMood(fakeTrack, chroma.luminance)
+}
 
 declare global {
   interface Window {
@@ -133,19 +152,8 @@ export function useSpotifyPlayer () {
         durationMs: state.duration
       }
 
-      // Atualiza palette e mood antes do corte de cena
-      if (coverUrl) {
-        extractPalette(coverUrl).then(palette => {
-          music.palette = palette
-          // Aplica ajustes de mood à cena
-          const fakeTrack: SpotifyTrack = {
-            id: track.id, name: track.title, artists: [{ id: '', name: track.artist }],
-            popularity: 50, uri: '', duration_ms: track.durationMs,
-            preview_url: null, album: { id: '', name: track.album, images: [], release_date: '' }
-          }
-          music.currentMood = inferMood(fakeTrack, palette.luminance)
-        })
-      }
+      // Atualiza palette cromática + mood antes do corte de cena (Chromatic Engine)
+      applyCoverPalette(coverUrl, track)
 
       music.setTrack(track)
     }
@@ -199,6 +207,7 @@ export function useSpotifyPlayer () {
         coverUrl: track.album.images[0]?.url ?? null,
         durationMs: track.duration_ms
       }
+      applyCoverPalette(currentTrack.coverUrl, currentTrack)
       await music.setTrack(currentTrack)
 
       await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${auth.deviceId}`, {
@@ -220,11 +229,15 @@ export function useSpotifyPlayer () {
         coverUrl: track.album.images[0]?.url ?? null,
         durationMs: track.duration_ms
       }
+      applyCoverPalette(currentTrack.coverUrl, currentTrack)
       await music.setTrack(currentTrack)
 
       previewAudio = new Audio(track.preview_url)
+      previewAudio.crossOrigin = 'anonymous'
       previewAudio.volume = 0.8
       previewAudio.onended = () => music.pause()
+      // Grampeia o preview na Web Audio API → FFT real no visualizer
+      useAudioAnalyser().attachElement(previewAudio)
       previewAudio.play().catch(() => { /* autoplay bloqueado */ })
 
       // Progresso do preview (30s) atualizado a cada 500ms
@@ -246,6 +259,7 @@ export function useSpotifyPlayer () {
       coverUrl: track.album.images[0]?.url ?? null,
       durationMs: track.duration_ms
     }
+    applyCoverPalette(currentTrack.coverUrl, currentTrack)
     await music.setTrack(currentTrack)
   }
 

@@ -1,20 +1,24 @@
 <script setup lang="ts">
 import { useCinematicStore } from '~/stores/cinematic'
+import { useMusicVisualStore } from '~/stores/musicVisual'
 
 const cinematic = useCinematicStore()
+const music = useMusicVisualStore()
 
 /*
  * Layer 03 — objeto chrome liquid.
- * Fase 1: render CSS (morph de border-radius + gradiente cônico metálico),
- * que também é o fallback permanente sem WebGL / tier low.
- * Fase 2: versão WebGL (Three.js) lazy-loaded para tiers high/ultra,
- * com distorção reagindo a --music-reactivity.
+ * Render CSS (morph de border-radius + gradiente cônico metálico).
+ *
+ * Hierarquia visual: SEM faixa, o chrome é o objeto-herói da landing.
+ * COM faixa, o Disco Radiola assume o papel de metal central e o chrome
+ * recua para atmosfera de fundo — senão os dois competem e lavam a cena.
  */
 const simplified = computed(() => cinematic.performanceTier === 'low')
+const recede = computed(() => !!music.currentTrack)
 </script>
 
 <template>
-  <div class="chrome-stage" aria-hidden="true">
+  <div class="chrome-stage" :class="{ 'chrome-stage--recede': recede }" aria-hidden="true">
     <div class="chrome-blob" :class="{ 'chrome-blob--simple': simplified }">
       <div class="chrome-blob__surface" />
       <!-- Reflexo interno em contra-rotação: cria a interferência líquida do metal -->
@@ -34,6 +38,13 @@ const simplified = computed(() => cinematic.performanceTier === 'low')
   display: grid;
   place-items: center;
   pointer-events: none;
+  opacity: 0.78;
+  transition: opacity 1.6s var(--ease-scene);
+}
+
+/* Com faixa tocando, o disco é o metal — o chrome vira atmosfera distante */
+.chrome-stage--recede {
+  opacity: 0.1;
 }
 
 /* Blob e sombra ocupam a mesma célula — empilhados, não em linhas separadas */
@@ -158,13 +169,10 @@ const simplified = computed(() => cinematic.performanceTier === 'low')
   box-shadow: 0 20px 60px rgba(0, 0, 0, var(--cinema-depth-shadow));
 }
 
-/* Em modo imersivo o chrome ganha protagonismo e atravessa a composição */
-[data-immersive] .chrome-blob {
+/* Em modo imersivo SEM faixa o chrome ganha protagonismo. Com faixa, o disco
+   já é o centro: o chrome não cresce para não competir nem lavar o preto OLED */
+[data-immersive] .chrome-stage:not(.chrome-stage--recede) .chrome-blob {
   width: min(62vmin, 720px);
   height: min(62vmin, 720px);
-}
-
-[data-immersive] .chrome-shadow {
-  translate: 0 min(36vmin, 420px);
 }
 </style>

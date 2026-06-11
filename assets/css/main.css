@@ -31,6 +31,18 @@
   --music-progress: 0;
   --music-accent: #9a9a9a;
 
+  /* Chromatic Engine (PRD Radiola §4) — cor da música, recuada por padrão */
+  --music-accent-soft: rgba(154, 154, 154, 0.12);
+  --music-glow: rgba(154, 154, 154, 0.08);
+  --music-bg-tint: rgba(154, 154, 154, 0.02);
+  --music-chromatic-intensity: 0.25;
+  --music-aberration: 0px;
+
+  /* Radiola — disco e visualizer (PRD Radiola §3, §5) */
+  --disc-rotation-sec: 1.8s;
+  --disc-spin-state: paused;
+  --viz-energy: 0;
+
   /* Sistema de layers (PRD §5.4) */
   --layer-00-base: 0;
   --layer-01-gradient: 1;
