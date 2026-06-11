@@ -199,29 +199,29 @@ onMounted(() => {
   transition: opacity 1.2s var(--ease-scene), filter 1.2s var(--ease-scene);
 }
 
-/* offline — esfera/disco cinza estático, recuado */
+/* offline — CD holográfico recuado, mas com iridescência viva */
 .hero__disc--offline {
-  opacity: 0.3;
-  filter: saturate(0) brightness(0.9);
+  opacity: 0.6;
+  filter: saturate(1.05) brightness(0.96);
 }
 
 /* ready (logado, sem faixa) — desperta levemente */
 .hero__disc--ready {
-  opacity: 0.42;
-  filter: saturate(0.4);
+  opacity: 0.66;
+  filter: saturate(1.15);
 }
 
 /* connecting — pulso luminoso enquanto conecta */
 .hero__disc--connecting {
-  opacity: 0.55;
-  filter: saturate(0.6);
+  opacity: 0.62;
+  filter: saturate(1.1);
   animation: disc-pulse 1.4s var(--ease-scene) infinite;
 }
 
 /* live — reage à música, cor cheia */
 .hero__disc--live {
-  opacity: 0.5;
-  filter: saturate(0.95);
+  opacity: 0.58;
+  filter: saturate(1.15);
 }
 
 @keyframes disc-pulse {
