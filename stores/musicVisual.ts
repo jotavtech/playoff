@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { CurrentTrack, MusicMood, MonochromeMusicPalette, VisualScene } from '~/types/cinematic'
 import { useCinematicStore } from '~/stores/cinematic'
+import { moodToSceneAdjustments } from '~/composables/useMoodMapper'
 
 /**
  * Estado musical que alimenta a cena. Na Fase 1 não há Spotify ainda —
@@ -40,6 +41,11 @@ export const useMusicVisualStore = defineStore('musicVisual', {
       if (state.isPlaying) return 'SIGNAL LOCKED'
       if (state.currentTrack) return 'SIGNAL HELD'
       return 'AWAITING SIGNAL'
+    },
+
+    /** Ajustes de CSS variables derivados do mood atual (PRD §5.7.4). */
+    moodAdjustments (state): Record<string, string> {
+      return moodToSceneAdjustments(state.currentMood)
     }
   },
 

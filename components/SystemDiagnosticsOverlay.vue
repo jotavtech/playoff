@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useCinematicStore } from '~/stores/cinematic'
 import { useMusicVisualStore } from '~/stores/musicVisual'
+import { useAuthStore } from '~/stores/auth'
 
 const cinematic = useCinematicStore()
 const music = useMusicVisualStore()
+const auth = useAuthStore()
 const config = useRuntimeConfig()
 
 /* System Diagnostics Overlay (PRD §5.7.9) — Cmd/Ctrl+Shift+D */
@@ -43,7 +45,8 @@ const rows = computed(() => [
   ['PRESET', cinematic.preset],
   ['TIER', cinematic.performanceTier],
   ['MOTION', cinematic.reducedMotion ? 'REDUCED' : cinematic.motionIntensity.toFixed(2)],
-  ['SPOTIFY', 'OFFLINE — PHASE 2'],
+  ['SPOTIFY', auth.isAuthenticated ? (auth.isPremium ? 'PREMIUM · SDK' : 'FREE · PREVIEW') : 'NOT AUTHENTICATED'],
+  ['USER', auth.user?.display_name ?? '—'],
   ['REALTIME', 'OFFLINE — PHASE 3'],
   ['SIGNAL', music.statusLabel],
   ['BUILD', config.public.buildVersion]

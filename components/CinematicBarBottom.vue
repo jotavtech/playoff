@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useCinematicStore } from '~/stores/cinematic'
 import { useMusicVisualStore } from '~/stores/musicVisual'
+import { useSpotifyPlayer } from '~/composables/useSpotifyPlayer'
 
 const cinematic = useCinematicStore()
 const music = useMusicVisualStore()
+const { togglePlay } = useSpotifyPlayer()
 
 const trackLine = computed(() => {
   if (!music.currentTrack) return 'NO TRACK LOCKED'
@@ -30,7 +32,7 @@ const trackLine = computed(() => {
       <button
         v-if="music.currentTrack"
         class="bar__play microtext microtext--bright"
-        @click="music.togglePlay()"
+        @click="togglePlay()"
       >
         {{ music.isPlaying ? '❚❚ PAUSE' : '▶ PLAY' }}
       </button>
@@ -82,7 +84,8 @@ const trackLine = computed(() => {
   background: var(--ink);
   opacity: calc(var(--cinema-line-opacity) * 1.6);
   transition: width 1s linear;
-  box-shadow: 0 0 calc(var(--cinema-vibration) * 12px) var(--ink);
+  /* Acento mínimo da capa como brilho na borda (PRD §5.1.2) */
+  box-shadow: 0 0 calc(var(--cinema-vibration) * 12px) var(--music-accent, var(--ink));
 }
 
 .bar__metadata {

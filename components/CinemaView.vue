@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useCinematicStore } from '~/stores/cinematic'
 import { useMusicVisualStore } from '~/stores/musicVisual'
+import { useSpotifyPlayer } from '~/composables/useSpotifyPlayer'
 
 const cinematic = useCinematicStore()
 const music = useMusicVisualStore()
+const { togglePlay } = useSpotifyPlayer()
 </script>
 
 <template>
@@ -21,7 +23,7 @@ const music = useMusicVisualStore()
       </p>
 
       <div v-if="music.currentTrack" class="cinema__controls">
-        <button class="cinema__btn microtext" @click="music.togglePlay()">
+        <button class="cinema__btn microtext" @click="togglePlay()">
           {{ music.isPlaying ? '❚❚' : '▶' }}
         </button>
         <span class="microtext">{{ music.timecode }}</span>

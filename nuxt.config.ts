@@ -4,7 +4,6 @@ export default defineNuxtConfig({
 
   modules: ['@pinia/nuxt'],
 
-  // SPA — o produto é uma cena viva client-side; SSR não agrega ao wallpaper
   ssr: false,
 
   css: ['~/assets/css/main.css'],
@@ -31,13 +30,15 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    spotifyClientId: '',
-    spotifyClientSecret: '',
-    spotifyRedirectUri: '',
-    lastfmApiKey: '',
-    lastfmSharedSecret: '',
+    // Mapeados automaticamente via NUXT_SPOTIFY_CLIENT_ID etc.
+    // Fallback explícito para dev com o formato atual do .env
+    spotifyClientId: process.env.SPOTIFY_CLIENT_ID || process.env.NUXT_SPOTIFY_CLIENT_ID || '',
+    spotifyClientSecret: process.env.SPOTIFY_CLIENT_SECRET || process.env.NUXT_SPOTIFY_CLIENT_SECRET || '',
+    spotifyRedirectUri: process.env.SPOTIFY_REDIRECT_URI || process.env.NUXT_SPOTIFY_REDIRECT_URI || 'http://127.0.0.1:3000/auth/spotify/callback',
+    lastfmApiKey: process.env.LASTFM_API_KEY || process.env.NUXT_LASTFM_API_KEY || '',
+    lastfmSharedSecret: process.env.LASTFM_SHARED_SECRET || process.env.NUXT_LASTFM_SHARED_SECRET || '',
     public: {
-      buildVersion: '4.0.0-alpha.1'
+      buildVersion: '4.0.0-alpha.2'
     }
   },
 

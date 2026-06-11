@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useCinematicStore } from '~/stores/cinematic'
 import { useMusicVisualStore } from '~/stores/musicVisual'
+import { useSpotifyPlayer } from '~/composables/useSpotifyPlayer'
 
 const cinematic = useCinematicStore()
 const music = useMusicVisualStore()
+const { togglePlay } = useSpotifyPlayer()
 
 /*
  * OLED Wallpaper Mode (PRD §5.7.2): o Playoff vira um wallpaper animado
@@ -41,7 +43,7 @@ onBeforeUnmount(() => {
 
     <!-- Controles aparecem apenas quando há interação (Smart Idle inverso) -->
     <div class="wallpaper__controls" :class="{ 'wallpaper__controls--visible': !cinematic.smartIdle }">
-      <button v-if="music.currentTrack" class="wallpaper__btn microtext" @click="music.togglePlay()">
+      <button v-if="music.currentTrack" class="wallpaper__btn microtext" @click="togglePlay()">
         {{ music.isPlaying ? '❚❚' : '▶' }}
       </button>
       <button class="wallpaper__btn microtext" @click="cinematic.toggleWallpaperMode()">

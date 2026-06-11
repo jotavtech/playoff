@@ -11,21 +11,31 @@ const music = useMusicVisualStore()
  */
 const sceneVars = computed(() => {
   const bars = cinematic.barsVisual
+  // Mood adjustments sobrescrevem os defaults de chrome-speed e motion-intensity
+  // com valores específicos da música (PRD §5.7.4)
+  const mood = music.moodAdjustments
+
+  const chromeSpeed = mood['--chrome-speed']
+    ? parseFloat(mood['--chrome-speed'])
+    : (music.isPlaying ? 0.8 : 0.35)
+
   return {
     '--cinema-bar-top-height': `${bars.topHeight}px`,
     '--cinema-bar-bottom-height': `${bars.bottomHeight}px`,
     '--cinema-bar-opacity': String(bars.opacity),
     '--cinema-edge-blur': `${bars.edgeBlur}px`,
-    '--cinema-depth-shadow': String(bars.depthShadow),
+    '--cinema-depth-shadow': mood['--cinema-depth-shadow'] ?? String(bars.depthShadow),
     '--cinema-line-opacity': String(bars.innerLineOpacity),
     '--cinema-line-scale': String(bars.innerLineScale),
     '--cinema-vibration': String(bars.vibration),
     '--cinema-metadata-opacity': String(bars.metadataOpacity),
     '--cinema-chromatic-noise': String(bars.chromaticNoise),
-    '--motion-intensity': String(cinematic.effectiveMotion),
+    '--motion-intensity': mood['--motion-intensity'] ?? String(cinematic.effectiveMotion),
     '--music-reactivity': String(music.isPlaying ? 0.65 + 0.35 * cinematic.effectiveMotion : 0.2),
-    '--chrome-speed': String((music.isPlaying ? 0.8 : 0.35) * Math.max(0.05, cinematic.effectiveMotion)),
-    '--music-progress': String(music.progress)
+    '--chrome-speed': String(chromeSpeed * Math.max(0.05, cinematic.effectiveMotion)),
+    '--music-progress': String(music.progress),
+    // Acento cromático mínimo da capa (reflexo no chrome, progress accent)
+    '--music-accent': music.palette.accent
   }
 })
 </script>
@@ -46,8 +56,14 @@ const sceneVars = computed(() => {
     <!-- Layer 01 — dynamic monochrome gradient -->
     <div class="layer-gradient" aria-hidden="true" />
 
-    <!-- Layer 02 — abstract album influence (Fase 2: reflexo da capa) -->
-    <div class="layer-album" aria-hidden="true" />
+    <!-- Layer 02 — abstract album influence: luminância da capa como halo atmosférico -->
+    <div
+      class="layer-album"
+      aria-hidden="true"
+      :style="music.currentTrack?.coverUrl
+        ? { backgroundImage: `url(${music.currentTrack.coverUrl})`, opacity: '1' }
+        : {}"
+    />
 
     <!-- Layer 03 — chrome liquid -->
     <ChromeLiquid />
@@ -107,10 +123,15 @@ const sceneVars = computed(() => {
 
 .layer-album {
   position: absolute;
-  inset: 0;
+  inset: -10%;
   z-index: var(--layer-02-album);
-  /* Fase 2: influência abstrata da capa (luminância/reflexo, nunca tema colorido) */
+  background-size: cover;
+  background-position: center;
+  /* Influência abstrata: blur massivo + dessaturação total → apenas luminância da capa */
+  filter: blur(80px) saturate(0) contrast(0.7);
   opacity: 0;
+  transition: opacity 2.5s var(--ease-scene);
+  mix-blend-mode: screen;
 }
 
 .layer-content {

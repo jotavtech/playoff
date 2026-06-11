@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { useCinematicStore } from '~/stores/cinematic'
 import { useMusicVisualStore } from '~/stores/musicVisual'
+import { useAuthStore } from '~/stores/auth'
+import { useAuth } from '~/composables/useAuth'
 
 const cinematic = useCinematicStore()
 const music = useMusicVisualStore()
+const auth = useAuthStore()
+const { login } = useAuth()
 </script>
 
 <template>
@@ -12,26 +16,40 @@ const music = useMusicVisualStore()
       <p class="hero__kicker microtext">CINEMATIC MUSIC SYSTEM — REBUILD 4.0</p>
 
       <!-- Tipografia massiva, cortada pelas bordas (PRD §5.5.1) -->
-      <h1 class="hero__title" aria-label="PLAYOFF">
-        PLAY<wbr>OFF
-      </h1>
+      <h1 class="hero__title" aria-label="PLAYOFF">PLAYOFF</h1>
 
       <p v-if="music.currentTrack" class="hero__track microtext microtext--bright">
         NOW — {{ music.currentTrack.title }} · {{ music.currentTrack.artist }}
       </p>
 
       <div class="hero__ctas">
-        <button class="hero__cta hero__cta--primary" @click="cinematic.toggleCommandCenter()">
-          {{ music.currentTrack ? 'ENTER CINEMA VIEW' : 'SEARCH MUSIC' }}
-        </button>
-        <button class="hero__cta" disabled title="Fase 3 — salas em tempo real">
-          CREATE ROOM
-        </button>
+        <!-- Autenticado: busca e cinema -->
+        <template v-if="auth.isAuthenticated">
+          <button class="hero__cta hero__cta--primary" @click="cinematic.toggleCommandCenter()">
+            {{ music.currentTrack ? 'ENTER CINEMA VIEW' : 'SEARCH MUSIC' }}
+          </button>
+          <button class="hero__cta" disabled title="Fase 3 — salas em tempo real">
+            CREATE ROOM
+          </button>
+        </template>
+
+        <!-- Não autenticado: login em destaque -->
+        <template v-else>
+          <button class="hero__cta hero__cta--primary" @click="login()">
+            LOGIN WITH SPOTIFY
+          </button>
+          <button class="hero__cta" @click="cinematic.toggleCommandCenter()">
+            DEMO SCENE
+          </button>
+        </template>
       </div>
 
       <div class="hero__footnotes microtext">
         <span>{{ music.statusLabel }}</span>
-        <span>MONOCHROME ENGINE v1</span>
+        <span v-if="auth.isAuthenticated">
+          {{ auth.isPremium ? 'PREMIUM SDK ACTIVE' : 'FREE — PREVIEW MODE' }}
+        </span>
+        <span v-else>SPOTIFY AUTH REQUIRED FOR FULL PLAYBACK</span>
         <span>TIER {{ cinematic.performanceTier.toUpperCase() }}</span>
       </div>
     </div>
@@ -66,7 +84,6 @@ const music = useMusicVisualStore()
   font-weight: 700;
   line-height: 0.84;
   letter-spacing: -0.04em;
-  color: var(--ink);
   /* composição cortada pelas bordas */
   width: 104vw;
   margin-inline: -2vw;
@@ -103,6 +120,10 @@ const music = useMusicVisualStore()
 .hero__cta--primary:hover {
   background: transparent;
   color: var(--ink);
+}
+
+.hero__cta:not(.hero__cta--primary):hover {
+  background: var(--glass);
 }
 
 .hero__cta:disabled {
