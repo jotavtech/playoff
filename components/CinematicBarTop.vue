@@ -124,7 +124,8 @@ const modeLabel = computed(() => {
 
 .bar__meta-item--status {
   margin-left: auto;
-  margin-right: 140px;
+  /* reserva o espaço do ModeSwitcher (3 botões) à direita */
+  margin-right: 220px;
 }
 
 .bar__foreground {
@@ -140,6 +141,6 @@ const modeLabel = computed(() => {
 @media (max-width: 768px) {
   .bar__metadata { gap: 14px; padding: 0 16px; }
   .bar__meta-item { display: none; }
-  .bar__meta-item--status { display: block; margin-right: 96px; }
+  .bar__meta-item--status { display: block; margin-right: 170px; }
 }
 </style>
