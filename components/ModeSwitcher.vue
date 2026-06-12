@@ -25,11 +25,17 @@ const cinematic = useCinematicStore()
       OLED
     </button>
     <button
-      class="mode-switcher__btn microtext"
-      title="Command Center (Cmd/Ctrl+K)"
+      class="mode-switcher__btn mode-switcher__btn--search microtext"
+      type="button"
+      title="Buscar música (S · ⌘K)"
+      aria-label="Buscar música"
       @click="cinematic.toggleCommandCenter()"
     >
-      ⌘K
+      <svg class="mode-switcher__search-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2" />
+        <line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      </svg>
+      <span class="mode-switcher__search-hint">⌘K</span>
     </button>
   </nav>
 </template>
@@ -59,5 +65,36 @@ const cinematic = useCinematicStore()
   color: var(--bg);
   background: var(--ink);
   border-color: var(--ink);
+}
+
+/* Botão de busca: ícone de lupa + dica ⌘K (a dica some no mobile) */
+.mode-switcher__btn--search {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+}
+
+.mode-switcher__search-icon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+
+.mode-switcher__search-hint {
+  letter-spacing: 0.14em;
+}
+
+/* No celular não há tecla ⌘ — mostramos só a lupa, com alvo de toque maior */
+@media (max-width: 600px) {
+  .mode-switcher__search-hint {
+    display: none;
+  }
+
+  .mode-switcher__btn--search {
+    min-width: 44px;
+    justify-content: center;
+    padding: 0;
+  }
 }
 </style>
