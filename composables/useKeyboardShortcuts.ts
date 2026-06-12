@@ -33,7 +33,9 @@ export function useKeyboardShortcuts () {
 
     switch (e.key) {
       case 'Escape':
-        if (cinematic.commandCenterOpen) cinematic.toggleCommandCenter()
+        // Prioridade (SPEC 09): aura → command center → diagnostics → imersivo
+        if (cinematic.auraMode) cinematic.setAuraMode(false)
+        else if (cinematic.commandCenterOpen) cinematic.toggleCommandCenter()
         else if (cinematic.diagnosticsOpen) cinematic.toggleDiagnostics()
         else cinematic.exitImmersive()
         break

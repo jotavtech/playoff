@@ -69,6 +69,12 @@ const rows = computed(() => [
 <template>
   <Transition name="diag">
     <aside v-if="cinematic.diagnosticsOpen" class="diag" aria-label="System diagnostics">
+      <button
+        class="diag__close microtext"
+        type="button"
+        aria-label="Close diagnostics"
+        @click="cinematic.toggleDiagnostics()"
+      >✕</button>
       <p class="diag__title microtext microtext--bright">SYSTEM DIAGNOSTICS</p>
       <dl class="diag__grid">
         <template v-for="[key, value] in rows" :key="key">
@@ -91,6 +97,24 @@ const rows = computed(() => [
   background: var(--glass);
   border: 1px solid var(--glass-border);
   backdrop-filter: blur(14px);
+}
+
+.diag__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-dim);
+  border: 1px solid transparent;
+  transition: color var(--t-fast) linear, border-color var(--t-fast) linear;
+}
+
+.diag__close:hover {
+  color: var(--ink);
+  border-color: var(--glass-border);
 }
 
 .diag__title {

@@ -10,6 +10,7 @@ const { boot } = useAuth()
 usePlatformAdaptation()
 useSmartIdle()
 useKeyboardShortcuts()
+useOverlayHistory()
 useAudioReactor()
 
 onMounted(async () => {

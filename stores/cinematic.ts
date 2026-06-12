@@ -86,6 +86,11 @@ export const useCinematicStore = defineStore('cinematic', {
 
     immersive (state): boolean {
       return state.wallpaperMode || state.cinemaView
+    },
+
+    /** SPEC 09: há algum overlay/modo imersivo aberto agora? */
+    hasOpenOverlay (state): boolean {
+      return state.auraMode || state.commandCenterOpen || state.diagnosticsOpen || state.cinemaView || state.wallpaperMode
     }
   },
 
@@ -153,6 +158,14 @@ export const useCinematicStore = defineStore('cinematic', {
       this.wallpaperMode = false
       this.setMode('ambient-idle')
       if (this.barsState === 'wallpaper') this.setBarsState('idle')
+    },
+
+    /** SPEC 09: fecha TODO overlay/modo aberto (usado pelo back do navegador). */
+    closeAllOverlays () {
+      if (this.commandCenterOpen) this.toggleCommandCenter()
+      if (this.diagnosticsOpen) this.toggleDiagnostics()
+      if (this.auraMode) this.setAuraMode(false)
+      if (this.cinemaView || this.wallpaperMode) this.exitImmersive()
     },
 
     toggleCommandCenter () {

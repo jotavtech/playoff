@@ -25,6 +25,16 @@ onMounted(() => {
 <template>
   <!-- Cinema View (PRD §5.7.1): o disco vira centro da experiência -->
   <section class="cinema">
+    <!-- SPEC 09: saída sempre visível (mobile não tem ESC) -->
+    <button
+      class="cinema__exit microtext"
+      type="button"
+      aria-label="Exit Cinema View"
+      @click="cinematic.toggleCinemaView()"
+    >
+      EXIT
+    </button>
+
     <div class="cinema__stage" :class="{ 'cinema__stage--hidden': cinematic.smartIdle }">
       <p class="microtext">{{ music.statusLabel }}</p>
 
@@ -176,6 +186,25 @@ onMounted(() => {
 
 .cinema__btn--wide {
   padding: 16px 38px;
+}
+
+.cinema__exit {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 6;
+  min-height: 48px;
+  padding: 12px 24px;
+  border: 1px solid var(--ink-dim);
+  background: var(--glass, rgba(0, 0, 0, 0.4));
+  color: var(--ink);
+  letter-spacing: 0.24em;
+  transition: background var(--t-fast) linear, color var(--t-fast) linear;
+}
+
+.cinema__exit:hover {
+  background: var(--ink);
+  color: var(--bg);
 }
 
 .cinema__hint {
