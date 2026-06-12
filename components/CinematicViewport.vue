@@ -160,7 +160,11 @@ const sceneVars = computed(() => {
   inset: 0;
   z-index: var(--layer-06-content);
   padding-top: calc(var(--cinema-bar-top-height) + env(safe-area-inset-top));
-  padding-bottom: calc(var(--cinema-bar-bottom-height) + env(safe-area-inset-bottom));
+  /* Garante que conteúdo não fique atrás da bottom nav mobile (D1 / tasks 0.3) */
+  padding-bottom: max(
+    calc(var(--cinema-bar-bottom-height) + var(--safe-bottom)),
+    calc(var(--nav-height) + var(--mini-player-height) + var(--safe-bottom))
+  );
   transition: padding var(--t-scene) var(--ease-scene);
 }
 

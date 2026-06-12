@@ -61,6 +61,21 @@
   --font-display: 'Space Grotesk', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
+  /* ── Mobile Overhaul — tokens centralizados (design.md) ── */
+  --nav-height: 72px;
+  --safe-bottom: env(safe-area-inset-bottom);
+  --app-height: 100dvh;
+  --vinyl-max: 35vw;
+  --vote-card-height: 140px;
+  --font-min: 16px;
+  --touch-min: 48px;
+  --lyric-current: 1;
+  --lyric-future: 0.7;
+  --lyric-past: 0.4;
+  --vinyl-spin-duration: 8s;
+  --mini-player-height: 64px;
+  --page-bottom-pad: calc(var(--nav-height) + var(--mini-player-height) + var(--safe-bottom) + 8px);
+
   /* Timing cinematográfico */
   --ease-scene: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-cut: cubic-bezier(0.83, 0, 0.17, 1);
