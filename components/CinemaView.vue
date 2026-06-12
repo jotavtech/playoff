@@ -66,9 +66,10 @@ onMounted(() => {
       <AudioVisualizer v-if="music.currentTrack" :height="110" class="cinema__viz" />
 
       <div v-if="music.currentTrack" class="cinema__controls">
-        <button class="cinema__btn microtext" @click="togglePlay()">
+        <button class="cinema__btn microtext" :aria-label="music.isPlaying ? 'Pause' : 'Play'" @click="togglePlay()">
           {{ music.isPlaying ? '❚❚' : '▶' }}
         </button>
+        <button class="cinema__btn microtext" type="button" @click="cinematic.toggleKaraoke()">KARAOKE</button>
         <span class="microtext">{{ music.timecode }}</span>
       </div>
 
