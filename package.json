@@ -1,6 +1,6 @@
 {
   "name": "playoff",
-  "version": "4.0.0-alpha.1",
+  "version": "4.0.0-alpha.2",
   "private": true,
   "description": "PLAYOFF — sistema musical cinematográfico. Wallpaper OLED interativo com produto real por cima.",
   "type": "module",

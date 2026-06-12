@@ -10,13 +10,22 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      title: 'PLAYOFF — CHROME AUDIO ENGINE',
+      title: 'PLAYOFF — GO WITH THE FLOW',
       htmlAttrs: { lang: 'pt-BR', 'data-theme': 'deep-black' },
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
-        { name: 'description', content: 'PLAYOFF — sistema musical cinematográfico. Um wallpaper OLED interativo com música, salas e votação em tempo real.' },
-        { name: 'theme-color', content: '#000000' }
+        { name: 'description', content: 'PLAYOFF — a tracklist decidida por votos. Ninguém pula, só vota: cada faixa conquista a rotação no vinil.' },
+        { name: 'theme-color', content: '#000000' },
+        { property: 'og:type', content: 'website' },
+        { property: 'og:site_name', content: 'PLAYOFF' },
+        { property: 'og:title', content: 'PLAYOFF — GO WITH THE FLOW' },
+        { property: 'og:description', content: 'A tracklist decidida por votos. Ninguém pula, só vota: cada faixa conquista a rotação no vinil.' },
+        { property: 'og:url', content: 'https://playoff-eight.vercel.app' },
+        { property: 'og:image', content: 'https://playoff-eight.vercel.app/logo-playoff.png' },
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:title', content: 'PLAYOFF — GO WITH THE FLOW' },
+        { name: 'twitter:image', content: 'https://playoff-eight.vercel.app/logo-playoff.png' }
       ],
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
