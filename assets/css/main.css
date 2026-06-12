@@ -209,6 +209,16 @@ html, body, #__nuxt {
   height: 100%;
 }
 
+/* SPEC 08 — Mobile Perfection: nunca rolar/estourar na horizontal */
+html {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+img, svg, canvas, video {
+  max-width: 100%;
+}
+
 body {
   font-family: var(--font-display);
   background: var(--bg);
@@ -229,6 +239,9 @@ button {
   background: none;
   border: none;
   cursor: pointer;
+  /* SPEC 08 — toque limpo e responsivo no mobile */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 input {

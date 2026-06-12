@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { usePlayoffFeedback } from '~/composables/usePlayoffFeedback'
+import JukeboxVoteButton from '~/components/voting/JukeboxVoteButton.vue'
 import type { BattleTrack } from '~/types/battle'
 
 const props = defineProps<{
@@ -18,6 +19,17 @@ let audio: HTMLAudioElement | null = null
 
 const cardState = computed(() => props.state ?? 'idle')
 const canVote = computed(() => !['winner', 'loser', 'disabled'].includes(cardState.value))
+
+// SPEC 03: mapeia o estado do card para o botão de ficha (jukebox).
+const voteState = computed(() => {
+  switch (cardState.value) {
+    case 'winner': return 'winner'
+    case 'voted': return 'locked'
+    case 'loser': return 'disabled'
+    case 'disabled': return 'disabled'
+    default: return 'idle'
+  }
+})
 
 function coverStyle (track: BattleTrack) {
   return track.coverUrl ? { backgroundImage: `url(${track.coverUrl})` } : {}
@@ -85,14 +97,7 @@ onBeforeUnmount(stopPreview)
       <button class="battle-card__btn microtext" type="button" @click="onPreview">
         {{ previewing ? 'STOP' : track.previewUrl ? 'PREVIEW' : track.spotifyUrl ? 'OPEN SPOTIFY' : 'NO PREVIEW' }}
       </button>
-      <button
-        class="battle-card__btn battle-card__btn--vote microtext"
-        type="button"
-        :disabled="cardState === 'disabled' || cardState === 'loser'"
-        @click="onVote"
-      >
-        {{ cardState === 'winner' ? 'WINNER' : cardState === 'voted' ? 'VOTE LOCKED' : 'VOTE THIS' }}
-      </button>
+      <JukeboxVoteButton :state="voteState" @vote="onVote" />
     </div>
   </article>
 </template>
