@@ -219,38 +219,9 @@ export function useSpotifyPlayer () {
       return
     }
 
-    // Fallback: preview de 30s via HTML5 audio
-    if (track.preview_url) {
-      const currentTrack: CurrentTrack = {
-        id: track.id,
-        title: track.name,
-        artist: track.artists.map(a => a.name).join(', '),
-        album: track.album.name,
-        coverUrl: track.album.images[0]?.url ?? null,
-        durationMs: track.duration_ms
-      }
-      applyCoverPalette(currentTrack.coverUrl, currentTrack)
-      await music.setTrack(currentTrack)
-
-      previewAudio = new Audio(track.preview_url)
-      previewAudio.crossOrigin = 'anonymous'
-      previewAudio.volume = 0.8
-      previewAudio.onended = () => music.pause()
-      // Grampeia o preview na Web Audio API → FFT real no visualizer
-      useAudioAnalyser().attachElement(previewAudio)
-      previewAudio.play().catch(() => { /* autoplay bloqueado */ })
-
-      // Progresso do preview (30s) atualizado a cada 500ms
-      const start = Date.now()
-      const tick = setInterval(() => {
-        if (!music.isPlaying) { clearInterval(tick); return }
-        music.progressMs = Date.now() - start
-      }, 500)
-
-      return
-    }
-
-    // Sem preview e sem Premium: visual-only (cena reage, sem áudio)
+    // Fallback free: preview de 30s via HTML5 audio.
+    // O preview_url do Spotify morreu para apps novos — quando vier null,
+    // resolve um preview equivalente pela iTunes Search (proxy /api/preview).
     const currentTrack: CurrentTrack = {
       id: track.id,
       title: track.name,
@@ -261,6 +232,47 @@ export function useSpotifyPlayer () {
     }
     applyCoverPalette(currentTrack.coverUrl, currentTrack)
     await music.setTrack(currentTrack)
+
+    const previewUrl = track.preview_url ?? await resolvePreviewUrl(track.name, track.artists[0]?.name ?? '')
+    if (previewUrl) playPreviewUrl(previewUrl)
+    // Sem preview em lugar nenhum: visual-only (cena reage, sem áudio)
+  }
+
+  // ─── Preview de 30s ──────────────────────────────────────────────────────
+  async function resolvePreviewUrl (title: string, artist: string): Promise<string | null> {
+    try {
+      const res = await fetch(
+        `/api/preview?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`
+      )
+      if (!res.ok) return null
+      const data = await res.json()
+      return data.previewUrl ?? null
+    } catch { return null }
+  }
+
+  /**
+   * Toca uma URL de preview. Tenta com CORS (FFT real no visualizer); se o CDN
+   * não mandar os headers, recarrega sem CORS — toca igual, visual fica no synth.
+   */
+  function playPreviewUrl (url: string, withCors = true) {
+    stopPreview()
+    const el = new Audio()
+    if (withCors) el.crossOrigin = 'anonymous'
+    el.src = url
+    el.volume = 0.8
+    el.onended = () => music.pause()
+    el.onerror = () => {
+      if (withCors) playPreviewUrl(url, false)
+    }
+    previewAudio = el
+    if (withCors) useAudioAnalyser().attachElement(el)
+    el.play().catch(() => { /* autoplay bloqueado — destrava no próximo gesto */ })
+
+    // Progresso lido do próprio elemento (não deriva com atrasos de rede)
+    const tick = setInterval(() => {
+      if (previewAudio !== el) { clearInterval(tick); return }
+      if (music.isPlaying) music.progressMs = el.currentTime * 1000
+    }, 500)
   }
 
   // ─── Controles ───────────────────────────────────────────────────────────
@@ -289,5 +301,5 @@ export function useSpotifyPlayer () {
     lastTrackId = null
   }
 
-  return { initPlayer, playTrack, togglePlay, seek, destroy }
+  return { initPlayer, playTrack, playPreviewUrl, togglePlay, seek, destroy }
 }

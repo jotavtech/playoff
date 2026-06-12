@@ -1,5 +1,6 @@
 import { extractChromaticPalette } from '~/composables/usePaletteExtractor'
 import { useMusicVisualStore } from '~/stores/musicVisual'
+import { useSpotifyPlayer } from '~/composables/useSpotifyPlayer'
 
 /**
  * Demo Signal — carrega uma faixa real pelo MESMO pipeline do Spotify.
@@ -66,14 +67,23 @@ export async function loadGoWithTheFlow () {
   music.currentMood = 'fast'   // riff motorik, energia alta
   music.setBpm(152)            // BPM real de Go With The Flow
 
+  // Áudio real: preview de 30s via iTunes (o demo não pode ser mudo)
+  let previewUrl: string | null = null
+  try {
+    const res = await fetch('/api/preview?title=Go With The Flow&artist=Queens of the Stone Age')
+    if (res.ok) previewUrl = (await res.json()).previewUrl ?? null
+  } catch { /* sem rede → demo segue visual-only */ }
+
   await music.setTrack({
     id: 'demo-gwtf',
     title: 'GO WITH THE FLOW',
     artist: 'QUEENS OF THE STONE AGE',
     album: 'SONGS FOR THE DEAF',
     coverUrl,
-    durationMs: 3 * 60 * 1000 + 7 * 1000  // 3:07
+    durationMs: previewUrl ? 30_000 : 3 * 60 * 1000 + 7 * 1000
   })
+
+  if (previewUrl) useSpotifyPlayer().playPreviewUrl(previewUrl)
 
   // Progresso (visual-only — sem áudio, mas o synth do analyser dá pulso)
   if (progressTimer) clearInterval(progressTimer)
