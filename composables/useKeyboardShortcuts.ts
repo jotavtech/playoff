@@ -33,8 +33,10 @@ export function useKeyboardShortcuts () {
 
     switch (e.key) {
       case 'Escape':
-        // Prioridade (SPEC 09): aura → command center → diagnostics → imersivo
-        if (cinematic.auraMode) cinematic.setAuraMode(false)
+        // Prioridade (SPEC 09): eq → karaoke → aura → command center → diagnostics → imersivo
+        if (cinematic.eqPanelOpen) cinematic.toggleEqPanel()
+        else if (cinematic.karaokeMode) cinematic.setKaraoke(false)
+        else if (cinematic.auraMode) cinematic.setAuraMode(false)
         else if (cinematic.commandCenterOpen) cinematic.toggleCommandCenter()
         else if (cinematic.diagnosticsOpen) cinematic.toggleDiagnostics()
         else cinematic.exitImmersive()
@@ -54,6 +56,10 @@ export function useKeyboardShortcuts () {
       case 'w':
       case 'W':
         cinematic.toggleWallpaperMode()
+        break
+      case 'k':
+      case 'K':
+        cinematic.toggleKaraoke()
         break
     }
   }

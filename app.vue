@@ -3,6 +3,8 @@ import { useCinematicStore } from '~/stores/cinematic'
 import { useAuth } from '~/composables/useAuth'
 import { useAudioReactor } from '~/composables/useAudioReactor'
 import { loadGoWithTheFlow } from '~/composables/useDemoSignal'
+import KaraokeMode from '~/components/karaoke/KaraokeMode.vue'
+import EqualizerPanel from '~/components/EqualizerPanel.vue'
 
 const cinematic = useCinematicStore()
 const { boot } = useAuth()
@@ -30,4 +32,6 @@ onMounted(async () => {
     <NuxtPage />
   </CinematicViewport>
   <AuraMode />
+  <KaraokeMode />
+  <EqualizerPanel />
 </template>

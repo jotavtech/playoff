@@ -60,7 +60,11 @@ export const useCinematicStore = defineStore('cinematic', {
     /** Aura Mode (PRD Radiola §10.1): disco domina a tela após idle longo. */
     auraMode: false,
     commandCenterOpen: false,
-    diagnosticsOpen: false
+    diagnosticsOpen: false,
+    /** SPEC 04: modo karaoke fullscreen. */
+    karaokeMode: false,
+    /** SPEC 07: painel de presets de equalizador. */
+    eqPanelOpen: false
   }),
 
   getters: {
@@ -90,7 +94,8 @@ export const useCinematicStore = defineStore('cinematic', {
 
     /** SPEC 09: há algum overlay/modo imersivo aberto agora? */
     hasOpenOverlay (state): boolean {
-      return state.auraMode || state.commandCenterOpen || state.diagnosticsOpen || state.cinemaView || state.wallpaperMode
+      return state.auraMode || state.commandCenterOpen || state.diagnosticsOpen ||
+        state.cinemaView || state.wallpaperMode || state.karaokeMode || state.eqPanelOpen
     }
   },
 
@@ -162,6 +167,8 @@ export const useCinematicStore = defineStore('cinematic', {
 
     /** SPEC 09: fecha TODO overlay/modo aberto (usado pelo back do navegador). */
     closeAllOverlays () {
+      if (this.eqPanelOpen) this.eqPanelOpen = false
+      if (this.karaokeMode) this.karaokeMode = false
       if (this.commandCenterOpen) this.toggleCommandCenter()
       if (this.diagnosticsOpen) this.toggleDiagnostics()
       if (this.auraMode) this.setAuraMode(false)
@@ -175,6 +182,21 @@ export const useCinematicStore = defineStore('cinematic', {
 
     toggleDiagnostics () {
       this.diagnosticsOpen = !this.diagnosticsOpen
+    },
+
+    /** SPEC 04: entra/sai do modo karaoke (overlay fullscreen). */
+    toggleKaraoke () {
+      this.karaokeMode = !this.karaokeMode
+      if (this.karaokeMode) this.commandCenterOpen = false
+    },
+
+    setKaraoke (active: boolean) {
+      this.karaokeMode = active
+    },
+
+    /** SPEC 07: abre/fecha o painel de presets de equalizador. */
+    toggleEqPanel () {
+      this.eqPanelOpen = !this.eqPanelOpen
     },
 
     setSmartIdle (idle: boolean) {

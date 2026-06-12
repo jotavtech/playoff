@@ -22,6 +22,34 @@ let sourceNode: MediaElementAudioSourceNode | null = null
 let attachedEl: HTMLMediaElement | null = null
 let freqData: Uint8Array | null = null
 
+// ─── Equalizer (SPEC 07) ─────────────────────────────────────────────────────
+// Filtros inseridos entre o source e o analyser. Só afetam o áudio quando há um
+// elemento real grampeado (preview de 30s). No SDK Premium (EME/DRM) não há grafo
+// acessível, então o preset é só selecionado/persistido — limitação informada.
+const EQ_FREQS = [60, 230, 910, 3000, 14000]
+let eqFilters: BiquadFilterNode[] = []
+let eqGains: number[] = new Array(EQ_FREQS.length).fill(0)
+
+/** Monta a cadeia de EQ e devolve o nó de saída (ou o próprio input se falhar). */
+function buildEqChain (ctx: AudioContext, input: AudioNode): AudioNode {
+  try {
+    eqFilters = EQ_FREQS.map((freq, i) => {
+      const f = ctx.createBiquadFilter()
+      f.type = i === 0 ? 'lowshelf' : i === EQ_FREQS.length - 1 ? 'highshelf' : 'peaking'
+      f.frequency.value = freq
+      f.Q.value = 1
+      f.gain.value = eqGains[i] ?? 0
+      return f
+    })
+    let node: AudioNode = input
+    for (const f of eqFilters) { node.connect(f); node = f }
+    return node
+  } catch {
+    eqFilters = []
+    return input
+  }
+}
+
 let rafId: number | null = null
 let subscribers = new Set<(frame: AudioAnalysisFrame, beat: boolean) => void>()
 let refCount = 0
@@ -50,7 +78,9 @@ function attachElement (el: HTMLMediaElement) {
       analyser.fftSize = 1024
       analyser.smoothingTimeConstant = 0.75
       freqData = new Uint8Array(analyser.frequencyBinCount)
-      sourceNode.connect(analyser)
+      // EQ (SPEC 07): source → [filtros] → analyser → destination
+      const eqOut = buildEqChain(audioCtx, sourceNode)
+      eqOut.connect(analyser)
       analyser.connect(audioCtx.destination)
       attachedEl = el
     }
@@ -62,8 +92,10 @@ function attachElement (el: HTMLMediaElement) {
 
 function detachElement () {
   try { sourceNode?.disconnect() } catch { /* noop */ }
+  try { eqFilters.forEach(f => f.disconnect()) } catch { /* noop */ }
   try { analyser?.disconnect() } catch { /* noop */ }
   sourceNode = null
+  eqFilters = []
   analyser = null
   freqData = null
   attachedEl = null
@@ -218,5 +250,21 @@ export function useAudioAnalyser () {
     return () => subscribers.delete(fn)
   }
 
-  return { start, stop, subscribe, attachElement, detachElement, bandCount: BANDS }
+  /** SPEC 07: atualiza os ganhos (dB) do EQ ao vivo e guarda para futuros attaches. */
+  function setEqGains (gains: number[]) {
+    eqGains = EQ_FREQS.map((_, i) => gains[i] ?? 0)
+    eqFilters.forEach((f, i) => {
+      try { f.gain.value = eqGains[i] } catch { /* noop */ }
+    })
+  }
+
+  /** SPEC 07: o EQ realmente afeta o áudio agora? (preview grampeado + filtros). */
+  function eqAvailable (): boolean {
+    return !!attachedEl && eqFilters.length > 0
+  }
+
+  return {
+    start, stop, subscribe, attachElement, detachElement, bandCount: BANDS,
+    setEqGains, eqAvailable, eqFreqs: EQ_FREQS
+  }
 }

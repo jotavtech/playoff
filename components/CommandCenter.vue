@@ -84,6 +84,20 @@ const SYSTEM_CMDS = computed<CommandAction[]>(() => [
     group: 'visual',
     run: () => cinematic.toggleWallpaperMode()
   },
+  {
+    id: 'karaoke',
+    label: cinematic.karaokeMode ? 'Exit Karaoke Mode' : 'Enter Karaoke Mode',
+    shortcut: 'K',
+    group: 'music',
+    run: () => cinematic.toggleKaraoke()
+  },
+  {
+    id: 'equalizer',
+    label: cinematic.eqPanelOpen ? 'Hide Equalizer' : 'Equalizer presets',
+    hint: 'EQ no preview de 30s',
+    group: 'music',
+    run: () => cinematic.toggleEqPanel()
+  },
   ...PRESETS.map(preset => ({
     id: `preset-${preset}`,
     label: `Preset: ${preset}`,
