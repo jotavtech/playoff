@@ -100,22 +100,29 @@ onBeforeUnmount(stopPreview)
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .recommended__list {
   display: grid;
   gap: 10px;
+  max-height: 386px;
+  overflow-y: auto;
+  padding-right: 4px;
   list-style: none;
 }
 
 .recommended__item {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) auto;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  padding: 10px;
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.03);
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.recommended__item:last-child {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .recommended__cover {
@@ -127,6 +134,7 @@ onBeforeUnmount(stopPreview)
     linear-gradient(135deg, #171d24, #050607);
   background-size: cover;
   background-position: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .recommended__cover span {
@@ -136,26 +144,33 @@ onBeforeUnmount(stopPreview)
 
 .recommended__copy {
   min-width: 0;
+  display: grid;
+  gap: 3px;
 }
 
 .recommended__copy h3 {
   overflow: hidden;
-  font-size: 15px;
+  font-size: 16px;
+  line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .recommended__actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(96px, 1fr));
   gap: 6px;
 }
 
 .recommended__btn {
-  min-height: 42px;
+  min-height: 46px;
   padding: 0 10px;
   border: 1px solid var(--glass-border);
   color: var(--ink);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .recommended__btn:hover {
@@ -165,16 +180,16 @@ onBeforeUnmount(stopPreview)
 
 .recommended__btn--primary {
   border-color: rgba(57, 255, 156, 0.32);
+  background: rgba(57, 255, 156, 0.035);
 }
 
 @media (max-width: 640px) {
   .recommended__item {
-    grid-template-columns: 52px minmax(0, 1fr);
+    grid-template-columns: 56px minmax(0, 1fr);
   }
 
   .recommended__actions {
     grid-column: 1 / -1;
-    display: grid;
     grid-template-columns: 1fr 1fr;
   }
 

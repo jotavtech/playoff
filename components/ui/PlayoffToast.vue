@@ -92,8 +92,8 @@ const { toasts, removeToast } = usePlayoffFeedback()
 
 .playoff-toast__close {
   align-self: start;
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--glass-border);
   color: var(--ink-dim);
   transition: border-color var(--t-fast) linear, color var(--t-fast) linear;

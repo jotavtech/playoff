@@ -124,8 +124,9 @@ function cardState (side: 'left' | 'right') {
 .battle-arena {
   width: min(1060px, 100%);
   display: grid;
-  gap: 18px;
+  gap: 16px;
   margin-inline: auto;
+  padding-bottom: 18px;
 }
 
 .battle-arena__header {
@@ -136,8 +137,8 @@ function cardState (side: 'left' | 'right') {
 }
 
 .battle-arena__header h2 {
-  font-size: clamp(30px, 5vw, 64px);
-  line-height: 0.94;
+  font-size: clamp(28px, 4.5vw, 58px);
+  line-height: 0.96;
 }
 
 .battle-arena__reset,
@@ -146,7 +147,7 @@ function cardState (side: 'left' | 'right') {
   padding: 0 18px;
   border: 1px solid var(--glass-border);
   color: var(--ink);
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
 }
 
 .battle-arena__reset:hover,
@@ -161,7 +162,7 @@ function cardState (side: 'left' | 'right') {
 }
 
 .battle-arena__signal :deep(.mechanical-disc) {
-  width: min(420px, 92vw);
+  width: min(570px, 96vw);
 }
 
 .battle-arena__cards {
@@ -172,13 +173,16 @@ function cardState (side: 'left' | 'right') {
 }
 
 .battle-arena__vs {
-  width: 58px;
-  height: 58px;
+  width: 54px;
+  height: 54px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--glass-border);
-  background: var(--glass);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background:
+    radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.1), transparent 60%),
+    rgba(255, 255, 255, 0.045);
   color: var(--ink);
+  box-shadow: inset 0 0 22px rgba(255, 255, 255, 0.03);
 }
 
 .battle-arena__footer {
@@ -186,7 +190,8 @@ function cardState (side: 'left' | 'right') {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .battle-arena__next {
@@ -210,7 +215,7 @@ function cardState (side: 'left' | 'right') {
 
   .battle-arena__vs {
     width: 100%;
-    height: 42px;
+    height: 40px;
   }
 
   .battle-arena__next,

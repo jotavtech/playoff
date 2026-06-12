@@ -54,19 +54,22 @@ const cards = computed(() => [
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .weekly__grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(146px, 1fr));
   gap: 8px;
 }
 
 .weekly__card {
   min-width: 0;
   padding: 12px;
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.095);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.044), rgba(255, 255, 255, 0.018)),
+    rgba(0, 0, 0, 0.18);
 }
 
 .weekly__card strong {
@@ -79,8 +82,8 @@ const cards = computed(() => [
 }
 
 .weekly__actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 8px;
 }
 
@@ -89,7 +92,10 @@ const cards = computed(() => [
   padding: 0 14px;
   border: 1px solid var(--glass-border);
   color: var(--ink);
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .weekly__btn:hover {
@@ -99,6 +105,7 @@ const cards = computed(() => [
 
 .weekly__btn--primary {
   border-color: rgba(57, 255, 156, 0.32);
+  background: rgba(57, 255, 156, 0.035);
 }
 
 @media (max-width: 640px) {
@@ -107,7 +114,7 @@ const cards = computed(() => [
   }
 
   .weekly__actions {
-    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .weekly__btn {

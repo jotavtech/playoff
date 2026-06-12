@@ -51,16 +51,18 @@ const showJournal = ref(false)
   width: min(980px, 100%);
   display: grid;
   grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
-  gap: 12px;
+  gap: 14px;
   margin-top: 10px;
 }
 
 .player-insights__panel {
   min-width: 0;
-  padding: 16px;
-  border: 1px solid var(--glass-border);
-  background: rgba(0, 0, 0, 0.26);
-  box-shadow: inset 0 0 34px rgba(255, 255, 255, 0.025);
+  padding: clamp(14px, 2vw, 18px);
+  border: 1px solid rgba(255, 255, 255, 0.105);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+    rgba(0, 0, 0, 0.24);
+  box-shadow: inset 0 0 34px rgba(255, 255, 255, 0.022);
 }
 
 .player-insights__panel--wide {
@@ -72,12 +74,13 @@ const showJournal = ref(false)
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .player-insights__lyrics {
   display: grid;
   gap: 10px;
-  max-height: 260px;
+  max-height: min(34vh, 300px);
   overflow-y: auto;
   padding-right: 8px;
 }
@@ -94,7 +97,7 @@ const showJournal = ref(false)
 .player-insights__empty {
   display: grid;
   gap: 10px;
-  min-height: 160px;
+  min-height: 170px;
   align-content: center;
 }
 
@@ -111,6 +114,7 @@ const showJournal = ref(false)
 @media (max-width: 860px) {
   .player-insights {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .player-insights__panel--wide {

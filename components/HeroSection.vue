@@ -204,21 +204,23 @@ function onMechanicalControl () {
 .hero {
   position: relative;
   height: 100%;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  padding-block: clamp(18px, 4vh, 34px);
   padding-inline: clamp(12px, 4vw, 48px);
 }
 
 .hero__layout {
   position: relative;
   z-index: 1;
-  width: min(1120px, 100%);
+  width: min(1180px, 100%);
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(360px, 1fr);
+  grid-template-columns: minmax(300px, 0.86fr) minmax(470px, 1.14fr);
   align-items: center;
-  gap: clamp(24px, 5vw, 68px);
+  gap: clamp(22px, 4vw, 56px);
 }
 
 .hero__composition {
@@ -228,7 +230,7 @@ function onMechanicalControl () {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 20px;
+  gap: 18px;
   text-align: left;
 }
 
@@ -262,7 +264,7 @@ function onMechanicalControl () {
 
 .hero__logo {
   display: block;
-  width: clamp(248px, 35vw, 460px);
+  width: clamp(220px, 30vw, 420px);
   height: auto;
   user-select: none;
   filter:
@@ -282,7 +284,7 @@ function onMechanicalControl () {
 }
 
 .hero__headline {
-  font-size: clamp(28px, 5vw, 58px);
+  font-size: clamp(30px, 4.6vw, 64px);
   font-weight: 700;
   line-height: 0.95;
   letter-spacing: 0;
@@ -307,7 +309,7 @@ function onMechanicalControl () {
   display: flex;
   align-items: stretch;
   gap: 12px;
-  margin-top: 6px;
+  margin-top: 2px;
   animation: card-reveal 1s var(--ease-scene) 0.55s both;
 }
 
@@ -470,22 +472,23 @@ function onMechanicalControl () {
   justify-self: end;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .hero {
     align-items: start;
     overflow-y: auto;
-    padding: 18px 14px 16px;
+    padding: 12px 14px 18px;
   }
 
   .hero__layout {
     grid-template-columns: 1fr;
-    gap: 18px;
+    gap: 16px;
     justify-items: center;
+    padding-bottom: 12px;
   }
 
   .hero__composition {
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     text-align: center;
   }
 
@@ -498,17 +501,42 @@ function onMechanicalControl () {
     width: 18px;
   }
 
+  .hero__logo {
+    width: clamp(190px, 48vw, 270px);
+  }
+
+  .hero__copy {
+    gap: 7px;
+  }
+
+  .hero__headline {
+    font-size: clamp(27px, 8vw, 42px);
+  }
+
   .hero__ctas {
     flex-direction: column;
     width: min(340px, 86vw);
   }
 
+  .hero__cta--spotify,
+  .hero__cta--primary,
+  .hero__cta--ghost {
+    height: 56px;
+  }
+
+  .hero__cta--demo {
+    height: 52px;
+  }
+
   .hero__cta {
     width: 100%;
+    font-size: 10px;
+    letter-spacing: 0.14em;
   }
 
   .hero__subtitle {
-    max-width: 28ch;
+    max-width: 31ch;
+    font-size: 14px;
   }
 
   .hero__helper-full {
@@ -527,6 +555,22 @@ function onMechanicalControl () {
 
   .hero__mechanical {
     justify-self: center;
+  }
+}
+
+@media (max-height: 620px) and (max-width: 900px) {
+  .hero__composition {
+    gap: 10px;
+  }
+
+  .hero__logo {
+    width: clamp(172px, 42vw, 230px);
+  }
+
+  .hero__subtitle,
+  .hero__helper,
+  .hero__footnotes {
+    display: none;
   }
 }
 </style>

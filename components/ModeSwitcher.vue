@@ -41,12 +41,13 @@ const cinematic = useCinematicStore()
 }
 
 .mode-switcher__btn {
-  padding: 8px 14px;
+  min-height: 44px;
+  padding: 0 14px;
   border: 1px solid var(--glass-border);
   background: var(--glass);
   color: var(--ink-dim);
-  letter-spacing: 0.2em;
-  transition: color var(--t-fast) linear, border-color var(--t-fast) linear;
+  letter-spacing: 0.14em;
+  transition: color var(--t-fast) linear, border-color var(--t-fast) linear, background var(--t-fast) linear;
 }
 
 .mode-switcher__btn:hover {

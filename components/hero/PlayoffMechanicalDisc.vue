@@ -139,8 +139,8 @@ onBeforeUnmount(() => {
         <aside class="mechanical-disc__module">
           <div class="mechanical-disc__oled">
             <span class="microtext">{{ lastAction || statusText }}</span>
-            <strong>{{ displayTitle }}</strong>
-            <small>{{ displayArtist }}</small>
+            <strong :title="displayTitle">{{ displayTitle }}</strong>
+            <small :title="displayArtist">{{ displayArtist }}</small>
           </div>
 
           <div class="mechanical-disc__wave" aria-hidden="true">
@@ -156,9 +156,9 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="mechanical-disc__controls">
-            <button type="button" aria-label="Previous signal" @click="onControl('previous')">I&lt;</button>
-            <button type="button" aria-label="Preview signal" @click="onControl('preview')">{{ isPlaying ? 'II' : '>' }}</button>
-            <button type="button" aria-label="Next signal" @click="onControl('next')">&gt;I</button>
+            <button type="button" aria-label="Previous signal" @click="onControl('previous')">PREV</button>
+            <button type="button" aria-label="Preview signal" @click="onControl('preview')">{{ isPlaying ? 'HOLD' : 'PLAY' }}</button>
+            <button type="button" aria-label="Next signal" @click="onControl('next')">NEXT</button>
           </div>
 
           <button type="button" class="mechanical-disc__vote" @click="onVote">
@@ -170,7 +170,7 @@ onBeforeUnmount(() => {
 
       <div class="mechanical-disc__strip">
         <span class="microtext">FLOW INDEX {{ String(flowIndex).padStart(2, '0') }}</span>
-        <span class="microtext">{{ statusText }}</span>
+        <span class="microtext">COMMUNITY SIGNAL</span>
       </div>
     </div>
   </section>
@@ -179,33 +179,41 @@ onBeforeUnmount(() => {
 <style scoped>
 .mechanical-disc {
   position: relative;
-  width: min(540px, 94vw);
-  aspect-ratio: 1.18;
+  width: min(620px, 94vw);
+  min-width: 0;
   transform: perspective(1100px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
   transform-style: preserve-3d;
   transition: transform 260ms var(--ease-scene), filter 500ms var(--ease-scene);
-  filter: saturate(1.05);
+  filter: saturate(1.08);
 }
 
 .mechanical-disc__case {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  min-height: clamp(398px, 42vw, 472px);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 24%),
-    linear-gradient(180deg, rgba(16, 21, 26, 0.96), rgba(3, 4, 6, 0.96));
+    radial-gradient(circle at 22% 32%, rgba(57, 255, 156, 0.12), transparent 34%),
+    radial-gradient(circle at 78% 22%, rgba(0, 229, 255, 0.08), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.085), transparent 28%),
+    linear-gradient(180deg, rgba(18, 22, 27, 0.96), rgba(3, 4, 6, 0.98));
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 36px 120px rgba(0, 0, 0, 0.58),
-    0 0 80px var(--music-glow, rgba(0, 229, 255, 0.08));
+    inset 0 -34px 80px rgba(0, 0, 0, 0.42),
+    0 34px 110px rgba(0, 0, 0, 0.58),
+    0 0 76px var(--music-glow, rgba(0, 229, 255, 0.08));
 }
 
 .mechanical-disc__case::before {
   content: '';
   position: absolute;
-  inset: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  inset: 14px;
+  z-index: 1;
+  border: 1px solid rgba(255, 255, 255, 0.075);
   pointer-events: none;
 }
 
@@ -213,86 +221,94 @@ onBeforeUnmount(() => {
   content: '';
   position: absolute;
   inset: 0;
+  z-index: 0;
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 44px 44px;
-  opacity: 0.18;
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 52px 52px;
+  opacity: 0.13;
   pointer-events: none;
 }
 
 .mechanical-disc__screw {
   position: absolute;
-  z-index: 2;
-  width: 14px;
-  height: 14px;
+  z-index: 4;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background:
-    linear-gradient(90deg, transparent 43%, rgba(0, 0, 0, 0.65) 44% 56%, transparent 57%),
-    radial-gradient(circle at 35% 30%, #f4f7f8, #505861 72%, #101318);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 0 12px rgba(0, 0, 0, 0.7);
+    linear-gradient(90deg, transparent 43%, rgba(0, 0, 0, 0.68) 44% 56%, transparent 57%),
+    radial-gradient(circle at 35% 30%, #f4f7f8, #59636d 70%, #101318);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 0 11px rgba(0, 0, 0, 0.7);
 }
 
-.mechanical-disc__screw:nth-child(1) { top: 20px; left: 20px; }
-.mechanical-disc__screw:nth-child(2) { top: 20px; right: 20px; }
-.mechanical-disc__screw:nth-child(3) { bottom: 20px; left: 20px; }
-.mechanical-disc__screw:nth-child(4) { bottom: 20px; right: 20px; }
+.mechanical-disc__screw:nth-child(1) { top: 18px; left: 18px; }
+.mechanical-disc__screw:nth-child(2) { top: 18px; right: 18px; }
+.mechanical-disc__screw:nth-child(3) { bottom: 18px; left: 18px; }
+.mechanical-disc__screw:nth-child(4) { bottom: 18px; right: 18px; }
 
 .mechanical-disc__brand {
-  position: absolute;
+  position: relative;
   z-index: 3;
-  top: 28px;
-  left: 34px;
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 4px;
+  padding-inline: 12px;
 }
 
 .mechanical-disc__brand strong {
-  font-size: 28px;
-  line-height: 0.85;
+  font-size: clamp(24px, 3vw, 32px);
+  line-height: 0.9;
   letter-spacing: 0.08em;
 }
 
 .mechanical-disc__assembly {
-  position: absolute;
+  position: relative;
   z-index: 2;
-  inset: 76px 28px 58px 28px;
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) 178px;
+  grid-template-columns: minmax(260px, 1fr) minmax(214px, 242px);
   gap: 18px;
-  align-items: center;
+  align-items: stretch;
+  min-width: 0;
 }
 
 .mechanical-disc__rails {
   position: absolute;
-  inset: 16% 120px 16% 12px;
-  border-top: 5px solid rgba(255, 255, 255, 0.09);
-  border-bottom: 5px solid rgba(255, 255, 255, 0.06);
-  transform: skewY(-4deg);
+  inset: 18% 26px 18% 18px;
+  z-index: 0;
+  border-top: 2px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.045);
+  transform: skewY(-3deg);
 }
 
 .mechanical-disc__disc-bay {
   position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
   min-width: 0;
-  aspect-ratio: 1;
+  min-height: 268px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background:
+    radial-gradient(circle at 48% 48%, rgba(255, 255, 255, 0.045), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(0, 0, 0, 0.18));
 }
 
 .mechanical-disc__disc-shadow {
   position: absolute;
-  width: 82%;
+  width: min(82%, 330px);
   aspect-ratio: 1;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(0, 0, 0, 0.72), transparent 70%);
-  filter: blur(20px);
+  filter: blur(22px);
   transform: translateY(10%);
 }
 
 .mechanical-disc__rotor {
   position: relative;
-  width: 82%;
+  width: min(86%, 326px);
   aspect-ratio: 1;
   animation: mechanical-spin 22s linear infinite;
   animation-play-state: paused;
@@ -325,13 +341,13 @@ onBeforeUnmount(() => {
   inset: 0;
   border-radius: 50%;
   background:
-    radial-gradient(circle at center, #050607 0 18%, transparent 18%),
+    radial-gradient(circle at center, #050607 0 17%, transparent 17%),
     repeating-radial-gradient(circle, rgba(255, 255, 255, 0.09) 0 1px, transparent 1px 9px),
-    conic-gradient(from 18deg, #14181f, #626b78, #101319, #45f2ff, #171a20, #a85cff, #101319, #39ff9c, #14181f);
+    conic-gradient(from 18deg, #14181f, #656e7a, #101319, #45f2ff, #171a20, #a85cff, #101319, #39ff9c, #14181f);
   box-shadow:
-    inset 0 0 34px rgba(0, 0, 0, 0.82),
-    0 0 32px rgba(0, 229, 255, 0.2),
-    0 0 64px rgba(57, 255, 156, 0.12);
+    inset 0 0 38px rgba(0, 0, 0, 0.82),
+    0 0 34px rgba(0, 229, 255, 0.2),
+    0 0 66px rgba(57, 255, 156, 0.12);
 }
 
 .mechanical-disc__holo {
@@ -343,7 +359,7 @@ onBeforeUnmount(() => {
     transparent 0 8%,
     rgba(0, 229, 255, 0.7) 13%,
     transparent 20%,
-    rgba(124, 77, 255, 0.7) 31%,
+    rgba(124, 77, 255, 0.68) 31%,
     transparent 39%,
     rgba(57, 255, 156, 0.7) 51%,
     transparent 60%,
@@ -387,56 +403,63 @@ onBeforeUnmount(() => {
 
 .mechanical-disc__clamp {
   position: absolute;
-  right: 2%;
-  top: 24%;
-  width: 24%;
-  height: 16%;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  right: 5%;
+  top: 20%;
+  width: 21%;
+  height: 14%;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025));
   transform: skewX(-12deg);
 }
 
 .mechanical-disc__module {
   position: relative;
+  z-index: 1;
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.28);
-  box-shadow: inset 0 0 32px rgba(255, 255, 255, 0.03);
+  gap: 11px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(0, 0, 0, 0.22)),
+    rgba(0, 0, 0, 0.34);
+  box-shadow: inset 0 0 34px rgba(255, 255, 255, 0.03);
 }
 
 .mechanical-disc__oled {
-  min-height: 100px;
   display: flex;
+  min-height: 112px;
+  min-width: 0;
   flex-direction: column;
   justify-content: center;
   gap: 8px;
-  padding: 12px;
-  border: 1px solid rgba(57, 255, 156, 0.24);
+  padding: 14px;
+  border: 1px solid rgba(57, 255, 156, 0.25);
   background:
-    linear-gradient(180deg, rgba(57, 255, 156, 0.08), rgba(0, 229, 255, 0.03)),
+    linear-gradient(180deg, rgba(57, 255, 156, 0.085), rgba(0, 229, 255, 0.032)),
     #020403;
-  box-shadow: inset 0 0 24px rgba(57, 255, 156, 0.08);
+  box-shadow: inset 0 0 26px rgba(57, 255, 156, 0.08);
 }
 
 .mechanical-disc__oled strong {
+  display: -webkit-box;
+  min-width: 0;
   overflow: hidden;
   color: #f2f5f8;
-  font-size: 17px;
-  line-height: 1.05;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: clamp(19px, 2vw, 24px);
+  line-height: 1.06;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .mechanical-disc__oled small {
   overflow: hidden;
-  color: rgba(242, 245, 248, 0.58);
+  color: rgba(242, 245, 248, 0.6);
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
+  line-height: 1.35;
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
@@ -479,18 +502,22 @@ onBeforeUnmount(() => {
 
 .mechanical-disc__controls {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
 }
 
 .mechanical-disc__controls button,
 .mechanical-disc__vote {
   min-height: 48px;
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(242, 245, 248, 0.8);
+  color: rgba(242, 245, 248, 0.82);
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transition: transform var(--t-fast) var(--ease-liquid), border-color var(--t-fast) linear, background var(--t-fast) linear;
 }
 
@@ -507,10 +534,10 @@ onBeforeUnmount(() => {
 
 .mechanical-disc__vote {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  min-height: 56px;
-  padding: 0 12px;
+  justify-content: space-between;
+  min-height: 58px;
+  padding: 0 13px;
   border-color: rgba(57, 255, 156, 0.28);
 }
 
@@ -525,16 +552,21 @@ onBeforeUnmount(() => {
 }
 
 .mechanical-disc__strip {
-  position: absolute;
+  position: relative;
   z-index: 3;
-  left: 34px;
-  right: 34px;
-  bottom: 26px;
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  padding-top: 10px;
+  min-width: 0;
+  padding: 11px 12px 0;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mechanical-disc__strip span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mechanical-disc[data-mode='loading-profile'] .mechanical-disc__wave span {
@@ -543,22 +575,30 @@ onBeforeUnmount(() => {
 
 .mechanical-disc[data-mode='battle-reveal'],
 .mechanical-disc[data-mode='champion'] {
-  filter: saturate(1.25) brightness(1.04);
+  filter: saturate(1.24) brightness(1.04);
 }
 
 @media (max-width: 720px) {
   .mechanical-disc {
-    width: min(390px, 94vw);
-    aspect-ratio: 0.78;
+    width: min(372px, 94vw);
   }
 
+  .mechanical-disc__case {
+    gap: 12px;
+    min-height: auto;
+    padding: 18px;
+  }
+
+  .mechanical-disc__screw:nth-child(1) { top: 14px; left: 14px; }
+  .mechanical-disc__screw:nth-child(2) { top: 14px; right: 14px; }
+  .mechanical-disc__screw:nth-child(3) { bottom: 14px; left: 14px; }
+  .mechanical-disc__screw:nth-child(4) { bottom: 14px; right: 14px; }
+
   .mechanical-disc__brand {
-    top: 24px;
-    left: 28px;
+    padding-inline: 8px;
   }
 
   .mechanical-disc__assembly {
-    inset: 72px 24px 58px;
     grid-template-columns: 1fr;
     gap: 12px;
   }
@@ -568,21 +608,44 @@ onBeforeUnmount(() => {
   }
 
   .mechanical-disc__disc-bay {
-    width: min(280px, 74vw);
-    justify-self: center;
+    min-height: 220px;
+  }
+
+  .mechanical-disc__rotor {
+    width: min(76vw, 260px);
   }
 
   .mechanical-disc__module {
     width: 100%;
+    padding: 12px;
   }
 
   .mechanical-disc__oled {
-    min-height: 78px;
+    min-height: 96px;
   }
 
   .mechanical-disc__strip {
-    left: 28px;
-    right: 28px;
+    padding-inline: 8px;
+  }
+}
+
+@media (max-width: 390px) {
+  .mechanical-disc__case {
+    padding: 16px;
+  }
+
+  .mechanical-disc__disc-bay {
+    min-height: 204px;
+  }
+
+  .mechanical-disc__module {
+    gap: 9px;
+  }
+
+  .mechanical-disc__controls button,
+  .mechanical-disc__vote {
+    font-size: 9px;
+    letter-spacing: 0.09em;
   }
 }
 

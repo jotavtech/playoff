@@ -147,11 +147,12 @@ const trackLine = computed(() => {
 }
 
 .bar__play {
-  padding: 10px 18px;
+  min-height: 44px;
+  padding: 0 18px;
   border: 1px solid var(--glass-border);
   background: var(--glass);
   color: var(--ink);
-  letter-spacing: 0.2em;
+  letter-spacing: 0.14em;
   transition: border-color var(--t-fast) linear, background var(--t-fast) linear;
 }
 

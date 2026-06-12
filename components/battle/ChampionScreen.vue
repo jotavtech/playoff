@@ -72,12 +72,20 @@ async function shareResult () {
 .champion {
   display: grid;
   justify-items: center;
-  gap: 16px;
+  gap: 15px;
+  width: min(760px, 100%);
+  margin-inline: auto;
+  padding: clamp(12px, 3vw, 24px);
+  border: 1px solid rgba(57, 255, 156, 0.2);
+  background:
+    radial-gradient(circle at 50% 22%, rgba(57, 255, 156, 0.1), transparent 40%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(0, 0, 0, 0.2));
+  box-shadow: inset 0 0 48px rgba(57, 255, 156, 0.03);
   text-align: center;
 }
 
 .champion__cover {
-  width: min(280px, 72vw);
+  width: min(300px, 70vw);
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -96,16 +104,18 @@ async function shareResult () {
 }
 
 .champion__copy h2 {
-  max-width: 12ch;
-  font-size: clamp(38px, 8vw, 92px);
-  line-height: 0.92;
+  max-width: 14ch;
+  overflow-wrap: anywhere;
+  font-size: clamp(36px, 7vw, 82px);
+  line-height: 0.94;
 }
 
 .champion__actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
   justify-content: center;
   gap: 10px;
+  width: 100%;
 }
 
 .champion__btn {
@@ -113,7 +123,10 @@ async function shareResult () {
   padding: 0 18px;
   border: 1px solid var(--glass-border);
   color: var(--ink);
-  letter-spacing: 0.18em;
+  letter-spacing: 0.13em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .champion__btn:hover {
@@ -129,8 +142,12 @@ async function shareResult () {
 
 @media (max-width: 640px) {
   .champion__actions {
+    grid-template-columns: 1fr;
+  }
+
+  .champion__btn {
     width: 100%;
-    flex-direction: column;
+    min-height: 56px;
   }
 }
 </style>
