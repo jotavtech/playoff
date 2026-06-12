@@ -139,22 +139,22 @@ function onTap () {
 }
 
 .mini-player__title {
-  font-size: 14px; /* ok: microtext, não é conteúdo principal */
+  font-size: 16px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--ink);
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .mini-player__artist {
-  font-size: 12px; /* ok: microtext secundário */
+  font-size: 16px;
   color: var(--ink-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .mini-player__bar {

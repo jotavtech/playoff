@@ -82,12 +82,12 @@ defineProps<{
 }
 
 .queue-item__artist {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--ink-faint);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .queue-item__meta {
@@ -100,14 +100,14 @@ defineProps<{
 
 .queue-item__votes {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 16px;
   color: var(--ink-dim);
   letter-spacing: 0.05em;
 }
 
 .queue-item__duration {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 16px;
   color: var(--ink-faint);
   letter-spacing: 0.05em;
 }

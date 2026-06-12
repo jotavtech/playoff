@@ -73,7 +73,7 @@
   --lyric-future: 0.7;
   --lyric-past: 0.4;
   --vinyl-spin-duration: 8s;
-  --mini-player-height: 64px;
+  --mini-player-height: 72px;
   --page-bottom-pad: calc(var(--nav-height) + var(--mini-player-height) + var(--safe-bottom) + 8px);
 
   /* Timing cinematográfico */

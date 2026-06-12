@@ -13,7 +13,12 @@ const props = defineProps<{
 const rootEl = ref<HTMLElement | null>(null)
 const isVisible = ref(true)
 const pulsing = ref(false)
+
+// Estado de desaceleração — simula "parar suavemente" (R9.2)
+const decelerating = ref(false)
+
 let pulseTimer: ReturnType<typeof setTimeout> | null = null
+let decelTimer: ReturnType<typeof setTimeout> | null = null
 
 // IntersectionObserver — pausa animação fora da tela (R9.6)
 let observer: IntersectionObserver | null = null
@@ -25,7 +30,12 @@ onMounted(() => {
   )
   observer.observe(rootEl.value)
 })
-onBeforeUnmount(() => { observer?.disconnect() })
+
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  if (pulseTimer) clearTimeout(pulseTimer)
+  if (decelTimer) clearTimeout(decelTimer)
+})
 
 // Pulso no voto (R9.4)
 watch(() => props.votePulse, (v) => {
@@ -34,17 +44,33 @@ watch(() => props.votePulse, (v) => {
   if (pulseTimer) clearTimeout(pulseTimer)
   pulseTimer = setTimeout(() => { pulsing.value = false }, 600)
 })
-onBeforeUnmount(() => { if (pulseTimer) clearTimeout(pulseTimer) })
+
+// Deceleration ao pausar — aumenta duração por 600ms antes de parar (R9.2)
+watch(() => props.status, (next, prev) => {
+  if (prev === 'playing' && next === 'paused') {
+    decelerating.value = true
+    if (decelTimer) clearTimeout(decelTimer)
+    decelTimer = setTimeout(() => { decelerating.value = false }, 600)
+  } else if (next === 'playing') {
+    decelerating.value = false
+  }
+})
+
+// Buffering: desacelera para 24s (R9.3)
+// Deceleration: usa 24s temporariamente (R9.2)
+// Playing normal: usa --vinyl-spin-duration (8s) (R9.1)
+const spinDuration = computed(() => {
+  if (props.status === 'buffering') return '24s'
+  if (decelerating.value) return '24s'
+  return 'var(--vinyl-spin-duration)'
+})
 
 const spinState = computed(() => {
   if (!isVisible.value) return 'paused'
   if (props.status === 'playing') return 'running'
+  if (decelerating.value) return 'running'
   return 'paused'
 })
-
-const spinDuration = computed(() =>
-  props.status === 'buffering' ? '16s' : 'var(--vinyl-spin-duration)'
-)
 </script>
 
 <template>
@@ -60,14 +86,11 @@ const spinDuration = computed(() =>
     }"
     aria-hidden="true"
   >
-    <!-- Sulcos -->
     <div class="home-vinyl__grooves" />
-    <!-- Capa como label -->
     <div
       class="home-vinyl__label"
       :style="cover ? { backgroundImage: `url(${cover})` } : {}"
     />
-    <!-- Furo central -->
     <div class="home-vinyl__hole" />
   </div>
 </template>
@@ -84,10 +107,9 @@ const spinDuration = computed(() =>
   animation: vinyl-spin var(--vinyl-spin-duration) linear infinite;
   will-change: transform;
   flex-shrink: 0;
-  transition: box-shadow 0.3s ease;
+  transition: box-shadow 0.3s ease, animation-duration 0.6s ease;
 }
 
-/* Sulcos radiais */
 .home-vinyl__grooves {
   position: absolute;
   inset: 0;
@@ -102,7 +124,6 @@ const spinDuration = computed(() =>
   --g: 4%;
 }
 
-/* Label central (capa do álbum) */
 .home-vinyl__label {
   position: absolute;
   inset: 25%;
@@ -111,7 +132,6 @@ const spinDuration = computed(() =>
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
 }
 
-/* Furo central */
 .home-vinyl__hole {
   position: absolute;
   inset: 0;
@@ -135,7 +155,7 @@ const spinDuration = computed(() =>
 
 @keyframes vinyl-pulse {
   0%   { box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 8px 40px rgba(0,0,0,0.7), 0 0 0 0 rgba(255,255,255,0.3); }
-  50%  { box-shadow: 0 0 0 1px rgba(255,255,255,0.1), 0 8px 60px rgba(0,0,0,0.5), 0 0 24px 8px rgba(255,255,255,0.12); }
+  50%  { box-shadow: 0 0 0 1px rgba(255,255,255,0.1),  0 8px 60px rgba(0,0,0,0.5), 0 0 24px 8px rgba(255,255,255,0.12); }
   100% { box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 8px 40px rgba(0,0,0,0.7), 0 0 0 0 rgba(255,255,255,0); }
 }
 

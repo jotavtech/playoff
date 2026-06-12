@@ -7,18 +7,21 @@ import type { SpotifyTrack } from '~/types/spotify'
 
 const RECONNECT_DELAYS = [2000, 4000, 8000, 16000]
 
+// Singleton — WebSocket e participantId são compartilhados entre todos os
+// chamadores de useRoom() na mesma sessão do browser. Sem isso, votar a partir
+// da VotingScreen (que não chama connect()) não enviaria nada.
+let _ws: WebSocket | null = null
+let _reconnectAttempt = 0
+let _heartbeatTimer: ReturnType<typeof setInterval> | null = null
+let _currentRoomId: string | null = null
+let _currentParticipantId: string | null = null
+let _beatUnsub: (() => void) | null = null
+
 export function useRoom () {
   const room = useRoomStore()
   const auth = useAuthStore()
   const music = useMusicVisualStore()
   const analyser = useAudioAnalyser()
-
-  let ws: WebSocket | null = null
-  let reconnectAttempt = 0
-  let heartbeatTimer: ReturnType<typeof setInterval> | null = null
-  let currentRoomId: string | null = null
-  let currentParticipantId: string | null = null
-  let beatUnsub: (() => void) | null = null
 
   // ─── Participant ID persistido por sessão ────────────────────────────────
   function getOrCreateParticipantId (): string {
@@ -35,25 +38,25 @@ export function useRoom () {
   // ─── Conexão WebSocket ───────────────────────────────────────────────────
   function connect (roomId: string) {
     if (!import.meta.client) return
-    currentRoomId = roomId
-    currentParticipantId = getOrCreateParticipantId()
-    room.participantId = currentParticipantId
+    _currentRoomId = roomId
+    _currentParticipantId = getOrCreateParticipantId()
+    room.participantId = _currentParticipantId
     _openSocket()
   }
 
   function _openSocket () {
-    if (!currentRoomId) return
+    if (!_currentRoomId) return
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
-    ws = new WebSocket(`${proto}//${location.host}/api/ws`)
+    _ws = new WebSocket(`${proto}//${location.host}/api/ws`)
 
-    ws.onopen = () => {
-      reconnectAttempt = 0
+    _ws.onopen = () => {
+      _reconnectAttempt = 0
       _send({
         type: 'join',
         payload: {
-          roomId: currentRoomId!,
-          participantId: currentParticipantId!,
-          displayName: auth.user?.display_name ?? `SIGNAL_${currentParticipantId!.slice(0, 4)}`,
+          roomId: _currentRoomId!,
+          participantId: _currentParticipantId!,
+          displayName: auth.user?.display_name ?? `SIGNAL_${_currentParticipantId!.slice(0, 4)}`,
           spotifyUserId: auth.user?.id ?? undefined
         }
       })
@@ -61,20 +64,20 @@ export function useRoom () {
       _startBeatBroadcast()
     }
 
-    ws.onmessage = (e) => {
+    _ws.onmessage = (e) => {
       let msg: WsServerMsg
       try { msg = JSON.parse(e.data) } catch { return }
       _handleMsg(msg)
     }
 
-    ws.onclose = () => {
+    _ws.onclose = () => {
       room.setConnected(false)
       _stopHeartbeat()
       _scheduleReconnect()
     }
 
-    ws.onerror = () => {
-      ws?.close()
+    _ws.onerror = () => {
+      _ws?.close()
     }
   }
 
@@ -101,11 +104,9 @@ export function useRoom () {
         room.applyTrackChanged(msg.payload.track)
         break
       case 'disc_pulse':
-        // Beat de outro participante → disco pulsa junto (PRD Radiola §9.2)
         music.pulseBeat()
         break
       case 'disc_flip':
-        // Virada sincronizada do disco para todos
         music.triggerFlip()
         break
       case 'error':
@@ -117,48 +118,46 @@ export function useRoom () {
   }
 
   function _scheduleReconnect () {
-    if (!currentRoomId) return
-    // Desiste após várias tentativas — em hosts sem WebSocket (Vercel serverless)
-    // nunca vai conectar; melhor avisar do que tentar pra sempre
-    if (reconnectAttempt >= 6) {
+    if (!_currentRoomId) return
+    if (_reconnectAttempt >= 6) {
       room.setConnectionFailed(true)
       return
     }
-    const delay = RECONNECT_DELAYS[Math.min(reconnectAttempt, RECONNECT_DELAYS.length - 1)]
-    reconnectAttempt++
+    const delay = RECONNECT_DELAYS[Math.min(_reconnectAttempt, RECONNECT_DELAYS.length - 1)]
+    _reconnectAttempt++
     setTimeout(() => {
-      if (currentRoomId) _openSocket()
+      if (_currentRoomId) _openSocket()
     }, delay)
   }
 
   function _startHeartbeat () {
     _stopHeartbeat()
-    heartbeatTimer = setInterval(() => _send({ type: 'ping' }), 25_000)
+    _heartbeatTimer = setInterval(() => _send({ type: 'ping' }), 25_000)
   }
 
   function _stopHeartbeat () {
-    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null }
+    if (_heartbeatTimer) { clearInterval(_heartbeatTimer); _heartbeatTimer = null }
   }
 
-  // Quem tem áudio rodando difunde seus beats; o servidor faz o throttle
   function _startBeatBroadcast () {
     _stopBeatBroadcast()
-    beatUnsub = analyser.subscribe((frame, beat) => {
+    _beatUnsub = analyser.subscribe((frame, beat) => {
       if (beat && music.isPlaying) _send({ type: 'beat_sync', payload: { energy: frame.energy } })
     })
   }
 
   function _stopBeatBroadcast () {
-    if (beatUnsub) { beatUnsub(); beatUnsub = null }
+    if (_beatUnsub) { _beatUnsub(); _beatUnsub = null }
   }
 
   function _send (msg: WsClientMsg) {
-    if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg))
+    if (_ws?.readyState === WebSocket.OPEN) _ws.send(JSON.stringify(msg))
   }
 
   // ─── Ações de sala ───────────────────────────────────────────────────────
   function addTrack (spotifyTrack: SpotifyTrack) {
-    if (!currentParticipantId) return
+    const pid = _currentParticipantId ?? room.participantId
+    if (!pid) return
     const track: TrackRef = {
       id: spotifyTrack.id,
       title: spotifyTrack.name,
@@ -169,35 +168,39 @@ export function useRoom () {
       durationMs: spotifyTrack.duration_ms,
       previewUrl: spotifyTrack.preview_url
     }
-    _send({ type: 'add_track', payload: { track, participantId: currentParticipantId } })
+    _send({ type: 'add_track', payload: { track, participantId: pid } })
   }
 
   function vote (trackId: string) {
-    if (!currentParticipantId) return
-    _send({ type: 'vote', payload: { trackId, participantId: currentParticipantId } })
+    const pid = _currentParticipantId ?? room.participantId
+    if (!pid) return
+    _send({ type: 'vote', payload: { trackId, participantId: pid } })
   }
 
   function unvote (trackId: string) {
-    if (!currentParticipantId) return
-    _send({ type: 'unvote', payload: { trackId, participantId: currentParticipantId } })
+    const pid = _currentParticipantId ?? room.participantId
+    if (!pid) return
+    _send({ type: 'unvote', payload: { trackId, participantId: pid } })
   }
 
   function superVote (trackId: string) {
-    if (!currentParticipantId) return
-    _send({ type: 'super_vote', payload: { trackId, participantId: currentParticipantId } })
+    const pid = _currentParticipantId ?? room.participantId
+    if (!pid) return
+    _send({ type: 'super_vote', payload: { trackId, participantId: pid } })
   }
 
   function nextTrack () {
-    if (!currentParticipantId) return
-    _send({ type: 'next_track', payload: { participantId: currentParticipantId } })
+    const pid = _currentParticipantId ?? room.participantId
+    if (!pid) return
+    _send({ type: 'next_track', payload: { participantId: pid } })
   }
 
   function disconnect () {
-    currentRoomId = null
+    _currentRoomId = null
     _stopHeartbeat()
     _stopBeatBroadcast()
-    ws?.close()
-    ws = null
+    _ws?.close()
+    _ws = null
     room.leave()
   }
 
