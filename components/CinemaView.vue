@@ -2,6 +2,7 @@
 import { useCinematicStore } from '~/stores/cinematic'
 import { useMusicVisualStore } from '~/stores/musicVisual'
 import { useSpotifyPlayer } from '~/composables/useSpotifyPlayer'
+import PlayerInsightPanel from '~/components/player/PlayerInsightPanel.vue'
 
 const cinematic = useCinematicStore()
 const music = useMusicVisualStore()
@@ -29,7 +30,7 @@ onMounted(() => {
 
       <!-- O Disco Radiola: coração da cena -->
       <div class="cinema__disc">
-        <VinylDisc :size="discSize" />
+        <VinylDisc :size="discSize" :show-shadow="false" />
       </div>
 
       <!-- Título corta entre faixas como cartela nova, não troca seca de texto -->
@@ -67,6 +68,8 @@ onMounted(() => {
 
       <!-- Mood Timeline da sessão (PRD Radiola §10.2) -->
       <MoodTimeline class="cinema__timeline" />
+
+      <PlayerInsightPanel v-if="music.currentTrack" class="cinema__insights" />
     </div>
 
     <p class="cinema__hint microtext" :class="{ 'cinema__hint--hidden': cinematic.smartIdle }">
@@ -80,14 +83,18 @@ onMounted(() => {
   position: relative;
   height: 100%;
   display: grid;
-  place-items: center;
+  place-items: start center;
+  overflow-y: auto;
+  padding: clamp(14px, 3vw, 28px);
 }
 
 .cinema__stage {
+  width: min(980px, 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 16px;
+  padding-bottom: 68px;
   text-align: center;
   transition: opacity 1.4s var(--ease-scene);
 }
@@ -141,6 +148,10 @@ onMounted(() => {
 
 .cinema__timeline {
   margin-top: 14px;
+}
+
+.cinema__insights {
+  margin-inline: auto;
 }
 
 .cinema__controls {

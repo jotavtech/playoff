@@ -1,5 +1,7 @@
 import type { QueueDramaEvent } from '~/types/cinematic'
 
+export type { QueueDramaEvent } from '~/types/cinematic'
+
 export interface Participant {
   id: string
   displayName: string

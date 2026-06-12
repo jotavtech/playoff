@@ -1,58 +1,85 @@
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useMusicVisualStore } from '~/stores/musicVisual'
 
-/**
- * Live Lyrics (PRD Radiola §10.8) — letras sincronizadas.
- *
- * A API pública do Spotify não expõe letras e o Genius exige chave + scraping,
- * então este composable nasce com um *provider plugável*: quando um endpoint de
- * letras estiver disponível, basta implementá-lo em `fetchLyrics`. Sem provider,
- * degrada em silêncio (available = false) e a camada não renderiza nada.
- */
+export type LyricsStatus =
+  | 'available'
+  | 'unavailable'
+  | 'loading'
+  | 'error'
+  | 'provider-required'
 
 export interface LyricLine {
-  /** Tempo de início em ms. */
   at: number
+  timeMs?: number
   text: string
 }
 
-// Hook de provider — null por padrão (sem fonte de letras configurada).
+export interface LyricsResult {
+  status: LyricsStatus
+  provider?: string
+  lines: LyricLine[]
+  message?: string
+}
+
 type LyricsProvider = (trackId: string, title: string, artist: string) => Promise<LyricLine[] | null>
 let provider: LyricsProvider | null = null
+let providerName = ''
 
-/** Registra um provedor de letras sincronizadas (ex.: endpoint próprio). */
-export function setLyricsProvider (fn: LyricsProvider) {
+export function setLyricsProvider (fn: LyricsProvider, name = 'custom') {
   provider = fn
+  providerName = name
 }
 
 export function useLyrics () {
   const music = useMusicVisualStore()
 
   const lines = ref<LyricLine[]>([])
-  const available = ref(false)
+  const status = ref<LyricsStatus>('provider-required')
+  const available = computed(() => status.value === 'available' && lines.value.length > 0)
   const activeIndex = ref(-1)
+  const message = ref('Lyrics are not available for this track yet. Connect a lyrics provider or open the track on Spotify.')
 
   async function load (trackId: string, title: string, artist: string) {
     lines.value = []
-    available.value = false
     activeIndex.value = -1
-    if (!provider) return
+    message.value = 'Lyrics are not available for this track yet. Connect a lyrics provider or open the track on Spotify.'
+
+    if (!provider) {
+      status.value = 'provider-required'
+      return
+    }
+
+    status.value = 'loading'
     try {
       const result = await provider(trackId, title, artist)
       if (result && result.length) {
-        lines.value = result
-        available.value = true
+        lines.value = result.map(line => ({
+          ...line,
+          at: line.at ?? line.timeMs ?? 0,
+          timeMs: line.timeMs ?? line.at ?? 0
+        }))
+        status.value = 'available'
+        return
       }
-    } catch { /* provider falhou — segue sem letras */ }
+
+      status.value = 'unavailable'
+      message.value = 'Lyrics unavailable for this track. The signal is locked.'
+    } catch {
+      status.value = 'error'
+      message.value = 'Lyrics signal lost. The player is using a safe fallback.'
+    }
   }
 
-  // Recarrega ao trocar de faixa
   watch(() => music.currentTrack?.id, (id) => {
-    const t = music.currentTrack
-    if (id && t) load(id, t.title, t.artist)
+    const track = music.currentTrack
+    if (id && track) load(id, track.title, track.artist)
+    else {
+      lines.value = []
+      activeIndex.value = -1
+      status.value = provider ? 'unavailable' : 'provider-required'
+    }
   }, { immediate: true })
 
-  // Sincroniza a linha ativa com o progresso
   watch(() => music.progressMs, (ms) => {
     if (!available.value) return
     let idx = -1
@@ -63,5 +90,12 @@ export function useLyrics () {
     activeIndex.value = idx
   })
 
-  return { lines, available, activeIndex }
+  const result = computed<LyricsResult>(() => ({
+    status: status.value,
+    provider: providerName || undefined,
+    lines: lines.value,
+    message: message.value
+  }))
+
+  return { lines, available, activeIndex, status, message, result, load }
 }

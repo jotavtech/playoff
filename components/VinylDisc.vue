@@ -13,9 +13,11 @@ const props = withDefaults(defineProps<{
   size?: number
   /** Mostra o braço (omitido em telas estreitas). */
   showArm?: boolean
+  showShadow?: boolean
 }>(), {
   size: 360,
-  showArm: true
+  showArm: true,
+  showShadow: true
 })
 
 const music = useMusicVisualStore()
@@ -183,7 +185,7 @@ watch(() => [props.size, drawGrooves.value], () => nextTick(renderGrooves))
     @pointercancel="onPointerUp"
   >
     <!-- Layer 0 — sombra de contato (estática) -->
-    <div class="vinyl__shadow" />
+    <div v-if="showShadow" class="vinyl__shadow" />
 
     <!-- Layer 1 — corpo do vinil + ranhuras (gira +angle) -->
     <div class="vinyl__body">

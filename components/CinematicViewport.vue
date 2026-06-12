@@ -2,6 +2,7 @@
 import { useCinematicStore } from '~/stores/cinematic'
 import { useMusicVisualStore } from '~/stores/musicVisual'
 import { useChromaticEngine } from '~/composables/useChromaticEngine'
+import PlayoffToast from '~/components/ui/PlayoffToast.vue'
 
 const cinematic = useCinematicStore()
 const music = useMusicVisualStore()
@@ -89,6 +90,7 @@ const sceneVars = computed(() => {
 
     <!-- Layer 11 — corte de cena na troca de faixa -->
     <TrackTransitionOverlay />
+    <PlayoffToast />
   </div>
 </template>
 

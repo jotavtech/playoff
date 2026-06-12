@@ -5,12 +5,17 @@ import { useAuthStore } from '~/stores/auth'
 import { useAuth } from '~/composables/useAuth'
 import { useRoom } from '~/composables/useRoom'
 import { loadGoWithTheFlow } from '~/composables/useDemoSignal'
+import { usePlayoffFeedback } from '~/composables/usePlayoffFeedback'
+import { useBattleEngine } from '~/composables/useBattleEngine'
+import PlayoffMechanicalDisc from '~/components/hero/PlayoffMechanicalDisc.vue'
 
 const cinematic = useCinematicStore()
 const music = useMusicVisualStore()
 const auth = useAuthStore()
 const { login } = useAuth()
 const { createRoom } = useRoom()
+const { notify } = usePlayoffFeedback()
+const battle = useBattleEngine()
 const router = useRouter()
 
 const creatingRoom = ref(false)
@@ -23,36 +28,33 @@ async function onCreateRoom () {
   const id = await createRoom('PLAYOFF SESSION')
   creatingRoom.value = false
   if (id) router.push(`/room/${id}`)
+  else notify('error')
 }
 
-// CTA dinâmico (PRD §5.5.3): com música tocando vira `Enter Cinema View`;
-// sem música, abre a busca no Command Center
 function onPrimaryCta () {
   if (music.currentTrack) cinematic.toggleCinemaView()
   else cinematic.toggleCommandCenter()
 }
 
-// Login Spotify com feedback de "conectando" antes do redirect (PRD §UX/Login)
 function onLogin () {
   if (connecting.value) return
   auth.setAuthError(null)
   connecting.value = true
-  // pequeno atraso para o estado "CONNECTING" pintar antes do redirect cheio
   setTimeout(() => login(), 280)
 }
 
-// Demo mode: entra direto numa cena real pelo mesmo pipeline do Spotify
 async function onDemo () {
   if (loadingDemo.value) return
   loadingDemo.value = true
   try {
     await loadGoWithTheFlow()
+    await battle.startBattle('quick')
+    notify('demo-mode')
   } finally {
     loadingDemo.value = false
   }
 }
 
-// Estado do objeto central (PRD §Background/Objeto central)
 const discState = computed(() => {
   if (music.currentTrack) return 'live'
   if (connecting.value) return 'connecting'
@@ -60,110 +62,140 @@ const discState = computed(() => {
   return 'offline'
 })
 
-// Disco em profundidade no Hero (PRD Radiola §8.2: Hero 280–320px)
-const heroDiscSize = ref(300)
-function measure () {
-  if (!import.meta.client) return
-  const v = Math.min(window.innerWidth, window.innerHeight)
-  heroDiscSize.value = Math.max(200, Math.min(320, Math.round(v * 0.42)))
-}
-onMounted(() => {
-  measure()
-  window.addEventListener('resize', measure, { passive: true })
-  onBeforeUnmount(() => window.removeEventListener('resize', measure))
+const discMode = computed(() => {
+  if (connecting.value) return 'loading-profile'
+  if (music.currentTrack && music.isPlaying) return 'preview'
+  if (music.currentTrack) return 'paused'
+  if (auth.isAuthenticated) return 'battle-reveal'
+  return 'landing'
 })
+
+function onMechanicalVote () {
+  notify({
+    title: 'LANDING VOTE PREVIEW',
+    message: 'The battle vote flow is ready in Quick Battle.',
+    kind: 'info'
+  })
+}
+
+function onMechanicalControl () {
+  notify({
+    title: 'MECHANICAL DISC',
+    message: 'Disc controls are visual here. Search or start a battle to control real tracks.',
+    kind: 'info'
+  })
+}
 </script>
 
 <template>
   <section class="hero editorial-grid" :class="`hero--${discState}`">
-    <!-- Objeto central: disco em profundidade, reage ao estado do sistema -->
-    <div class="hero__disc" :class="`hero__disc--${discState}`" aria-hidden="true">
-      <VinylDisc :size="heroDiscSize" :show-arm="false" />
-    </div>
+    <div class="hero__layout">
+      <div class="hero__composition">
+        <p class="hero__kicker microtext">
+          <span class="hero__rule" aria-hidden="true" />
+          SESSION 2026 / LIVE
+          <span class="hero__rule" aria-hidden="true" />
+        </p>
 
-    <div class="hero__composition">
-      <!-- Kicker — intertítulo curto de cinema -->
-      <p class="hero__kicker microtext">
-        <span class="hero__rule" aria-hidden="true" />
-        CINEMATIC MUSIC BATTLES
-        <span class="hero__rule" aria-hidden="true" />
-      </p>
-
-      <!-- Wordmark da marca — logo chrome (PRD §Hero) -->
-      <h1 class="hero__title">
-        <img
-          class="hero__logo"
-          src="/logo-playoff.png"
-          alt="Playoff"
-          width="694"
-          height="394"
-          draggable="false"
-        >
-      </h1>
-
-      <!-- Subtítulo: explica o produto em uma linha -->
-      <p v-if="!music.currentTrack" class="hero__subtitle">
-        Music battles powered by your Spotify taste.
-      </p>
-      <p v-else class="hero__track microtext microtext--bright">
-        NOW PLAYING — {{ music.currentTrack.title }} · {{ music.currentTrack.artist }}
-      </p>
-
-      <div class="hero__ctas">
-        <!-- Autenticado: busca e cinema -->
-        <template v-if="auth.isAuthenticated">
-          <button class="hero__cta hero__cta--primary" @click="onPrimaryCta">
-            <span class="hero__cta-label">{{ music.currentTrack ? 'ENTER CINEMA VIEW' : 'SEARCH MUSIC' }}</span>
-          </button>
-          <button class="hero__cta hero__cta--ghost" :disabled="creatingRoom" @click="onCreateRoom">
-            <span class="hero__cta-label">{{ creatingRoom ? 'OPENING…' : 'CREATE ROOM' }}</span>
-          </button>
-        </template>
-
-        <!-- Não autenticado: login premium + demo -->
-        <template v-else>
-          <button
-            class="hero__cta hero__cta--spotify"
-            :class="{ 'hero__cta--connecting': connecting }"
-            :disabled="connecting"
-            @click="onLogin"
+        <h1 class="hero__title">
+          <img
+            class="hero__logo"
+            src="/logo-playoff.png"
+            alt="Playoff"
+            width="694"
+            height="394"
+            draggable="false"
           >
-            <svg v-if="!connecting" class="hero__spotify-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm4.586 14.424a.623.623 0 0 1-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.87 7.076-.496 9.712 1.115a.623.623 0 0 1 .207.857Zm1.224-2.723a.78.78 0 0 1-1.072.257c-2.687-1.652-6.785-2.13-9.965-1.166a.78.78 0 1 1-.452-1.493c3.632-1.101 8.147-.568 11.232 1.329a.78.78 0 0 1 .257 1.073Zm.105-2.835c-3.223-1.914-8.54-2.09-11.617-1.156a.935.935 0 1 1-.542-1.79c3.532-1.072 9.404-.865 13.115 1.338a.935.935 0 1 1-.956 1.608Z"
-              />
-            </svg>
-            <span class="hero__cta-label">{{ connecting ? 'CONNECTING TO SPOTIFY…' : 'CONTINUE WITH SPOTIFY' }}</span>
-          </button>
+        </h1>
 
-          <button
-            class="hero__cta hero__cta--demo"
-            :disabled="loadingDemo"
-            @click="onDemo"
-          >
-            <span class="hero__cta-label">{{ loadingDemo ? 'LOADING SCENE…' : 'TRY DEMO MODE' }}</span>
-          </button>
-        </template>
+        <div class="hero__copy">
+          <p class="hero__headline">Go with the flow.</p>
+          <p v-if="!music.currentTrack" class="hero__subtitle">
+            A vote-driven tracklist where every song earns its rotation.
+            No skips. No algorithm. Only the community decides.
+          </p>
+          <p v-else class="hero__track microtext microtext--bright">
+            NOW PLAYING / {{ music.currentTrack.title }} / {{ music.currentTrack.artist }}
+          </p>
+        </div>
+
+        <div class="hero__ctas">
+          <template v-if="music.currentTrack">
+            <button class="hero__cta hero__cta--primary" type="button" @click="cinematic.toggleCinemaView()">
+              <span class="hero__cta-label">ENTER CINEMA VIEW</span>
+            </button>
+            <button class="hero__cta hero__cta--ghost" type="button" @click="cinematic.toggleCommandCenter()">
+              <span class="hero__cta-label">SEARCH MUSIC</span>
+            </button>
+          </template>
+
+          <template v-else-if="auth.isAuthenticated">
+            <button class="hero__cta hero__cta--primary" type="button" @click="onPrimaryCta">
+              <span class="hero__cta-label">{{ music.currentTrack ? 'ENTER CINEMA VIEW' : 'SEARCH MUSIC' }}</span>
+            </button>
+            <button class="hero__cta hero__cta--ghost" type="button" :disabled="creatingRoom" @click="onCreateRoom">
+              <span class="hero__cta-label">{{ creatingRoom ? 'OPENING...' : 'CREATE ROOM' }}</span>
+            </button>
+          </template>
+
+          <template v-else>
+            <button
+              class="hero__cta hero__cta--spotify"
+              type="button"
+              :class="{ 'hero__cta--connecting': connecting }"
+              :disabled="connecting"
+              @click="onLogin"
+            >
+              <svg v-if="!connecting" class="hero__spotify-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm4.586 14.424a.623.623 0 0 1-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.87 7.076-.496 9.712 1.115a.623.623 0 0 1 .207.857Zm1.224-2.723a.78.78 0 0 1-1.072.257c-2.687-1.652-6.785-2.13-9.965-1.166a.78.78 0 1 1-.452-1.493c3.632-1.101 8.147-.568 11.232 1.329a.78.78 0 0 1 .257 1.073Zm.105-2.835c-3.223-1.914-8.54-2.09-11.617-1.156a.935.935 0 1 1-.542-1.79c3.532-1.072 9.404-.865 13.115 1.338a.935.935 0 1 1-.956 1.608Z"
+                />
+              </svg>
+              <span class="hero__cta-label">{{ connecting ? 'CONNECTING TO SPOTIFY...' : 'CONTINUE WITH SPOTIFY' }}</span>
+            </button>
+
+            <button
+              class="hero__cta hero__cta--demo"
+              type="button"
+              :disabled="loadingDemo"
+              @click="onDemo"
+            >
+              <span class="hero__cta-label">{{ loadingDemo ? 'LOADING SCENE...' : 'START QUICK BATTLE DEMO' }}</span>
+            </button>
+          </template>
+        </div>
+
+        <p v-if="auth.authError" class="hero__error" role="alert">
+          {{ auth.authError }}
+        </p>
+
+        <p v-else-if="!auth.isAuthenticated && !music.currentTrack" class="hero__helper">
+          <span class="hero__helper-full">Cada faixa entra na rotacao se a comunidade girar. Ninguem pula. So vota.</span>
+          <span class="hero__helper-short">Spotify login unlocks personalized battles.</span>
+        </p>
+
+        <div class="hero__footnotes microtext">
+          <span>{{ music.statusLabel }}</span>
+          <span v-if="auth.isAuthenticated">
+            {{ auth.isPremium ? 'PREMIUM SDK ACTIVE' : 'FREE / PREVIEW MODE' }}
+          </span>
+        </div>
       </div>
 
-      <!-- Erro de conexão Spotify, mensagem clara (PRD §UX/Login) -->
-      <p v-if="auth.authError" class="hero__error" role="alert">
-        {{ auth.authError }}
-      </p>
-
-      <!-- Texto de apoio -->
-      <p v-else-if="!auth.isAuthenticated && !music.currentTrack" class="hero__helper">
-        <span class="hero__helper-full">Connect your Spotify account to generate cinematic music battles from your listening profile.</span>
-        <span class="hero__helper-short">Spotify login unlocks your personalized music battles.</span>
-      </p>
-
-      <div class="hero__footnotes microtext">
-        <span>{{ music.statusLabel }}</span>
-        <span v-if="auth.isAuthenticated">
-          {{ auth.isPremium ? 'PREMIUM SDK ACTIVE' : 'FREE — PREVIEW MODE' }}
-        </span>
-      </div>
+      <PlayoffMechanicalDisc
+        class="hero__mechanical"
+        :title="music.currentTrack?.title"
+        :artist="music.currentTrack?.artist"
+        :cover-url="music.currentTrack?.coverUrl"
+        :is-playing="music.isPlaying"
+        :progress="music.progress"
+        :votes="auth.isAuthenticated ? 88 : 42"
+        :flow-index="auth.isAuthenticated ? 9 : 5"
+        :mode="discMode"
+        @vote="onMechanicalVote"
+        @control="onMechanicalControl"
+      />
     </div>
   </section>
 </template>
@@ -172,10 +204,21 @@ onMounted(() => {
 .hero {
   position: relative;
   height: 100%;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   padding-inline: clamp(12px, 4vw, 48px);
+}
+
+.hero__layout {
+  position: relative;
+  z-index: 1;
+  width: min(1120px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(360px, 1fr);
+  align-items: center;
+  gap: clamp(24px, 5vw, 68px);
 }
 
 .hero__composition {
@@ -184,64 +227,11 @@ onMounted(() => {
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 20px;
-  text-align: center;
+  text-align: left;
 }
 
-/* ── Objeto central ─────────────────────────────────────────────────────── */
-.hero__disc {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  translate: -50% -50%;
-  z-index: 0;
-  transition: opacity 1.2s var(--ease-scene), filter 1.2s var(--ease-scene);
-}
-
-/* offline — CD holográfico recuado, mas com iridescência viva */
-.hero__disc--offline {
-  opacity: 0.6;
-  filter: saturate(1.05) brightness(0.96);
-}
-
-/* ready (logado, sem faixa) — desperta levemente */
-.hero__disc--ready {
-  opacity: 0.66;
-  filter: saturate(1.15);
-}
-
-/* connecting — pulso luminoso enquanto conecta */
-.hero__disc--connecting {
-  opacity: 0.62;
-  filter: saturate(1.1);
-  animation: disc-pulse 1.4s var(--ease-scene) infinite;
-}
-
-/* live — reage à música, cor cheia */
-.hero__disc--live {
-  opacity: 0.58;
-  filter: saturate(1.15);
-}
-
-@keyframes disc-pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.7; }
-}
-
-/* hover sobre o hero gira lentamente o disco quando está parado */
-.hero--offline:hover .hero__disc--offline,
-.hero--ready:hover .hero__disc--ready {
-  opacity: 0.5;
-  animation: disc-idle-spin 28s linear infinite;
-}
-
-@keyframes disc-idle-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-
-/* ── Kicker ──────────────────────────────────────────────────────────────── */
 .hero__kicker {
   display: flex;
   align-items: center;
@@ -264,7 +254,6 @@ onMounted(() => {
   to   { transform: scaleX(1); }
 }
 
-/* ── Wordmark (logo chrome) ──────────────────────────────────────────────── */
 .hero__title {
   margin: 0;
   line-height: 0;
@@ -273,10 +262,9 @@ onMounted(() => {
 
 .hero__logo {
   display: block;
-  width: clamp(260px, 46vw, 560px);
+  width: clamp(248px, 35vw, 460px);
   height: auto;
   user-select: none;
-  /* profundidade sutil + leve halo da cor da música quando há sinal */
   filter:
     drop-shadow(0 8px 28px rgba(0, 0, 0, 0.55))
     drop-shadow(0 0 calc(14px * var(--music-reactivity, 0.2)) var(--music-glow, transparent));
@@ -287,22 +275,34 @@ onMounted(() => {
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── Subtítulo / faixa ───────────────────────────────────────────────────── */
+.hero__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hero__headline {
+  font-size: clamp(28px, 5vw, 58px);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+
 .hero__subtitle {
+  max-width: 36ch;
+  color: var(--ink-dim);
   font-size: clamp(15px, 2.2vw, 19px);
   font-weight: 400;
-  letter-spacing: -0.01em;
-  color: var(--ink-dim);
-  max-width: 30ch;
+  letter-spacing: 0;
+  line-height: 1.45;
   animation: card-reveal 1s var(--ease-scene) 0.4s both;
 }
 
 .hero__track {
-  letter-spacing: 0.24em;
+  letter-spacing: 0.18em;
   animation: card-reveal 1s var(--ease-scene) 0.4s both;
 }
 
-/* ── CTAs ────────────────────────────────────────────────────────────────── */
 .hero__ctas {
   display: flex;
   align-items: stretch;
@@ -326,7 +326,7 @@ onMounted(() => {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   transition: transform var(--t-fast) var(--ease-liquid),
               background var(--t-fast) linear,
@@ -348,18 +348,15 @@ onMounted(() => {
   transform: translateY(-2px);
 }
 
-/* Primário Spotify — premium, inevitável */
 .hero__cta--spotify {
   height: 64px;
   padding: 0 34px;
-  border-radius: 2px;
+  border: 1px solid #f5f5f0;
   background: #f5f5f0;
   color: #050505;
-  border: 1px solid #f5f5f0;
 }
 
 .hero__cta--spotify::after {
-  /* brilho interno no hover */
   content: '';
   position: absolute;
   inset: 0;
@@ -380,13 +377,12 @@ onMounted(() => {
   color: #1db954;
 }
 
-/* Estado conectando — pulso verde sutil */
 .hero__cta--connecting {
+  border-color: rgba(29, 185, 84, 0.5);
   background: #0d150f;
   color: #d8f5e2;
-  border-color: rgba(29, 185, 84, 0.5);
-  animation: connecting-glow 1.3s ease-in-out infinite;
   cursor: progress;
+  animation: connecting-glow 1.3s ease-in-out infinite;
 }
 
 @keyframes connecting-glow {
@@ -394,13 +390,11 @@ onMounted(() => {
   50% { box-shadow: 0 0 26px 2px rgba(29, 185, 84, 0.32); }
 }
 
-/* Secundário demo — claramente secundário, ainda bonito */
 .hero__cta--demo {
   height: 56px;
   padding: 0 28px;
-  border-radius: 2px;
-  background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
   color: rgba(255, 255, 255, 0.88);
 }
 
@@ -409,14 +403,12 @@ onMounted(() => {
   background: var(--glass);
 }
 
-/* CTAs autenticado — herdam linguagem mas mais sóbrios */
 .hero__cta--primary {
   height: 60px;
   padding: 0 30px;
-  border-radius: 2px;
+  border: 1px solid var(--ink);
   background: var(--ink);
   color: var(--bg);
-  border: 1px solid var(--ink);
 }
 
 .hero__cta--primary:hover:not(:disabled) {
@@ -427,9 +419,8 @@ onMounted(() => {
 .hero__cta--ghost {
   height: 60px;
   padding: 0 28px;
-  border-radius: 2px;
-  background: transparent;
   border: 1px solid var(--ink-dim);
+  background: transparent;
   color: var(--ink);
 }
 
@@ -442,29 +433,29 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-/* ── Texto de apoio / erro ───────────────────────────────────────────────── */
 .hero__helper {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1.5;
-  letter-spacing: 0.04em;
-  color: var(--ink-faint);
   max-width: 44ch;
   margin-top: 2px;
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
   animation: card-reveal 1s var(--ease-scene) 0.7s both;
 }
 
-.hero__helper-short { display: none; }
+.hero__helper-short {
+  display: none;
+}
 
 .hero__error {
+  max-width: 42ch;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 138, 122, 0.4);
+  color: #ff8a7a;
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.06em;
-  color: #ff8a7a;
-  border: 1px solid rgba(255, 138, 122, 0.4);
-  padding: 10px 16px;
-  border-radius: 2px;
-  max-width: 42ch;
   animation: card-reveal 0.5s var(--ease-scene) both;
 }
 
@@ -475,15 +466,67 @@ onMounted(() => {
   animation: card-reveal 1s var(--ease-scene) 0.8s both;
 }
 
+.hero__mechanical {
+  justify-self: end;
+}
+
 @media (max-width: 768px) {
-  .hero__composition { gap: 16px; }
-  .hero__kicker { font-size: 9px; letter-spacing: 0.28em; }
-  .hero__rule { width: 18px; }
-  .hero__ctas { flex-direction: column; width: min(340px, 86vw); }
-  .hero__cta { width: 100%; }
-  .hero__subtitle { max-width: 26ch; }
-  .hero__helper-full { display: none; }
-  .hero__helper-short { display: inline; }
-  .hero__footnotes { gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .hero {
+    align-items: start;
+    overflow-y: auto;
+    padding: 18px 14px 16px;
+  }
+
+  .hero__layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    justify-items: center;
+  }
+
+  .hero__composition {
+    align-items: center;
+    gap: 14px;
+    text-align: center;
+  }
+
+  .hero__kicker {
+    font-size: 9px;
+    letter-spacing: 0.28em;
+  }
+
+  .hero__rule {
+    width: 18px;
+  }
+
+  .hero__ctas {
+    flex-direction: column;
+    width: min(340px, 86vw);
+  }
+
+  .hero__cta {
+    width: 100%;
+  }
+
+  .hero__subtitle {
+    max-width: 28ch;
+  }
+
+  .hero__helper-full {
+    display: none;
+  }
+
+  .hero__helper-short {
+    display: inline;
+  }
+
+  .hero__footnotes {
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .hero__mechanical {
+    justify-self: center;
+  }
 }
 </style>
