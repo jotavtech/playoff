@@ -143,4 +143,9 @@ const systemStatus = computed(() => {
   .bar__meta-item { display: none; }
   .bar__meta-item--status { display: block; margin-right: 170px; }
 }
+
+/* Em telas estreitas o ModeSwitcher ocupa a barra inteira — o status colide */
+@media (max-width: 520px) {
+  .bar__meta-item--status { display: none; }
+}
 </style>

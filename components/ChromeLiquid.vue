@@ -9,9 +9,9 @@ const music = useMusicVisualStore()
  * Layer 03 — objeto chrome liquid.
  * Render CSS (morph de border-radius + gradiente cônico metálico).
  *
- * Hierarquia visual: SEM faixa, o chrome é o objeto-herói da landing.
- * COM faixa, o Disco Radiola assume o papel de metal central e o chrome
- * recua para atmosfera de fundo — senão os dois competem e lavam a cena.
+ * Hierarquia visual: o Disco Radiola é o herói em TODAS as cenas — o chrome
+ * é atmosfera off-axis (deslocado, translúcido). Com faixa tocando ele recua
+ * ainda mais — senão os dois metais competem e lavam a cena.
  */
 const simplified = computed(() => cinematic.performanceTier === 'low')
 const recede = computed(() => !!music.currentTrack)
@@ -38,7 +38,9 @@ const recede = computed(() => !!music.currentTrack)
   display: grid;
   place-items: center;
   pointer-events: none;
-  opacity: 0.78;
+  /* Off-axis: o chrome é uma presença ao fundo, não um segundo disco */
+  translate: -22% -10%;
+  opacity: 0.34;
   transition: opacity 1.6s var(--ease-scene);
 }
 

@@ -7,7 +7,7 @@ import { useRoom } from '~/composables/useRoom'
 import { loadGoWithTheFlow } from '~/composables/useDemoSignal'
 import { usePlayoffFeedback } from '~/composables/usePlayoffFeedback'
 import { useBattleEngine } from '~/composables/useBattleEngine'
-import PlayoffMechanicalDisc from '~/components/hero/PlayoffMechanicalDisc.vue'
+import VinylDisc from '~/components/VinylDisc.vue'
 
 const cinematic = useCinematicStore()
 const music = useMusicVisualStore()
@@ -55,45 +55,26 @@ async function onDemo () {
   }
 }
 
-const discState = computed(() => {
-  if (music.currentTrack) return 'live'
-  if (connecting.value) return 'connecting'
-  if (auth.isAuthenticated) return 'ready'
-  return 'offline'
+// O disco é dimensionado em px (o canvas das ranhuras precisa do valor real)
+const viewportW = ref(1280)
+function onResize () { viewportW.value = window.innerWidth }
+onMounted(() => { onResize(); window.addEventListener('resize', onResize) })
+onBeforeUnmount(() => window.removeEventListener('resize', onResize))
+
+const discSize = computed(() => {
+  const w = viewportW.value
+  if (w <= 900) return Math.round(Math.min(310, w * 0.74))
+  return Math.round(Math.min(480, w * 0.34))
 })
-
-const discMode = computed(() => {
-  if (connecting.value) return 'loading-profile'
-  if (music.currentTrack && music.isPlaying) return 'preview'
-  if (music.currentTrack) return 'paused'
-  if (auth.isAuthenticated) return 'battle-reveal'
-  return 'landing'
-})
-
-function onMechanicalVote () {
-  notify({
-    title: 'LANDING VOTE PREVIEW',
-    message: 'The battle vote flow is ready in Quick Battle.',
-    kind: 'info'
-  })
-}
-
-function onMechanicalControl () {
-  notify({
-    title: 'MECHANICAL DISC',
-    message: 'Disc controls are visual here. Search or start a battle to control real tracks.',
-    kind: 'info'
-  })
-}
 </script>
 
 <template>
-  <section class="hero editorial-grid" :class="`hero--${discState}`">
+  <section class="hero editorial-grid">
     <div class="hero__layout">
       <div class="hero__composition">
         <p class="hero__kicker microtext">
           <span class="hero__rule" aria-hidden="true" />
-          SESSION 2026 / LIVE
+          SESSION 2026{{ music.isPlaying ? ' / LIVE' : '' }}
           <span class="hero__rule" aria-hidden="true" />
         </p>
 
@@ -171,31 +152,29 @@ function onMechanicalControl () {
         </p>
 
         <p v-else-if="!auth.isAuthenticated && !music.currentTrack" class="hero__helper">
-          <span class="hero__helper-full">Cada faixa entra na rotacao se a comunidade girar. Ninguem pula. So vota.</span>
+          <span class="hero__helper-full">Cada faixa entra na rotação se a comunidade girar. Ninguém pula. Só vota.</span>
           <span class="hero__helper-short">Spotify login unlocks personalized battles.</span>
         </p>
 
         <div class="hero__footnotes microtext">
-          <span>{{ music.statusLabel }}</span>
+          <span>NO SKIPS / ONLY VOTES</span>
           <span v-if="auth.isAuthenticated">
             {{ auth.isPremium ? 'PREMIUM SDK ACTIVE' : 'FREE / PREVIEW MODE' }}
           </span>
         </div>
       </div>
 
-      <PlayoffMechanicalDisc
-        class="hero__mechanical"
-        :title="music.currentTrack?.title"
-        :artist="music.currentTrack?.artist"
-        :cover-url="music.currentTrack?.coverUrl"
-        :is-playing="music.isPlaying"
-        :progress="music.progress"
-        :votes="auth.isAuthenticated ? 88 : 42"
-        :flow-index="auth.isAuthenticated ? 9 : 5"
-        :mode="discMode"
-        @vote="onMechanicalVote"
-        @control="onMechanicalControl"
-      />
+      <!-- A alma do site: o vinil real, com física, girando desde o primeiro frame -->
+      <div class="hero__stage">
+        <div class="hero__stage-glow" aria-hidden="true" />
+        <VinylDisc :size="discSize" :idle-rpm="8" />
+        <p class="hero__stage-meta microtext">
+          <span>{{ music.statusLabel }}</span>
+          <span aria-hidden="true">/</span>
+          <span v-if="music.currentTrack">{{ music.timecode }}</span>
+          <span v-else>33 RPM</span>
+        </p>
+      </div>
     </div>
   </section>
 </template>
@@ -218,7 +197,7 @@ function onMechanicalControl () {
   z-index: 1;
   width: min(1180px, 100%);
   display: grid;
-  grid-template-columns: minmax(300px, 0.86fr) minmax(470px, 1.14fr);
+  grid-template-columns: minmax(300px, 1fr) auto;
   align-items: center;
   gap: clamp(22px, 4vw, 56px);
 }
@@ -468,8 +447,34 @@ function onMechanicalControl () {
   animation: card-reveal 1s var(--ease-scene) 0.8s both;
 }
 
-.hero__mechanical {
+.hero__stage {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-self: end;
+  gap: clamp(16px, 2.4vh, 26px);
+  padding: clamp(8px, 1.4vw, 20px);
+  animation: card-reveal 1.3s var(--ease-scene) 0.3s both;
+}
+
+/* Halo da cor da música atrás do disco — no idle é um respiro neutro */
+.hero__stage-glow {
+  position: absolute;
+  inset: -14% -14% 6% -14%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 44%, var(--music-glow, rgba(154, 154, 154, 0.1)), transparent 62%);
+  filter: blur(34px);
+  opacity: calc(0.55 + 0.45 * var(--music-reactivity, 0.2));
+  pointer-events: none;
+}
+
+.hero__stage-meta {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  letter-spacing: 0.26em;
 }
 
 @media (max-width: 900px) {
@@ -553,8 +558,9 @@ function onMechanicalControl () {
     justify-content: center;
   }
 
-  .hero__mechanical {
+  .hero__stage {
     justify-self: center;
+    gap: 12px;
   }
 }
 
