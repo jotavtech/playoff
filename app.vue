@@ -2,6 +2,7 @@
 import { useCinematicStore } from '~/stores/cinematic'
 import { useAuth } from '~/composables/useAuth'
 import { useAudioReactor } from '~/composables/useAudioReactor'
+import { useRoom } from '~/composables/useRoom'
 import { loadGoWithTheFlow } from '~/composables/useDemoSignal'
 import KaraokeMode from '~/components/karaoke/KaraokeMode.vue'
 import EqualizerPanel from '~/components/EqualizerPanel.vue'
@@ -10,6 +11,7 @@ import MiniPlayer from '~/components/shell/MiniPlayer.vue'
 
 const cinematic = useCinematicStore()
 const { boot } = useAuth()
+const { restoreSession: restoreRoomSession } = useRoom()
 
 usePlatformAdaptation()
 useSmartIdle()
@@ -19,6 +21,9 @@ useAudioReactor()
 
 onMounted(async () => {
   cinematic.restoreSession()
+  // Reconecta à sala persistida — a sessão de sala sobrevive a reloads e à
+  // navegação entre as abas do shell mobile.
+  restoreRoomSession()
   await boot()
 
   if (import.meta.client && new URLSearchParams(location.search).has('demo')) {

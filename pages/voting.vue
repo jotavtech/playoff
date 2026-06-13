@@ -250,41 +250,42 @@ function fmtDuration (ms: number) {
 }
 
 .voting-screen__card-artist {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--ink-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .voting-screen__card-meta {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 16px;
   color: var(--ink-faint);
-  margin-top: 3px;
+  margin-top: 2px;
 }
 
 /* Ações secundárias: favoritar e dislike (R4.2) */
 .voting-screen__card-secondary {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   margin-top: 6px;
+  margin-left: -10px; /* compensa o padding interno dos botões 48px */
 }
 
 .voting-screen__secondary-btn {
-  width: 32px;
-  height: 32px;
+  width: var(--touch-min);
+  height: var(--touch-min);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 18px;
   border-radius: 50%;
   border: 1px solid transparent;
   transition: background var(--t-fast) linear, border-color var(--t-fast) linear, transform var(--t-fast) var(--ease-liquid);
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  opacity: 0.5;
+  opacity: 0.55;
 }
 
 .voting-screen__secondary-btn--active {

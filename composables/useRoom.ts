@@ -17,6 +17,10 @@ let _currentRoomId: string | null = null
 let _currentParticipantId: string | null = null
 let _beatUnsub: (() => void) | null = null
 
+// A sala é uma sessão persistente: sobrevive à navegação entre abas e a
+// reloads. Só um "Sair" explícito encerra. Guardamos o id para reconectar.
+const ROOM_KEY = 'playoff:room_id'
+
 export function useRoom () {
   const room = useRoomStore()
   const auth = useAuthStore()
@@ -38,10 +42,23 @@ export function useRoom () {
   // ─── Conexão WebSocket ───────────────────────────────────────────────────
   function connect (roomId: string) {
     if (!import.meta.client) return
+    // Já conectado à mesma sala com socket vivo → no-op (idempotente).
+    if (_currentRoomId === roomId && _ws && _ws.readyState <= WebSocket.OPEN) return
+    // Trocando de sala → fecha o socket anterior antes de abrir o novo.
+    if (_ws) { try { _ws.close() } catch { /* noop */ } _ws = null }
     _currentRoomId = roomId
     _currentParticipantId = getOrCreateParticipantId()
     room.participantId = _currentParticipantId
+    try { sessionStorage.setItem(ROOM_KEY, roomId) } catch { /* noop */ }
     _openSocket()
+  }
+
+  /** Reconecta à sala persistida (chamado no boot do app). */
+  function restoreSession () {
+    if (!import.meta.client || _currentRoomId) return
+    let saved: string | null = null
+    try { saved = sessionStorage.getItem(ROOM_KEY) } catch { /* noop */ }
+    if (saved) connect(saved)
   }
 
   function _openSocket () {
@@ -197,6 +214,7 @@ export function useRoom () {
 
   function disconnect () {
     _currentRoomId = null
+    try { sessionStorage.removeItem(ROOM_KEY) } catch { /* noop */ }
     _stopHeartbeat()
     _stopBeatBroadcast()
     _ws?.close()
@@ -216,5 +234,5 @@ export function useRoom () {
     return data.id as string
   }
 
-  return { connect, disconnect, addTrack, vote, unvote, superVote, nextTrack, createRoom }
+  return { connect, restoreSession, disconnect, addTrack, vote, unvote, superVote, nextTrack, createRoom }
 }

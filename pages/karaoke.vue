@@ -176,7 +176,7 @@ const hasTrack = computed(() => !!music.currentTrack)
 /* ── Timecode (R5.5) ── */
 .karaoke-screen__timecode {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 16px;
   letter-spacing: 0.12em;
   color: var(--ink-faint);
   text-align: center;

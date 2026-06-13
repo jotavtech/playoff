@@ -35,9 +35,8 @@ onMounted(async () => {
   connect(roomId.value)
 })
 
-onBeforeUnmount(() => {
-  disconnect()
-})
+// A sala é uma sessão persistente: navegar para as abas (Votação, Fila…) NÃO
+// encerra a conexão. Só o botão "LEAVE" (leaveToHome) desconecta de fato.
 
 async function openRecap () {
   recapLoading.value = true

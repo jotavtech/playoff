@@ -1,16 +1,24 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
 import { useCinematicStore } from '~/stores/cinematic'
+import { useRoomStore } from '~/stores/room'
 import { useRoom } from '~/composables/useRoom'
 
 const auth = useAuthStore()
 const cinematic = useCinematicStore()
-const { createRoom } = useRoom()
+const room = useRoomStore()
+const { createRoom, connect, disconnect } = useRoom()
 const router = useRouter()
 
 const creatingRoom = ref(false)
 const roomName = ref('')
 const showRoomCreate = ref(false)
+
+// Entrar em sala por código
+const joinCode = ref('')
+const joining = ref(false)
+const joinError = ref('')
+const showRoomJoin = ref(false)
 
 async function handleCreateRoom () {
   const name = roomName.value.trim() || 'Sala PLAYOFF'
@@ -22,6 +30,32 @@ async function handleCreateRoom () {
     creatingRoom.value = false
     showRoomCreate.value = false
   }
+}
+
+async function handleJoinRoom () {
+  const code = joinCode.value.trim().toUpperCase()
+  if (!code) return
+  joining.value = true
+  joinError.value = ''
+  try {
+    const res = await fetch(`/api/room/${code}`)
+    if (!res.ok) {
+      joinError.value = 'Sala não encontrada'
+      return
+    }
+    connect(code)
+    showRoomJoin.value = false
+    joinCode.value = ''
+    router.push('/')
+  } catch {
+    joinError.value = 'Não foi possível conectar'
+  } finally {
+    joining.value = false
+  }
+}
+
+function handleLeaveRoom () {
+  disconnect()
 }
 </script>
 
@@ -57,6 +91,22 @@ async function handleCreateRoom () {
         </a>
       </div>
 
+      <!-- Sala atual (quando conectado) -->
+      <div v-if="room.inRoom" class="profile-screen__current-room">
+        <div class="profile-screen__current-room-info">
+          <p class="profile-screen__current-room-label">SALA ATUAL</p>
+          <p class="profile-screen__current-room-name">{{ room.room?.name }}</p>
+        </div>
+        <div class="profile-screen__current-room-actions">
+          <NuxtLink :to="`/room/${room.room?.id}`" class="profile-screen__current-room-open">
+            ABRIR
+          </NuxtLink>
+          <button class="profile-screen__current-room-leave" @click="handleLeaveRoom">
+            SAIR
+          </button>
+        </div>
+      </div>
+
       <!-- Ações -->
       <ul class="profile-screen__actions" role="list">
         <li>
@@ -71,7 +121,15 @@ async function handleCreateRoom () {
           </button>
         </li>
         <li>
-          <button class="profile-screen__action-item" @click="showRoomCreate = !showRoomCreate">
+          <button class="profile-screen__action-item" @click="showRoomJoin = !showRoomJoin; showRoomCreate = false">
+            <span>Entrar em sala</span>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+              <path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z" />
+            </svg>
+          </button>
+        </li>
+        <li>
+          <button class="profile-screen__action-item" @click="showRoomCreate = !showRoomCreate; showRoomJoin = false">
             <span>Criar sala</span>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
               <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
@@ -79,6 +137,29 @@ async function handleCreateRoom () {
           </button>
         </li>
       </ul>
+
+      <!-- Form entrar em sala -->
+      <div v-if="showRoomJoin" class="profile-screen__room-form" role="region" aria-label="Entrar em sala">
+        <label for="join-code" class="profile-screen__room-label">Código da sala</label>
+        <input
+          id="join-code"
+          v-model="joinCode"
+          type="text"
+          class="profile-screen__room-input"
+          placeholder="EX: 4F2A"
+          maxlength="8"
+          autocapitalize="characters"
+          @keydown.enter="handleJoinRoom"
+        />
+        <p v-if="joinError" class="profile-screen__room-error">{{ joinError }}</p>
+        <button
+          class="profile-screen__room-btn"
+          :disabled="joining || !joinCode.trim()"
+          @click="handleJoinRoom"
+        >
+          {{ joining ? 'ENTRANDO…' : 'ENTRAR' }}
+        </button>
+      </div>
 
       <!-- Form criar sala -->
       <div v-if="showRoomCreate" class="profile-screen__room-form" role="region" aria-label="Criar sala">
@@ -237,7 +318,76 @@ async function handleCreateRoom () {
   background: var(--glass);
 }
 
-/* Form criar sala */
+/* Sala atual */
+.profile-screen__current-room {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border: 1px solid var(--ink-dim);
+  border-radius: 8px;
+  background: var(--glass);
+}
+
+.profile-screen__current-room-label {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  letter-spacing: 0.16em;
+  color: var(--ink-dim);
+}
+
+.profile-screen__current-room-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-top: 4px;
+}
+
+.profile-screen__current-room-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.profile-screen__current-room-open,
+.profile-screen__current-room-leave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  min-height: var(--touch-min);
+  min-width: var(--touch-min);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  transition: background var(--t-fast) linear, border-color var(--t-fast) linear;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.profile-screen__current-room-open {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.profile-screen__current-room-leave {
+  border: 1px solid var(--glass-border);
+  color: var(--ink-dim);
+}
+
+.profile-screen__current-room-leave:active {
+  background: var(--glass);
+}
+
+.profile-screen__room-error {
+  font-size: 16px;
+  color: #ff6b6b;
+}
+
+/* Form criar / entrar em sala */
 .profile-screen__room-form {
   display: flex;
   flex-direction: column;

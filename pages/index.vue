@@ -228,7 +228,7 @@ const albumArt = computed(() => music.currentTrack?.coverUrl ?? '')
 
 .home-screen__timecode {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 16px;
   letter-spacing: 0.1em;
   color: var(--ink-faint);
   margin-top: -12px;
