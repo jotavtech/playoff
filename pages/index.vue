@@ -11,13 +11,38 @@ const player = usePlayerStore()
 const music = useMusicVisualStore()
 const cinematic = useCinematicStore()
 const room = useRoomStore()
-const { togglePlay, skipToNext: spotifySkipNext } = useSpotifyPlayer()
+const { togglePlay, skipToNext: spotifySkipNext, playTrack } = useSpotifyPlayer()
 const { vote, unvote, nextTrack: roomNextTrack } = useRoom()
 const router = useRouter()
 
 function skipNext () {
-  if (room.inRoom) roomNextTrack()
-  else spotifySkipNext()
+  if (room.inRoom) {
+    // Tell the server to advance the queue
+    roomNextTrack()
+    // Optimistically play the next track immediately from the local queue
+    // (don't wait for the server's track_changed round-trip)
+    const next = room.queue[0]
+    if (next?.track?.uri) {
+      playTrack({
+        id: next.track.id,
+        name: next.track.title,
+        artists: [{ id: '', name: next.track.artist }],
+        album: {
+          id: '', name: next.track.album,
+          images: next.track.coverUrl
+            ? [{ url: next.track.coverUrl, height: 300, width: 300 }]
+            : [],
+          release_date: ''
+        },
+        duration_ms: next.track.durationMs,
+        preview_url: next.track.previewUrl,
+        popularity: 0,
+        uri: next.track.uri
+      })
+    }
+  } else {
+    spotifySkipNext()
+  }
 }
 
 // Tamanho do disco: máx 35vw (R2.2, R9.5)

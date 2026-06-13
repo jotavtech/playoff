@@ -2,11 +2,40 @@
 import { usePlayerStore } from '~/stores/player'
 import { useCinematicStore } from '~/stores/cinematic'
 import { useSpotifyPlayer } from '~/composables/useSpotifyPlayer'
+import { useRoom } from '~/composables/useRoom'
+import { useRoomStore } from '~/stores/room'
 
 const player = usePlayerStore()
 const cinematic = useCinematicStore()
-const { togglePlay } = useSpotifyPlayer()
+const room = useRoomStore()
+const { togglePlay, playTrack } = useSpotifyPlayer()
+const { nextTrack: roomNextTrack } = useRoom()
 const router = useRouter()
+
+function skipNext () {
+  if (room.inRoom) {
+    roomNextTrack()
+    const next = room.queue[0]
+    if (next?.track?.uri) {
+      playTrack({
+        id: next.track.id,
+        name: next.track.title,
+        artists: [{ id: '', name: next.track.artist }],
+        album: {
+          id: '', name: next.track.album,
+          images: next.track.coverUrl
+            ? [{ url: next.track.coverUrl, height: 300, width: 300 }]
+            : [],
+          release_date: ''
+        },
+        duration_ms: next.track.durationMs,
+        preview_url: next.track.previewUrl,
+        popularity: 0,
+        uri: next.track.uri
+      })
+    }
+  }
+}
 
 function openFullPlayer () {
   router.push('/')
@@ -91,6 +120,18 @@ function onTap () {
       <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
         <path v-if="player.status === 'playing'" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
         <path v-else d="M8 5v14l11-7z" />
+      </svg>
+    </button>
+
+    <!-- Skip — só aparece quando há fila na sala -->
+    <button
+      v-if="room.inRoom && room.queue.length > 0"
+      class="mini-player__btn"
+      aria-label="Próxima música"
+      @click.stop="skipNext"
+    >
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+        <path d="M6 18l8.5-6L6 6v12zm2-8.14L11.03 12 8 14.14V9.86zM16 6h2v12h-2z" />
       </svg>
     </button>
   </div>
