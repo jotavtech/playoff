@@ -55,25 +55,12 @@ const hasTrack = computed(() => !!music.currentTrack)
 <template>
   <div class="karaoke-screen" :class="{ 'karaoke-screen--tv': tvMode }">
 
-    <!-- Header (oculto no TV mode) -->
+    <!-- Header informativo (sem toques — só título; oculto no TV mode) -->
     <header v-if="!tvMode" class="karaoke-screen__header">
-      <NuxtLink to="/" class="karaoke-screen__back" aria-label="Voltar para Home">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
-          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
-        </svg>
-      </NuxtLink>
       <p class="karaoke-screen__title">Karaokê</p>
-      <button class="karaoke-screen__tv-btn" aria-label="Modo TV" @click="toggleTvMode">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-          <path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z" />
-        </svg>
-      </button>
+      <!-- Progresso sempre visível (R5.5) -->
+      <p class="karaoke-screen__timecode" aria-live="off">{{ timecode }}</p>
     </header>
-
-    <!-- Progresso sempre visível (R5.5) -->
-    <p v-if="!tvMode" class="karaoke-screen__timecode" aria-live="off">
-      {{ timecode }}
-    </p>
 
     <!-- Sem música -->
     <div v-if="!hasTrack" class="karaoke-screen__empty">
@@ -115,7 +102,20 @@ const hasTrack = computed(() => !!music.currentTrack)
       />
     </div>
 
-    <!-- Botão para sair do TV mode -->
+    <!-- Modo TV: ação flutuante na zona do polegar (canto inferior direito) -->
+    <button
+      v-if="!tvMode"
+      class="karaoke-screen__tv-fab"
+      aria-label="Ativar modo TV (tela cheia)"
+      @click="toggleTvMode"
+    >
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+        <path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z" />
+      </svg>
+      <span class="karaoke-screen__tv-fab-label">TV</span>
+    </button>
+
+    <!-- Sair do TV mode — também na base, alcançável pelo polegar -->
     <button v-if="tvMode" class="karaoke-screen__tv-exit" aria-label="Sair do modo TV" @click="toggleTvMode">
       <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
         <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
@@ -135,34 +135,13 @@ const hasTrack = computed(() => !!music.currentTrack)
   position: relative;
 }
 
-/* ── Header ── */
+/* ── Header (informativo, sem toques) ── */
 .karaoke-screen__header {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 14px 20px 8px;
   flex-shrink: 0;
-}
-
-.karaoke-screen__back,
-.karaoke-screen__tv-btn {
-  width: var(--touch-min);
-  height: var(--touch-min);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ink-dim);
-  border-radius: 50%;
-  text-decoration: none;
-  transition: color var(--t-fast) linear, background var(--t-fast) linear;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.karaoke-screen__back:hover,
-.karaoke-screen__tv-btn:hover {
-  color: var(--ink);
-  background: var(--glass);
 }
 
 .karaoke-screen__title {
@@ -179,9 +158,38 @@ const hasTrack = computed(() => !!music.currentTrack)
   font-size: 16px;
   letter-spacing: 0.12em;
   color: var(--ink-faint);
-  text-align: center;
-  flex-shrink: 0;
-  padding: 0 16px 8px;
+}
+
+/* ── FAB Modo TV — zona do polegar, acima do mini player + nav ── */
+.karaoke-screen__tv-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--page-bottom-pad) + 8px);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--touch-min);
+  padding: 0 20px;
+  border-radius: 28px;
+  background: var(--ink);
+  color: var(--bg);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  transition: transform var(--t-fast) var(--ease-liquid), opacity var(--t-fast) linear;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.karaoke-screen__tv-fab:active {
+  transform: scale(0.94);
+  opacity: 0.9;
+}
+
+.karaoke-screen__tv-fab-label {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
 }
 
 /* ── Estado vazio ── */
@@ -282,26 +290,29 @@ const hasTrack = computed(() => !!music.currentTrack)
   to   { transform: scale(1.12) translate(1%, 1%); }
 }
 
-/* Botão sair do TV mode */
+/* Botão sair do TV mode — base direita, alcançável pelo polegar */
 .karaoke-screen__tv-exit {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: var(--touch-min);
-  height: var(--touch-min);
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom) + 24px);
+  right: 24px;
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255,255,255,0.6);
+  color: rgba(255,255,255,0.75);
   border-radius: 50%;
-  background: rgba(0,0,0,0.4);
-  transition: color var(--t-fast) linear;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.15);
+  transition: color var(--t-fast) linear, transform var(--t-fast) var(--ease-liquid);
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   z-index: 10;
 }
 
-.karaoke-screen__tv-exit:hover {
+.karaoke-screen__tv-exit:active {
   color: #fff;
+  transform: scale(0.92);
 }
 
 @media (prefers-reduced-motion: reduce) {
