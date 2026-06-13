@@ -168,6 +168,13 @@ const sceneVars = computed(() => {
   transition: padding var(--t-scene) var(--ease-scene);
 }
 
+/* Mobile: barra superior esvaziada — só logo, sem botões — reduz o padding */
+@media (max-width: 768px) {
+  .layer-content {
+    padding-top: calc(40px + env(safe-area-inset-top));
+  }
+}
+
 /* Smart Idle: conteúdo recua, cena assume (PRD §5.11) */
 .cinematic-viewport[data-smart-idle][data-immersive] .layer-content {
   opacity: 0.95;

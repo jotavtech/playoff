@@ -160,8 +160,8 @@ const trackLine = computed(() => {
   border-color: var(--ink-dim);
 }
 
+/* Celular: barra inferior fica oculta — MiniPlayer + BottomNav cobre tudo */
 @media (max-width: 768px) {
-  .bar__metadata { gap: 12px; padding: 0 16px; }
-  .bar__meta-item--right { display: none; }
+  .bar { display: none; }
 }
 </style>

@@ -85,16 +85,10 @@ const cinematic = useCinematicStore()
   letter-spacing: 0.14em;
 }
 
-/* No celular não há tecla ⌘ — mostramos só a lupa, com alvo de toque maior */
-@media (max-width: 600px) {
-  .mode-switcher__search-hint {
+/* Celular: esconde o ModeSwitcher — BottomNav cobre toda a navegação */
+@media (max-width: 768px) {
+  .mode-switcher {
     display: none;
-  }
-
-  .mode-switcher__btn--search {
-    min-width: 44px;
-    justify-content: center;
-    padding: 0;
   }
 }
 </style>
