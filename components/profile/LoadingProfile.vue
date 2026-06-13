@@ -36,7 +36,7 @@ defineProps<{
   display: flex;
   gap: 10px;
   color: var(--ink-dim);
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .loading-profile li span {

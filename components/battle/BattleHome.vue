@@ -281,7 +281,7 @@ async function createLiveRoom () {
 .battle-home__room-note p:not(.microtext) {
   margin-top: 10px;
   color: var(--ink-dim);
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.45;
 }
 

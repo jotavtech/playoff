@@ -238,7 +238,7 @@ onMounted(() => {
   border: 1px solid var(--ink-dim);
   color: var(--ink);
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 16px;
   letter-spacing: 0.12em;
   transition: background var(--t-fast) linear, color var(--t-fast) linear, border-color var(--t-fast) linear;
 }

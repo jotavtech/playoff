@@ -8,6 +8,7 @@
 interface LrcLibResult {
   syncedLyrics?: string | null
   plainLyrics?: string | null
+  duration?: number | null
 }
 
 /** Converte "[mm:ss.xx] texto" em linhas com timestamp em ms. */
@@ -66,10 +67,27 @@ export default defineEventHandler(async (event) => {
     }
 
     const data = (await res.json()) as LrcLibResult
-    if (!data.syncedLyrics) return { lines: null }
 
-    const lines = parseLrc(data.syncedLyrics)
-    return { lines: lines.length ? lines : null }
+    if (data.syncedLyrics) {
+      const lines = parseLrc(data.syncedLyrics)
+      if (lines.length) return { lines, synced: true }
+    }
+
+    // Fallback: plain lyrics distributed across the track duration
+    if (data.plainLyrics) {
+      const trackDuration = (duration > 0 ? duration : (data.duration ?? 180)) * 1000
+      const rawLines = data.plainLyrics
+        .split(/\r?\n/)
+        .map(l => l.trim())
+        .filter(l => l.length > 0 && !l.startsWith('['))
+      if (rawLines.length > 0) {
+        const step = Math.floor(trackDuration / rawLines.length)
+        const lines = rawLines.map((text, i) => ({ at: i * step, text }))
+        return { lines, synced: false }
+      }
+    }
+
+    return { lines: null }
   } catch {
     return { lines: null }
   }

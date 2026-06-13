@@ -11,9 +11,14 @@ const player = usePlayerStore()
 const music = useMusicVisualStore()
 const cinematic = useCinematicStore()
 const room = useRoomStore()
-const { togglePlay } = useSpotifyPlayer()
-const { vote, unvote } = useRoom()
+const { togglePlay, skipToNext: spotifySkipNext } = useSpotifyPlayer()
+const { vote, unvote, nextTrack: roomNextTrack } = useRoom()
 const router = useRouter()
+
+function skipNext () {
+  if (room.inRoom) roomNextTrack()
+  else spotifySkipNext()
+}
 
 // Tamanho do disco: máx 35vw (R2.2, R9.5)
 const vinylSize = ref(200)
@@ -131,9 +136,9 @@ const albumArt = computed(() => music.currentTrack?.coverUrl ?? '')
           </svg>
         </button>
 
-        <button class="home-screen__ctrl-btn" aria-label="Fila" @click.stop="router.push('/queue')">
+        <button class="home-screen__ctrl-btn" aria-label="Próxima música" @click.stop="skipNext()">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-            <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
+            <path d="M6 18l8.5-6L6 6v12zm2-8.14L11.03 12 8 14.14V9.86zM16 6h2v12h-2z" />
           </svg>
         </button>
       </div>

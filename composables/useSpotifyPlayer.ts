@@ -292,6 +292,23 @@ export function useSpotifyPlayer () {
     music.progressMs = ms
   }
 
+  async function skipToNext () {
+    if (sdkPlayer) {
+      // Spotify Web API – skip to next (premium only)
+      const token = await auth.ensureFreshToken()
+      if (token) {
+        await fetch('https://api.spotify.com/v1/me/player/next', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => { /* silent: device may not be active */ })
+      }
+      return
+    }
+    // Preview fallback: stop current preview (no next in preview mode)
+    stopPreview()
+    music.pause()
+  }
+
   function destroy () {
     stopPreview()
     if (progressInterval) { clearInterval(progressInterval); progressInterval = null }
@@ -301,5 +318,5 @@ export function useSpotifyPlayer () {
     lastTrackId = null
   }
 
-  return { initPlayer, playTrack, playPreviewUrl, togglePlay, seek, destroy }
+  return { initPlayer, playTrack, playPreviewUrl, togglePlay, seek, skipToNext, destroy }
 }

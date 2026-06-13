@@ -110,7 +110,7 @@ onBeforeUnmount(() => {
 
 .wallpaper__clock {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 16px;
   letter-spacing: 0.5em;
   color: var(--ink-faint);
 }

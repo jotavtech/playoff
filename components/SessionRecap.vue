@@ -183,7 +183,7 @@ function fmtTime (ts: number): string {
 }
 
 .recap__row-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -218,7 +218,7 @@ function fmtTime (ts: number): string {
 }
 
 .recap__stat-line {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 500;
 }
 

@@ -80,7 +80,7 @@ const showJournal = ref(false)
 .player-insights__lyrics {
   display: grid;
   gap: 10px;
-  max-height: min(34vh, 300px);
+  max-height: min(34dvh, 300px);
   overflow-y: auto;
   padding-right: 8px;
 }

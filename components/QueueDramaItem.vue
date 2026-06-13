@@ -201,7 +201,7 @@ function fmt (ms: number) {
 }
 
 .drama-item__title {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -266,7 +266,7 @@ function fmt (ms: number) {
 }
 
 .drama-item__btn--super {
-  font-size: 12px;
+  font-size: 16px;
 }
 
 /* Winner ganha destaque de escala */

@@ -541,7 +541,7 @@ const discSize = computed(() => {
 
   .hero__subtitle {
     max-width: 31ch;
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .hero__helper-full {

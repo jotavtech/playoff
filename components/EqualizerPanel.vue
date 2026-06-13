@@ -62,7 +62,7 @@ const affecting = computed(() => music.isPlaying && isAffectingAudio())
   bottom: 18px;
   z-index: 80;
   width: min(340px, calc(100vw - 36px));
-  max-height: min(78vh, 620px);
+  max-height: min(78dvh, 620px);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -86,7 +86,7 @@ const affecting = computed(() => music.isPlaying && isAffectingAudio())
   place-items: center;
   color: var(--ink-dim);
   border: 1px solid transparent;
-  font-size: 14px;
+  font-size: 16px;
   transition: color var(--t-fast) linear, border-color var(--t-fast) linear;
 }
 

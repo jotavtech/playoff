@@ -86,7 +86,7 @@ const { toasts, removeToast } = usePlayoffFeedback()
 .playoff-toast__message {
   margin-top: 6px;
   color: var(--ink-dim);
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.45;
 }
 

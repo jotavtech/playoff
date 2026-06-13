@@ -392,11 +392,10 @@ function coverOf (track: SpotifyTrack) {
 }
 
 .command__prompt {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--ink-dim);
   user-select: none;
   flex-shrink: 0;
-  /* respiração lenta do prompt — terminal vivo, sem piscar nervoso */
   animation: prompt-breathe 2.4s ease-in-out infinite alternate;
 }
 
@@ -410,8 +409,8 @@ function coverOf (track: SpotifyTrack) {
   background: none;
   border: none;
   outline: none;
-  font-size: 14px;
-  letter-spacing: 0.04em;
+  font-size: 16px;
+  letter-spacing: 0.02em;
 }
 
 .command__spin {
@@ -489,7 +488,7 @@ function coverOf (track: SpotifyTrack) {
 }
 
 .command__label {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
