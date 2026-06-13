@@ -2,6 +2,7 @@ import { useRoomStore } from '~/stores/room'
 import { useAuthStore } from '~/stores/auth'
 import { useMusicVisualStore } from '~/stores/musicVisual'
 import { useAudioAnalyser } from '~/composables/useAudioAnalyser'
+import { useSpotifyPlayer } from '~/composables/useSpotifyPlayer'
 import type { WsClientMsg, WsServerMsg, TrackRef } from '~/types/room'
 import type { SpotifyTrack } from '~/types/spotify'
 
@@ -98,6 +99,24 @@ export function useRoom () {
     }
   }
 
+  /** Converts a room TrackRef into a minimal SpotifyTrack so the player can use it. */
+  function _trackRefToSpotify (t: TrackRef): SpotifyTrack {
+    return {
+      id: t.id,
+      name: t.title,
+      artists: [{ id: '', name: t.artist }],
+      album: {
+        id: '', name: t.album,
+        images: t.coverUrl ? [{ url: t.coverUrl, height: 300, width: 300 }] : [],
+        release_date: ''
+      },
+      duration_ms: t.durationMs,
+      preview_url: t.previewUrl,
+      popularity: 0,
+      uri: t.uri
+    }
+  }
+
   function _handleMsg (msg: WsServerMsg) {
     switch (msg.type) {
       case 'room_state':
@@ -119,6 +138,10 @@ export function useRoom () {
         break
       case 'track_changed':
         room.applyTrackChanged(msg.payload.track)
+        // Actually play the new track on Spotify (the UI update alone isn't enough)
+        if (msg.payload.track) {
+          useSpotifyPlayer().playTrack(_trackRefToSpotify(msg.payload.track))
+        }
         break
       case 'disc_pulse':
         music.pulseBeat()
