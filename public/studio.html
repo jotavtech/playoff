@@ -116,6 +116,7 @@
     <button class="btn primary" id="bPlay">▶ Play</button>
     <button class="btn" id="bDice">⚄ Randomize</button>
     <button class="btn" id="bClear">Clear</button>
+    <button class="btn" id="bRec">● Rec</button>
     <button class="btn" id="bHide">▼ Hide</button>
     <div class="ctl"><label>BPM <span id="vBpm">120</span></label><input type="range" id="sBpm" min="60" max="180" value="120"></div>
     <div class="ctl"><label>Swing <span id="vSwing">0%</span></label><input type="range" id="sSwing" min="0" max="60" value="14"></div>
@@ -147,6 +148,8 @@
     <div class="ctl"><label>Chorus <span id="vChorus">0</span></label><input type="range" id="sChorus" min="0" max="100" value="28"></div>
     <div class="ctl"><label>Delay <span id="vDelay">0</span></label><input type="range" id="sDelay" min="0" max="100" value="26"></div>
     <div class="ctl"><label>Reverb <span id="vReverb">0</span></label><input type="range" id="sReverb" min="0" max="100" value="34"></div>
+    <button class="btn on" id="bSide">Pump</button>
+    <div class="ctl"><label>Pump <span id="vSide">60</span></label><input type="range" id="sSide" min="0" max="100" value="60"></div>
     <span class="rlabel" style="margin-left:10px">eq</span>
     <div class="ctl"><label>Low <span id="vLow">0</span></label><input type="range" id="sLow" min="-18" max="18" value="2"></div>
     <div class="ctl"><label>Mid <span id="vMid">0</span></label><input type="range" id="sMid" min="-18" max="18" value="0"></div>
@@ -198,7 +201,9 @@ let ctx=null, started=false;
 let master=null, perfFilter=null, comp=null, analyser=null, specData=null, timeData=null;
 let eqLow=null, eqMid=null, eqHigh=null;
 let drive=null, crusher=null;
-let voiceBus=null;
+let voiceBus=null, duckGain=null;
+let recDest=null, mediaRec=null, recChunks=[], recording2=false;
+let sidechain={on:true, amount:0.6, time:0.14};
 let convolver=null, reverbReturn=null;
 let dL=null, dR=null, delayFb=null, delayReturn=null;
 let chorusReturn=null, chorusLFO=[], chorusDelays=[];
@@ -266,6 +271,8 @@ async function buildAudio(){
   // distortion + crusher inserts
   drive=ctx.createWaveShaper(); drive.curve=makeDriveCurve(0.12); drive.oversample='4x';
   voiceBus=ctx.createGain(); voiceBus.gain.value=0.9;
+  // synths route through duckGain (sidechain pump); drums hit voiceBus direct
+  duckGain=ctx.createGain(); duckGain.gain.value=1; duckGain.connect(voiceBus);
 
   // try worklet bitcrusher
   let crusherNode=null;
@@ -283,6 +290,7 @@ async function buildAudio(){
   eqLow.connect(eqMid); eqMid.connect(eqHigh); eqHigh.connect(comp);
   comp.connect(perfFilter); perfFilter.connect(master);
   master.connect(ctx.destination); master.connect(analyser);
+  recDest=ctx.createMediaStreamDestination(); master.connect(recDest); // tap for recording
 
   // ---- reverb send ----
   convolver=ctx.createConvolver(); convolver.buffer=makeImpulse(3.4,2.5);
@@ -344,6 +352,14 @@ function kick(t,vel){
   const c=ctx.createOscillator(); c.type='triangle'; c.frequency.value=900;
   const cg=ctx.createGain(); cg.gain.setValueAtTime(vel*0.5,t); cg.gain.exponentialRampToValueAtTime(0.0001,t+0.03);
   c.connect(cg); cg.connect(voiceBus); c.start(t); c.stop(t+0.05);
+  duck(t); // sidechain pump
+}
+function duck(t){
+  if(!sidechain.on||!duckGain) return;
+  const a=clamp(sidechain.amount,0,0.92);
+  duckGain.gain.cancelScheduledValues(t);
+  duckGain.gain.setValueAtTime(1-a,t);
+  duckGain.gain.setTargetAtTime(1,t+0.004,sidechain.time);
 }
 function snare(t,vel){
   const ns=ctx.createBufferSource(); ns.buffer=noiseBuf; ns.loop=true;
@@ -402,7 +418,7 @@ function playSynth(which, freq, t, dur, vel){
   o1.connect(f); o2.connect(f);
   if(cfg.sub){ const s=ctx.createOscillator(); s.type='sine'; s.frequency.setValueAtTime(freq/2,t);
     const sg=ctx.createGain(); sg.gain.value=0.5; s.connect(sg); sg.connect(f); s.start(t); s.stop(t+dur+0.2); }
-  f.connect(g); g.connect(pan); pan.connect(voiceBus);
+  f.connect(g); g.connect(pan); pan.connect(duckGain||voiceBus);
   o1.start(t); o2.start(t); o1.stop(t+dur+0.2); o2.stop(t+dur+0.2);
   activeVoices++;
   o1.onended=()=>{ activeVoices=Math.max(0,activeVoices-1); try{pan.disconnect();}catch(e){} };
@@ -623,7 +639,36 @@ function wireUI(){
   document.getElementById('bPlay').onclick=togglePlay;
   document.getElementById('bDice').onclick=dice;
   document.getElementById('bClear').onclick=clearPat;
+  document.getElementById('bRec').onclick=toggleRec;
   document.getElementById('bHide').onclick=()=>document.getElementById('studio').classList.toggle('hidden');
+  const bSide=document.getElementById('bSide');
+  bSide.classList.toggle('on',sidechain.on);
+  bSide.onclick=()=>{ sidechain.on=!sidechain.on; bSide.classList.toggle('on',sidechain.on); toast('pump <b>'+(sidechain.on?'on':'off')+'</b>'); };
+  bindSlider('sSide','vSide',x=>x,x=>sidechain.amount=x/100);
+}
+
+/* ---------------- record the master out ---------------- */
+function toggleRec(){
+  if(!started){ toast('power on <b>first</b>'); return; }
+  if(recording2){ try{mediaRec.stop();}catch(e){} return; }
+  try{
+    recChunks=[];
+    const mime=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus'
+      :(MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':'');
+    mediaRec=new MediaRecorder(recDest.stream, mime?{mimeType:mime}:undefined);
+    mediaRec.ondataavailable=e=>{ if(e.data&&e.data.size) recChunks.push(e.data); };
+    mediaRec.onstop=()=>{
+      const blob=new Blob(recChunks,{type:mediaRec.mimeType||'audio/webm'});
+      const url=URL.createObjectURL(blob), a=document.createElement('a');
+      a.href=url; a.download='under-science-jam.webm'; a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),1500);
+      recording2=false; const b=document.getElementById('bRec'); b.classList.remove('on'); b.textContent='● Rec';
+      toast('jam <b>saved</b> · webm');
+    };
+    mediaRec.start();
+    recording2=true; const b=document.getElementById('bRec'); b.classList.add('on'); b.textContent='■ Stop Rec';
+    toast('recording <b>master</b>…');
+  }catch(e){ toast('record <b>unsupported</b>'); }
 }
 
 /* ---------------- canvas visuals ---------------- */
