@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>UNDER SCIENCE LAB // 02 · Liquid Chrome</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@200;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;overflow:hidden;color:#cfcfd4;
+    font-family:"Space Mono",monospace;cursor:crosshair;user-select:none;touch-action:none}
+  canvas{position:fixed;inset:0;display:block}
+  .hud{position:fixed;z-index:10;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#54545c;pointer-events:none}
+  .tl{top:20px;left:22px}
+  .br{bottom:20px;right:22px;text-align:right}
+  .mark{font-family:"Sora",sans-serif;font-weight:200;letter-spacing:.4em;font-size:16px;color:#eee;text-transform:uppercase}
+  .hud b{color:#bfbfc6;font-weight:400}
+  .hint{position:fixed;bottom:20px;left:22px;z-index:10;font-size:10px;letter-spacing:.2em;color:#3a3a42;text-transform:uppercase}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud tl"><div class="mark">Liquid&nbsp;Chrome</div><div style="margin-top:6px">OLED metaball field · 02</div></div>
+<div class="hud br">orbs <b id="hN">7</b><br>move · attract&nbsp;&nbsp;click · split</div>
+<div class="hint">a window into a reflective monochrome fluid</div>
+<script>
+"use strict";
+/* ============================================================
+   LAB 02 — LIQUID CHROME
+   A monochrome metaball fluid with a faux-reflective "chrome"
+   shading ramp. Pure canvas2d: blobs are summed into a scalar
+   field, then a per-pixel ramp turns the field into a polished
+   liquid-metal surface with a moving light. OLED black ground —
+   the Playoff wallpaper mood, but alive and reactive.
+   ============================================================ */
+const cvs=document.getElementById('c'), ctx=cvs.getContext('2d');
+const TAU=Math.PI*2, clamp=(v,a,b)=>v<a?a:v>b?b:v;
+let W,H,SCALE=0.34,LW,LH,field,img,DPR;   // field rendered at low res then upscaled
+function resize(){
+  DPR=1; W=innerWidth; H=innerHeight;
+  cvs.width=W; cvs.height=H;
+  LW=Math.max(1,Math.floor(W*SCALE)); LH=Math.max(1,Math.floor(H*SCALE));
+  field=new Float32Array(LW*LH);
+  img=ctx.createImageData(LW,LH);
+}
+addEventListener('resize',resize);resize();
+
+// hidden buffer canvas at low res, then we scale up with smoothing for the "liquid" softness
+const buf=document.createElement('canvas');
+const bx=buf.getContext('2d');
+
+let mx=W/2,my=H/2,tmx=W/2,tmy=H/2;
+addEventListener('mousemove',e=>{tmx=e.clientX;tmy=e.clientY;});
+addEventListener('touchmove',e=>{const t=e.touches[0];tmx=t.clientX;tmy=t.clientY;},{passive:true});
+
+const orbs=[];
+function seed(n){orbs.length=0;for(let i=0;i<n;i++)orbs.push({
+  x:Math.random(),y:Math.random(),vx:(Math.random()-0.5)*0.0006,vy:(Math.random()-0.5)*0.0006,
+  r:0.07+Math.random()*0.09});}
+seed(7);
+addEventListener('mousedown',()=>{ if(orbs.length<14){orbs.push({x:tmx/W,y:tmy/H,
+  vx:(Math.random()-0.5)*0.003,vy:(Math.random()-0.5)*0.003,r:0.05+Math.random()*0.06});
+  document.getElementById('hN').textContent=orbs.length;}});
+addEventListener('touchstart',e=>{const t=e.touches[0];if(orbs.length<14){orbs.push({x:t.clientX/W,y:t.clientY/H,
+  vx:0,vy:0,r:0.06});document.getElementById('hN').textContent=orbs.length;}},{passive:true});
+
+let t=0,last=0;
+function frame(now){
+  requestAnimationFrame(frame);
+  let dt=(now-last)/1000;last=now;if(dt>0.1)dt=0.1;t+=dt;
+  mx+=(tmx-mx)*0.1; my+=(tmy-my)*0.1;
+
+  // physics: gentle wander + attraction to cursor
+  for(const o of orbs){
+    const dx=mx/W-o.x, dy=my/H-o.y;
+    o.vx+=dx*0.00018; o.vy+=dy*0.00018;
+    o.vx*=0.985; o.vy*=0.985;
+    o.x+=o.vx; o.y+=o.vy;
+    if(o.x<0.05||o.x>0.95)o.vx*=-0.8; if(o.y<0.05||o.y>0.95)o.vy*=-0.8;
+    o.x=clamp(o.x,0.02,0.98); o.y=clamp(o.y,0.02,0.98);
+  }
+
+  // ---- scalar field ----
+  field.fill(0);
+  const aspect=LW/LH;
+  for(const o of orbs){
+    const ox=o.x*LW, oy=o.y*LH, rr=o.r*LH, r2=rr*rr*1.6;
+    const minx=Math.max(0,(ox-rr*3)|0), maxx=Math.min(LW,(ox+rr*3)|0);
+    const miny=Math.max(0,(oy-rr*3)|0), maxy=Math.min(LH,(oy+rr*3)|0);
+    for(let y=miny;y<maxy;y++){
+      const dyv=y-oy;
+      for(let x=minx;x<maxx;x++){
+        const dxv=x-ox;
+        const d=dxv*dxv+dyv*dyv;
+        field[y*LW+x]+=r2/(d+1);
+      }
+    }
+  }
+
+  // ---- shade: chrome ramp with a moving light ----
+  const d=img.data;
+  const lx=0.5+0.4*Math.cos(t*0.6), ly=0.5+0.4*Math.sin(t*0.5); // light dir in field space
+  for(let y=0;y<LH;y++){
+    for(let x=0;x<LW;x++){
+      const i=y*LW+x, f=field[i];
+      let p=i*4;
+      if(f<0.7){ d[p]=d[p+1]=d[p+2]=0; d[p+3]=255; continue; }
+      // surface normal ~ gradient of the field
+      const fx=(field[i+1]||0)-(field[i-1]||0);
+      const fy=(field[i+LW]||0)-(field[i-LW]||0);
+      const gl=Math.hypot(fx,fy)+1e-3;
+      const nx=-fx/gl, ny=-fy/gl;
+      // light vector
+      const ldx=lx-x/LW, ldy=ly-y/LH, ll=Math.hypot(ldx,ldy)+1e-3;
+      let diff=clamp(nx*(ldx/ll)+ny*(ldy/ll),0,1);
+      // chrome ramp: dark base, bright edges, specular hotspot
+      const edge=clamp((f-0.7)*1.2,0,1);
+      const spec=Math.pow(diff,8);
+      let v=18 + edge*60 + diff*120 + spec*200;
+      // banding for the metallic look
+      v=v*0.8 + 28*Math.sin(f*3+t);
+      v=clamp(v,0,255);
+      d[p]=v; d[p+1]=v; d[p+2]=Math.min(255,v*1.04); d[p+3]=255;
+    }
+  }
+
+  // blit low-res field, upscale smoothly to full screen
+  buf.width=LW; buf.height=LH; bx.putImageData(img,0,0);
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+  ctx.clearRect(0,0,W,H);
+  ctx.drawImage(buf,0,0,W,H);
+
+  // vignette
+  const g=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.2,W/2,H/2,Math.max(W,H)*0.7);
+  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,0.6)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>UNDER SCIENCE LAB // 03 · Flow Field</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@200&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;overflow:hidden;color:#cfcfd4;
+    font-family:"Space Mono",monospace;cursor:crosshair;user-select:none;touch-action:none}
+  canvas{position:fixed;inset:0;display:block}
+  .hud{position:fixed;z-index:10;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#54545c;pointer-events:none}
+  .tl{top:20px;left:22px}
+  .br{bottom:20px;right:22px;text-align:right}
+  .mark{font-family:"Sora",sans-serif;font-weight:200;letter-spacing:.4em;font-size:16px;color:#eee;text-transform:uppercase}
+  .hud b{color:#bfbfc6;font-weight:400}
+  .pal{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:10;display:flex;gap:1px}
+  .sw{width:34px;height:18px;border:1px solid #1c1c22;cursor:pointer;transition:.18s}
+  .sw.on{border-color:#fff;transform:translateY(-2px)}
+  .hint{position:fixed;bottom:46px;left:50%;transform:translateX(-50%);z-index:10;font-size:10px;letter-spacing:.2em;color:#3a3a42;text-transform:uppercase}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud tl"><div class="mark">Flow&nbsp;Field</div><div style="margin-top:6px">noise advection · 03</div></div>
+<div class="hud br">particles <b id="hN">2400</b><br>move · disturb&nbsp;&nbsp;space · reseed</div>
+<div class="pal" id="pal"></div>
+<div class="hint">click to inject a vortex · 1–4 palettes</div>
+<script>
+"use strict";
+/* ============================================================
+   LAB 03 — FLOW FIELD
+   Thousands of particles advected through an evolving value-noise
+   field. Trails build the image; the cursor injects a vortex.
+   Cheap, hypnotic, and a good base for "music as wind".
+   ============================================================ */
+const cvs=document.getElementById('c'),ctx=cvs.getContext('2d');
+const TAU=Math.PI*2,clamp=(v,a,b)=>v<a?a:v>b?b:v;
+let W,H;
+function resize(){W=innerWidth;H=innerHeight;cvs.width=W;cvs.height=H;ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);}
+addEventListener('resize',resize);resize();
+
+// ---- tiny value-noise (hash lattice + smooth interp) ----
+const PERM=new Uint8Array(512);
+(function(){for(let i=0;i<256;i++)PERM[i]=i;
+  for(let i=255;i>0;i--){const j=(Math.random()*(i+1))|0;const t=PERM[i];PERM[i]=PERM[j];PERM[j]=t;}
+  for(let i=0;i<256;i++)PERM[i+256]=PERM[i];})();
+function hash(x,y){return PERM[(PERM[x&255]+y)&255]/255;}
+function smooth(t){return t*t*(3-2*t);}
+function noise(x,y){
+  const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
+  const a=hash(xi,yi),b=hash(xi+1,yi),c=hash(xi,yi+1),d=hash(xi+1,yi+1);
+  const u=smooth(xf),v=smooth(yf);
+  return (a*(1-u)+b*u)*(1-v)+(c*(1-u)+d*u)*v;
+}
+
+const PALETTES=[
+  {name:'bone',a:[235,235,238],b:[120,120,130]},
+  {name:'cyan',a:[94,242,232],b:[30,90,110]},
+  {name:'ember',a:[255,150,80],b:[120,40,30]},
+  {name:'iris',a:[157,123,255],b:[60,40,120]},
+];
+let pal=PALETTES[0];
+const palEl=document.getElementById('pal');
+PALETTES.forEach((p,i)=>{const s=document.createElement('div');s.className='sw'+(i===0?' on':'');
+  s.style.background=`rgb(${p.a.join(',')})`;s.onclick=()=>setPal(i);palEl.appendChild(s);});
+function setPal(i){pal=PALETTES[i];[...palEl.children].forEach((c,k)=>c.classList.toggle('on',k===i));}
+
+let mx=W/2,my=H/2,pmx=mx,pmy=my,mvel=0;
+addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+addEventListener('touchmove',e=>{const t=e.touches[0];mx=t.clientX;my=t.clientY;},{passive:true});
+const vortices=[];
+addEventListener('mousedown',e=>vortices.push({x:mx,y:my,life:1,sign:Math.random()<0.5?1:-1}));
+addEventListener('touchstart',e=>{const t=e.touches[0];vortices.push({x:t.clientX,y:t.clientY,life:1,sign:1});},{passive:true});
+addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();seed();}
+  const n=parseInt(e.key);if(n>=1&&n<=4)setPal(n-1);
+});
+
+const N=2400, P=new Float32Array(N*4); // x,y,px,py
+function seed(){for(let i=0;i<N;i++){const x=Math.random()*W,y=Math.random()*H;
+  P[i*4]=x;P[i*4+1]=y;P[i*4+2]=x;P[i*4+3]=y;}}
+seed();
+document.getElementById('hN').textContent=N;
+
+let t=0,last=0,zoff=0;
+function frame(now){
+  requestAnimationFrame(frame);
+  let dt=(now-last)/1000;last=now;if(dt>0.1)dt=0.1;t+=dt;zoff+=dt*0.05;
+
+  mvel=Math.hypot(mx-pmx,my-pmy);pmx=mx;pmy=my;
+
+  // fade trails (the image is made of accumulated motion)
+  ctx.fillStyle='rgba(0,0,0,0.055)';ctx.fillRect(0,0,W,H);
+
+  const SC=0.0016;        // noise zoom
+  const SPD=120;          // particle speed px/s
+  ctx.globalCompositeOperation='lighter';
+  for(let i=0;i<N;i++){
+    let x=P[i*4],y=P[i*4+1];
+    // base flow angle from noise
+    let ang=noise(x*SC+zoff,y*SC)*TAU*2;
+    // cursor adds a velocity-scaled push
+    const dx=x-mx,dy=y-my,dd=Math.hypot(dx,dy)+1;
+    if(dd<260){const push=(1-dd/260);ang+=Math.atan2(dy,dx)*push*0.6*Math.min(mvel/8,1);}
+    // vortices
+    for(const v of vortices){const vx=x-v.x,vy=y-v.y,vd=Math.hypot(vx,vy)+1;
+      if(vd<300){ang+=Math.atan2(vy,vx)*v.sign*(1-vd/300)*1.4;}}
+    let nx=x+Math.cos(ang)*SPD*dt, ny=y+Math.sin(ang)*SPD*dt;
+    if(nx<0)nx+=W;if(nx>W)nx-=W;if(ny<0)ny+=H;if(ny>H)ny-=H;
+
+    // color: blend palette by local speed/curl
+    const sp=clamp(mvel/30+noise(x*SC*2,y*SC*2),0,1);
+    const r=lerp(pal.b[0],pal.a[0],sp),g=lerp(pal.b[1],pal.a[1],sp),b=lerp(pal.b[2],pal.a[2],sp);
+    ctx.strokeStyle=`rgba(${r|0},${g|0},${b|0},0.5)`;
+    ctx.lineWidth=0.7;
+    ctx.beginPath();ctx.moveTo(P[i*4+2],P[i*4+3]);ctx.lineTo(nx,ny);ctx.stroke();
+
+    P[i*4]=nx;P[i*4+1]=ny;P[i*4+2]=nx;P[i*4+3]=ny;
+  }
+  for(let i=vortices.length-1;i>=0;i--){vortices[i].life-=dt*0.4;if(vortices[i].life<=0)vortices.splice(i,1);}
+}
+function lerp(a,b,t){return a+(b-a)*t;}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
