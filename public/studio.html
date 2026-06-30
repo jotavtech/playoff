@@ -1086,12 +1086,11 @@ function bindSlider(id,valId,fmt,fn){
   const upd=()=>{ const x=parseFloat(el.value); if(v)v.textContent=fmt?fmt(x):x; fn(x); };
   el.addEventListener('input',upd); upd();
 }
-function applyAllParams(){ /* push current macro/eq/fx into nodes */
+function applyAllParams(){ /* after build: re-fire every FX/master/EQ slider so the graph matches the UI */
   if(!ctx) return;
   setDelayTime();
-  eqLow.gain.value=parseFloat(document.getElementById('sLow').value);
-  eqMid.gain.value=parseFloat(document.getElementById('sMid').value);
-  eqHigh.gain.value=parseFloat(document.getElementById('sHigh').value);
+  ['sDrive','sCrush','sChorus','sDelay','sReverb','sMaster','sSide','sLow','sMid','sHigh','sCut','sRes','sEnv','sGlide']
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.dispatchEvent(new Event('input')); });
 }
 function wireUI(){
   // selects
@@ -1265,21 +1264,22 @@ function pump(){ // drain visual queues synced to audio clock
   if(!ctx) return;
   const now=ctx.currentTime;
   for(let i=visQueue.length-1;i>=0;i--){ if(visQueue[i].time<=now){ flashHit(visQueue[i].type,now); visQueue.splice(i,1); } }
-  for(let i=stepQueue.length-1;i>=0;i--){ if(stepQueue[i].time<=now){
+  // drain all due steps, then highlight only the LATEST one (chronological, no backward jump)
+  let lastSt=-1;
+  for(let i=0;i<stepQueue.length;){ if(stepQueue[i].time<=now){ lastSt=stepQueue[i].step; stepQueue.splice(i,1); } else i++; }
+  if(lastSt>=0){
     document.querySelectorAll('.cell.cur').forEach(c=>c.classList.remove('cur'));
-    const st=stepQueue[i].step; TRACKS.forEach(tr=>cellEls[tr.id][st]&&cellEls[tr.id][st].classList.add('cur'));
-    const _sStr=String(st+1).padStart(2,'0'); if(elStep && _sStr!==_stepStr){elStep.textContent=_sStr; _stepStr=_sStr;}
-    stepQueue.splice(i,1);
-  }}
+    TRACKS.forEach(tr=>cellEls[tr.id][lastSt]&&cellEls[tr.id][lastSt].classList.add('cur'));
+  }
 }
 
 const _rgb={}; function hexToRgb(h){if(_rgb[h])return _rgb[h];const n=parseInt(h.slice(1),16);return _rgb[h]=[n>>16&255,n>>8&255,n&255];}
 let fpsAcc=0,fpsN=0,fpsShown=60,lastT=0,time=0;
 const elFlash=document.getElementById('flash'), elVoices=document.getElementById('mVoices'),
-      elFps=document.getElementById('mFps'), elStep=document.getElementById('mStep'),
+      elFps=document.getElementById('mFps'),
       elBar=document.getElementById('mBar'), elSection=document.getElementById('mSection'),
       brandSub=document.getElementById('brandSub');
-let _fpsStr='',_vStr='',_stepStr='',_flashStr='',_barStr='',_secStr='';
+let _fpsStr='',_vStr='',_flashStr='',_barStr='',_secStr='';
 
 /* ---- swappable visualizer renderers (theme-aware, reuse analyser data) ---- */
 const VIZ={};
@@ -1808,6 +1808,7 @@ function generateBeat(seed, allowed){
     cut:jit(base.cut,10,20,95), res:jit(base.res,8,0,90), env:jit(base.env,10,10,95), glide:base.glide,
     drive:jit(base.drive,5,2,55), crush:base.crush, chorus:jit(base.chorus,8,0,80),
     delay:jit(base.delay,8,0,90), reverb:jit(base.reverb,8,0,90), pump:base.pump, pattern:pat,
+    allowed:(allowed&&allowed.length)?allowed.slice():null,   // remember the genre filter for exact share round-trip
   };
 }
 
@@ -1829,7 +1830,10 @@ function loadBeat(b){
     pattern[tr.id][i]= tr.type==='drum'?{on:!!c.on,open:!!c.open}:{on:!!c.on,pitch:c.pitch==null?7:c.pitch}; } });
   renderAll(); curBeatName=b.name;
   if(brandSub) brandSub.textContent=b.name+' · '+b.genre;
-  if(b.seed) try{ history.replaceState(null,'','#b='+b.seed); }catch(e){}  // shareable by URL
+  // shareable URL: seed (+genre filter) for generated beats; clear stale hash for custom/saved beats
+  if(b.seed){ const g=(b.allowed&&b.allowed.length)?('&g='+encodeURIComponent(b.allowed.join(','))):'';
+    try{ history.replaceState(null,'','#b='+b.seed+g); }catch(e){} }
+  else { try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
   toast('♪ <b>'+b.name+'</b> · '+b.genre+' · '+b.bpm+'bpm');
 }
 function currentBeat(){
@@ -1927,8 +1931,10 @@ setInterval(()=>{
 loadPrefs();
 wireUI();
 buildSeqUI();
-// open a shared beat from the URL (#b=<seed>)
-(function(){ const mh=(location.hash||'').match(/b=(\d+)/); if(mh){ try{ loadBeat(generateBeat(parseInt(mh[1],10)>>>0)); }catch(e){} } })();
+// open a shared beat from the URL (#b=<seed>&g=<genres>)
+(function(){ const mh=(location.hash||'').match(/b=(\d+)/);
+  if(mh){ const ga=(location.hash.match(/g=([^&]*)/)||[])[1]; const allow=ga?decodeURIComponent(ga).split(','):undefined;
+    try{ loadBeat(generateBeat(parseInt(mh[1],10)>>>0, allow)); }catch(e){} } })();
 requestAnimationFrame(draw);
 </script>
 </body>
