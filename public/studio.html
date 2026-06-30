@@ -406,6 +406,7 @@ const SCALES={
   major:[0,2,4,5,7,9,11], penta_min:[0,3,5,7,10], penta_maj:[0,2,4,7,9],
   hirajoshi:[0,2,3,7,8], blues:[0,3,5,6,7,10],
   harm_minor:[0,2,3,5,7,8,11], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
+  whole_tone:[0,2,4,6,8,10], egyptian:[0,2,5,7,10],
 };
 let rootMidi=57;        // A3
 let scaleName='minor';
@@ -942,6 +943,29 @@ const PRESETS=[
     gen(){ setSteps('kick',[0,4,8,12]); setSteps('clap',[4,12]); setSteps('hat',[2,6,10,14]);
       setSteps('bass',[0,2,4,6,8,10,12,14],[0,0,0,0,3,3,0,0]);
       setSteps('lead',[2,10],[7,7]); } },
+  // ---- dance / global family ----
+  { name:'Drum & Bass', bpm:174, root:50, scale:'minor', lead:'sawtooth', bass:'sine',
+    cut:64, res:18, env:55, glide:4, drive:10, crush:2, chorus:10, delay:22, reverb:24, pump:40,
+    gen(){ setSteps('kick',[0,10]); setSteps('snare',[4,12]); setSteps('hat',[2,6,8,10,14]);
+      setSteps('bass',[0,3,8,10],[0,0,3,0]); setSteps('lead',[4,12,14],[7,9,7]); } },
+  { name:'Disco', bpm:120, root:55, scale:'major', lead:'sawtooth', bass:'sawtooth',
+    cut:70, res:16, env:55, glide:3, drive:8, crush:0, chorus:18, delay:18, reverb:24, pump:62,
+    gen(){ setSteps('kick',[0,4,8,12]); setSteps('clap',[4,12]); setSteps('hat',[2,6,10,14]);
+      pattern.hat[2].open=pattern.hat[6].open=pattern.hat[10].open=pattern.hat[14].open=true;
+      setSteps('bass',[0,2,3,4,6,8,10,11,12,14],[0,0,2,0,4,0,0,3,0,2]); setSteps('lead',[0,6,8,14],[7,9,11,9]); } },
+  { name:'Dub', bpm:140, root:50, scale:'minor', lead:'triangle', bass:'sine',
+    cut:54, res:14, env:42, glide:8, drive:8, crush:4, chorus:16, delay:46, reverb:54, pump:30,
+    gen(){ setSteps('kick',[0,8]); setSteps('snare',[8]); setSteps('hat',[2,6,10,14]);
+      setSteps('bass',[0,8],[0,3]); setSteps('lead',[6,14],[7,5]); } },
+  { name:'Afrobeat', bpm:108, root:57, scale:'dorian', lead:'sawtooth', bass:'square',
+    cut:64, res:18, env:56, glide:4, drive:12, crush:2, chorus:12, delay:18, reverb:22, pump:44,
+    gen(){ setSteps('kick',[0,3,6,8,11,14]); setSteps('snare',[4,12]); setSteps('hat',[0,2,4,6,8,10,12,14]);
+      pattern.hat[6].open=pattern.hat[14].open=true; setSteps('clap',[2,10]);
+      setSteps('bass',[0,3,6,8,11,14],[0,0,2,0,3,2]); setSteps('lead',[2,6,10,14],[4,5,7,4]); } },
+  { name:'Reggaeton', bpm:95, root:50, scale:'minor', lead:'square', bass:'square',
+    cut:60, res:18, env:50, glide:5, drive:10, crush:2, chorus:8, delay:14, reverb:22, pump:50,
+    gen(){ setSteps('kick',[0,4,8,12]); setSteps('snare',[3,6,11,14]); setSteps('hat',[0,2,4,6,8,10,12,14]);
+      setSteps('bass',[0,4,8,12],[0,0,3,0]); setSteps('lead',[6,14],[7,5]); } },
   // ---- rock / stoner family: heavy fuzz + power chords ----
   { name:'Rock', bpm:120, root:52, scale:'blues', lead:'sawtooth', bass:'square',
     lchord:'power', cut:64, res:16, env:50, glide:3, drive:34, crush:2, chorus:8, delay:10, reverb:18, pump:28,
@@ -1735,8 +1759,8 @@ function makeCard(b,kind){
   return c;
 }
 let crateFeed=[], crateGenre=null;
-const GENRE_GROUPS=[['All',null],['House/Techno',['House','Techno']],['Synth',['Synthwave','Robot Rock']],
-  ['Chill',['Lo-Fi','Ambient']],['Trap',['Trap']],['Rock',['Rock','Grunge']],
+const GENRE_GROUPS=[['All',null],['House/Techno',['House','Techno']],['Dance',['Disco','Afrobeat','Reggaeton','Dub','Drum & Bass']],
+  ['Synth',['Synthwave','Robot Rock']],['Chill',['Lo-Fi','Ambient']],['Trap',['Trap']],['Rock',['Rock','Grunge']],
   ['Stoner/QOTSA',['Stoner','Doom','Go w/ Flow','No 1 Knows']],['Brazil',['Mangue Beat','Maracatu Atomico']]];
 function buildChips(){ const c=document.getElementById('crateChips'); if(!c||c.children.length) return;
   GENRE_GROUPS.forEach(([name,list],i)=>{ const el=document.createElement('button'); el.className='crate-chip'+(i===0?' on':''); el.textContent=name;
