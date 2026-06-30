@@ -238,10 +238,11 @@
 <div id="flash"></div>
 
 <div class="hud">
-  <div class="brand"><div class="mark">Resonance&nbsp;STUDIO</div><div class="sub">Under Science · live synth + sequencer</div></div>
+  <div class="brand"><div class="mark">Resonance&nbsp;STUDIO</div><div class="sub" id="brandSub">Under Science · live synth + sequencer</div></div>
   <div class="meters">
     <span class="k">bpm</span><span class="v" id="mBpm">120</span>
-    <span class="k">step</span><span class="v" id="mStep">00</span>
+    <span class="k">bar</span><span class="v" id="mBar">01</span>
+    <span class="k">section</span><span class="v" id="mSection">—</span>
     <span class="k">voices</span><span class="v" id="mVoices">0</span>
     <span class="k">fps</span><span class="v" id="mFps">00</span>
   </div>
@@ -761,7 +762,12 @@ function deriveBar(bi){
 function pushHit(type){ /* immediate visual (live) */ flashHit(type, performance.now()/1000); }
 function scheduler(){
   while(nextNoteTime < ctx.currentTime + LOOKAHEAD){
-    if(current16===0) livePattern=deriveBar(barIndex);   // new bar -> evolve
+    if(current16===0){ livePattern=deriveBar(barIndex);   // new bar -> evolve
+      const sec=barIndex%16, lbl=!autoEvolve?'loop':sec===7?'drop':sec===15?'build':(sec%4===3)?'fill':(sec<2?'intro':'groove');
+      const bs=String(sec+1).padStart(2,'0');
+      if(elBar&&bs!==_barStr){elBar.textContent=bs;_barStr=bs;}
+      if(elSection&&lbl!==_secStr){elSection.textContent=lbl;_secStr=lbl;}
+    }
     let t=nextNoteTime;
     if(current16%2===1) t += swing*(60/bpm)*0.25; // swing on odd 16ths
     scheduleStep(current16,t);
@@ -1000,6 +1006,7 @@ function applyPreset(p){
   sidechain.on=p.pump>0; const bSide=document.getElementById('bSide'); if(bSide)bSide.classList.toggle('on',sidechain.on);
   if(p.pump>0) setSliderVal('sSide',p.pump);
   clearPattern(); p.gen(); renderAll();
+  curBeatName=p.name; if(brandSub) brandSub.textContent='vibe · '+p.name;
   toast('vibe · <b>'+p.name+'</b>');
 }
 function syncSimple(id,v,labId){ const el=document.getElementById(id); if(el)el.value=v;
@@ -1226,7 +1233,7 @@ function pump(){ // drain visual queues synced to audio clock
   for(let i=stepQueue.length-1;i>=0;i--){ if(stepQueue[i].time<=now){
     document.querySelectorAll('.cell.cur').forEach(c=>c.classList.remove('cur'));
     const st=stepQueue[i].step; TRACKS.forEach(tr=>cellEls[tr.id][st]&&cellEls[tr.id][st].classList.add('cur'));
-    const _sStr=String(st+1).padStart(2,'0'); if(_sStr!==_stepStr){elStep.textContent=_sStr; _stepStr=_sStr;}
+    const _sStr=String(st+1).padStart(2,'0'); if(elStep && _sStr!==_stepStr){elStep.textContent=_sStr; _stepStr=_sStr;}
     stepQueue.splice(i,1);
   }}
 }
@@ -1234,8 +1241,10 @@ function pump(){ // drain visual queues synced to audio clock
 const _rgb={}; function hexToRgb(h){if(_rgb[h])return _rgb[h];const n=parseInt(h.slice(1),16);return _rgb[h]=[n>>16&255,n>>8&255,n&255];}
 let fpsAcc=0,fpsN=0,fpsShown=60,lastT=0,time=0;
 const elFlash=document.getElementById('flash'), elVoices=document.getElementById('mVoices'),
-      elFps=document.getElementById('mFps'), elStep=document.getElementById('mStep');
-let _fpsStr='',_vStr='',_stepStr='',_flashStr='';
+      elFps=document.getElementById('mFps'), elStep=document.getElementById('mStep'),
+      elBar=document.getElementById('mBar'), elSection=document.getElementById('mSection'),
+      brandSub=document.getElementById('brandSub');
+let _fpsStr='',_vStr='',_stepStr='',_flashStr='',_barStr='',_secStr='';
 
 /* ---- swappable visualizer renderers (theme-aware, reuse analyser data) ---- */
 const VIZ={};
@@ -1670,6 +1679,7 @@ function loadBeat(b){
   TRACKS.forEach(tr=>{ for(let i=0;i<STEPS;i++){ const c=b.pattern[tr.id][i]||{};
     pattern[tr.id][i]= tr.type==='drum'?{on:!!c.on,open:!!c.open}:{on:!!c.on,pitch:c.pitch==null?7:c.pitch}; } });
   renderAll(); curBeatName=b.name;
+  if(brandSub) brandSub.textContent=b.name+' · '+b.genre;
   if(b.seed) try{ history.replaceState(null,'','#b='+b.seed); }catch(e){}  // shareable by URL
   toast('♪ <b>'+b.name+'</b> · '+b.genre+' · '+b.bpm+'bpm');
 }
