@@ -47,10 +47,17 @@
   .btn:hover{color:var(--ink);border-color:#2c2f39}
   .btn.primary{color:var(--accent);border-color:var(--accent)}
   .btn.on{color:#06080a;background:var(--accent);border-color:var(--accent)}
+  .btn em{font-style:normal;opacity:.55;font-size:8px;border:1px solid currentColor;border-radius:3px;
+    padding:1px 4px;margin-left:5px;letter-spacing:.04em;vertical-align:middle}
+  .btn.on em{opacity:.7}
+  .hero em{font-style:normal;font-size:8px;border:1px solid currentColor;border-radius:3px;
+    padding:1px 4px;margin-left:6px;opacity:.6;letter-spacing:.04em;vertical-align:middle}
 
   /* ---- simple vs advanced disclosure ---- */
+  /* simple mode hides the heavy racks; the quick bar stays visible in BOTH modes
+     so every control reachable in simple is also reachable in advanced */
   #studio.simple .adv{display:none}
-  #studio:not(.simple) #simpleBar{display:none}
+  #simpleBar{border-bottom:1px solid var(--line)}
   #simpleBar{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:16px}
   .hero{font-family:"Space Mono",monospace;font-size:13px;letter-spacing:.24em;text-transform:uppercase;
     color:#06080a;background:var(--accent);border:1px solid var(--accent);padding:15px 30px;cursor:pointer;
@@ -163,6 +170,20 @@
     .ignite{width:100%;max-width:320px;padding:22px 0}
     .gate-tag{font-size:12px}
   }
+  /* keyboard shortcuts legend */
+  #legend{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+    background:rgba(5,5,8,.62);backdrop-filter:blur(5px)}
+  #legend.show{display:flex}
+  .legend-card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:22px 24px;
+    width:min(440px,92vw);box-shadow:0 30px 90px -30px #000}
+  .legend-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;
+    font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--accent)}
+  .legend-head button{background:none;border:1px solid var(--line);color:var(--dim);font-family:inherit;font-size:9px;
+    letter-spacing:.12em;padding:5px 9px;cursor:pointer;text-transform:uppercase}
+  .legend-rows{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;font-size:11px;align-items:center}
+  .legend-rows kbd{justify-self:start;background:var(--panel2);border:1px solid var(--line);border-bottom-width:2px;
+    border-radius:4px;padding:4px 10px;color:var(--ink);font-family:"Space Mono",monospace;font-size:10px;min-width:38px;text-align:center}
+  .legend-rows .desc{color:var(--bone);letter-spacing:.04em}
   #toast{position:fixed;top:64px;left:50%;transform:translateX(-50%) translateY(-10px);z-index:45;
     background:rgba(12,13,17,.9);border:1px solid var(--line);color:var(--bone);font-size:10px;letter-spacing:.14em;
     text-transform:uppercase;padding:9px 16px;opacity:0;transition:.3s;pointer-events:none}
@@ -189,10 +210,12 @@
 <div id="studio" class="hidden simple">
   <!-- SIMPLE bar (beginner mode) -->
   <div class="rack" id="simpleBar">
-    <button class="hero" id="bPlay2">▶ Play</button>
+    <button class="hero" id="bPlay2">▶ Play <em>⎵</em></button>
     <div class="sbtns">
       <button class="btn" id="bSurprise">🎲 Surprise</button>
-      <button class="btn" id="bPin2">🎯 Pin</button>
+      <button class="btn" id="bPin2">🎯 Pin <em>F</em></button>
+      <button class="btn" id="bClear2">🧹 Clear <em>C</em></button>
+      <button class="btn" id="bKeys">⌨ Keys <em>?</em></button>
       <button class="btn" id="bAdvanced">⚙ Advanced</button>
     </div>
     <div class="sctl"><label>Vibe</label><select id="selVibe"></select></div>
@@ -205,14 +228,15 @@
   <!-- transport -->
   <div class="rack adv">
     <span class="rlabel">transport</span>
-    <button class="btn primary" id="bPlay">▶ Play</button>
-    <button class="btn" id="bDice">⚄ Randomize</button>
-    <button class="btn" id="bClear">Clear</button>
-    <button class="btn" id="bRec">● Rec</button>
-    <button class="btn" id="bMotion">⟲ Motion</button>
-    <button class="btn" id="bPin">🎯 Pin filter</button>
+    <button class="btn primary" id="bPlay">▶ Play <em>⎵</em></button>
+    <button class="btn" id="bDice">⚄ Shuffle <em>D</em></button>
+    <button class="btn on" id="bEvolve">✨ Evolve <em>E</em></button>
+    <button class="btn" id="bClear">Clear <em>C</em></button>
+    <button class="btn" id="bRec">● Rec <em>R</em></button>
+    <button class="btn" id="bMotion">⟲ Motion <em>M</em></button>
+    <button class="btn" id="bPin">🎯 Pin <em>F</em></button>
     <button class="btn" id="bSimple">◐ Simple</button>
-    <button class="btn" id="bHide">▼ Hide</button>
+    <button class="btn" id="bHide">▼ Hide <em>H</em></button>
     <div class="ctl"><label>BPM <span id="vBpm">120</span></label><input type="range" id="sBpm" min="60" max="180" value="120"></div>
     <div class="ctl"><label>Swing <span id="vSwing">0%</span></label><input type="range" id="sSwing" min="0" max="60" value="14"></div>
     <div class="ctl"><label>Master <span id="vMaster">80</span></label><input type="range" id="sMaster" min="0" max="100" value="80"></div>
@@ -261,7 +285,7 @@
   </div>
 </div>
 
-<div id="hintbar">tap ▶ Play · pick a <b>Vibe</b> · change <b>Color</b> &amp; <b>Visual</b>&nbsp;&nbsp;//&nbsp;&nbsp;move=filter · click=note · ⚙ for advanced</div>
+<div id="hintbar">tap ▶ Play · pick a <b>Vibe</b> · change <b>Color</b> &amp; <b>Visual</b>&nbsp;&nbsp;//&nbsp;&nbsp;move=filter · click=note · ⚙ advanced · press <b>?</b> for all keys</div>
 
 <div id="gate">
   <div class="gate-inner">
@@ -275,6 +299,14 @@
   </div>
 </div>
 <div id="toast"></div>
+
+<!-- keyboard shortcuts legend -->
+<div id="legend">
+  <div class="legend-card">
+    <div class="legend-head"><span>⌨ Keyboard &amp; touch</span><button id="legendClose">close · esc</button></div>
+    <div class="legend-rows" id="legendRows"></div>
+  </div>
+</div>
 
 <script>
 "use strict";
@@ -607,46 +639,98 @@ let current16=0, nextNoteTime=0, schedTimer=null;
 const LOOKAHEAD=0.1, TICK=25;
 const visQueue=[], stepQueue=[];
 
+/* ---- evolving-beat engine: turns a 1-bar loop into a ~30s arrangement ---- */
+let barIndex=0, autoEvolve=true, livePattern=null;
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function deriveBar(bi){
+  const lp={}, maxP=scaleArr().length*2;
+  TRACKS.forEach(tr=>lp[tr.id]=pattern[tr.id].map(c=>({on:c.on,pitch:c.pitch,open:c.open,vel:1})));
+  if(!autoEvolve) return lp;
+  const sec=bi%16, rnd=mulberry(((bi+1)*2654435761)>>>0);
+  const isDrop=(sec===7), isFill=(sec%4===3), isBuild=(sec===15);
+  const dens=[0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.95,0.35,0.80,0.85,0.92,0.70,0.80,0.90,1.00][sec];
+  const dt2=(sec===5||sec===13);                        // double-time-hat bars
+  if(isDrop){
+    ['snare','hat','clap','lead'].forEach(id=>lp[id].forEach(c=>c.on=false));
+    lp.bass.forEach((c,s)=>{ c.on=(s%4===0); if(c.on){c.pitch=0; c.vel=0.9;} });
+    lp.kick.forEach((c,s)=>{ c.on=(s%4===0); c.vel=1; });
+    return lp;
+  }
+  // syncopated ghost kick before the 2/4 on busier bars
+  [7,15].forEach(s=>{ if(!lp.kick[s].on && rnd()<dens*0.35){lp.kick[s].on=true; lp.kick[s].vel=0.8;} });
+  // ghost hats on empty offbeats; double-time/build bars force straight 16ths
+  for(let s=0;s<STEPS;s++){
+    if(!lp.hat[s].on && (s&1) && rnd()<dens*0.5){lp.hat[s].on=true; lp.hat[s].vel=0.30;}
+    if((dt2||isBuild) && !lp.hat[s].on && rnd()<0.7){lp.hat[s].on=true; lp.hat[s].vel=0.34;}
+  }
+  if(isBuild) for(let s=0;s<STEPS;s++){ lp.hat[s].on=true; lp.hat[s].vel=0.40+0.50*(s/STEPS); }
+  if(lp.hat[14].on && rnd()<dens*0.6) lp.hat[14].open=true;
+  // fills: snare/clap roll into the bar turn
+  if(isFill) [9,11,13,14,15].forEach(s=>{ if(rnd()<0.6){lp.snare[s].on=true; lp.snare[s].vel=0.7;} });
+  // bass walk + octave lift on fills + passing notes
+  const walk=[0,0,2,0,0,4,2,3][sec%8];
+  lp.bass.forEach((c,s)=>{
+    if(c.on){ c.pitch=clamp((c.pitch||0)+walk,0,maxP);
+      if(isFill && s===12 && rnd()<0.6) c.pitch=clamp(c.pitch+7,0,maxP); }
+    else if((s%4===2) && rnd()<dens*0.3){ c.on=true; c.pitch=clamp(walk,0,maxP); c.vel=0.7; }
+  });
+  // lead embellishment: octave-up on build, neighbor tones on fills/offbeats
+  lp.lead.forEach((c,s)=>{
+    if(c.on){ if(isBuild) c.pitch=clamp((c.pitch||7)+scaleArr().length,0,maxP); }
+    else if((s&1) && (isFill||rnd()<dens*0.25)){ c.on=true; c.pitch=clamp((c.pitch||7)+(rnd()<0.5?1:2),0,maxP); c.vel=0.55; }
+  });
+  // density gate — thin non-essential hits on sparse bars, never the backbeat
+  TRACKS.forEach(tr=>{ if(tr.id==='kick') return;
+    lp[tr.id].forEach((c,s)=>{ if(c.on && rnd()>dens && !isFill){
+      if(!(tr.id==='snare'&&(s===4||s===12))) c.on=false; } }); });
+  return lp;
+}
+
 function pushHit(type){ /* immediate visual (live) */ flashHit(type, performance.now()/1000); }
 function scheduler(){
   while(nextNoteTime < ctx.currentTime + LOOKAHEAD){
+    if(current16===0) livePattern=deriveBar(barIndex);   // new bar -> evolve
     let t=nextNoteTime;
     if(current16%2===1) t += swing*(60/bpm)*0.25; // swing on odd 16ths
     scheduleStep(current16,t);
     stepQueue.push({time:t,step:current16});
-    const spb=60/bpm; nextNoteTime+=0.25*spb; current16=(current16+1)%STEPS;
+    const spb=60/bpm; nextNoteTime+=0.25*spb;
+    current16=(current16+1)%STEPS;
+    if(current16===0) barIndex=(barIndex+1)%64;
   }
 }
 function scheduleStep(step,t){
-  const sc=scaleArr(), spb=60/bpm, stepDur=0.25*spb;
+  const spb=60/bpm, stepDur=0.25*spb, src=livePattern||pattern;
   for(const tr of TRACKS){
-    const cell=pattern[tr.id][step];
-    if(!cell.on || tr.muted) continue;
+    if(tr.muted) continue;
+    const cell=src[tr.id][step];
+    if(!cell.on) continue;
+    const v=cell.vel!=null?cell.vel:1;
     if(tr.type==='drum'){
-      if(tr.id==='kick') kick(t,1);
-      else if(tr.id==='snare') snare(t,0.9);
-      else if(tr.id==='hat') hat(t,0.7,cell.open);
-      else if(tr.id==='clap') clap(t,0.8);
+      if(tr.id==='kick') kick(t,v);
+      else if(tr.id==='snare') snare(t,0.9*v);
+      else if(tr.id==='hat') hat(t,0.7*v,cell.open);
+      else if(tr.id==='clap') clap(t,0.8*v);
       visQueue.push({time:t,type:tr.id});
     } else {
       const f=pitchFreq(cell.pitch, tr.id==='bass'?synthCfg.bass.octShift:synthCfg.lead.octShift);
-      playSynth(tr.id, f, t, stepDur*0.9, 0.85);
+      playSynth(tr.id, f, t, stepDur*0.9, 0.85*v);
       visQueue.push({time:t,type:tr.id});
     }
   }
 }
 function startSeq(){
-  if(playing) return; playing=true; current16=0; nextNoteTime=ctx.currentTime+0.06;
+  if(playing) return; playing=true; current16=0; barIndex=0; livePattern=null; nextNoteTime=ctx.currentTime+0.06;
   schedTimer=setInterval(scheduler,TICK);
   document.getElementById('bPlay').textContent='■ Stop';
   document.getElementById('bPlay').classList.add('on');
-  const p2=document.getElementById('bPlay2'); if(p2){p2.textContent='■ Stop'; p2.classList.add('playing');}
+  const p2=document.getElementById('bPlay2'); if(p2){p2.innerHTML='■ Stop <em>⎵</em>'; p2.classList.add('playing');}
 }
 function stopSeq(){
   playing=false; clearInterval(schedTimer); schedTimer=null;
   document.getElementById('bPlay').textContent='▶ Play';
   document.getElementById('bPlay').classList.remove('on');
-  const p2=document.getElementById('bPlay2'); if(p2){p2.textContent='▶ Play'; p2.classList.remove('playing');}
+  const p2=document.getElementById('bPlay2'); if(p2){p2.innerHTML='▶ Play <em>⎵</em>'; p2.classList.remove('playing');}
   document.querySelectorAll('.cell.cur').forEach(c=>c.classList.remove('cur'));
 }
 function togglePlay(){ playing?stopSeq():startSeq(); }
@@ -791,6 +875,41 @@ const PRESETS=[
     gen(){ setSteps('kick',[0,8]); setSteps('snare',[8]); setSteps('hat',[0,8]);
       setSteps('bass',[0,8],[0,0]);
       setSteps('lead',[0,8],[0,3]); } },
+  // ---- QOTSA / desert-rock (Songs for the Deaf era) ----
+  { name:'Go w/ Flow', bpm:159, root:57, scale:'minor', lead:'sawtooth', bass:'sawtooth',
+    lchord:'power', bchord:'power', cut:62, res:18, env:52, glide:2, drive:74, crush:4, chorus:10, delay:12, reverb:16, pump:30,
+    gen(){ setSteps('kick',[0,2,3,6,8,10,11,14]); setSteps('snare',[4,12]);
+      setSteps('hat',[0,2,4,6,8,10,12,14]); pattern.hat[6].open=pattern.hat[14].open=true;
+      setSteps('clap',[4,12]);
+      setSteps('bass',[0,2,3,6,8,10,11,14],[0,0,2,3,0,0,2,3]);
+      setSteps('lead',[0,3,6,8,11,14],[0,2,3,0,2,3]); } },
+  { name:'No 1 Knows', bpm:92, root:49, scale:'minor', lead:'sawtooth', bass:'square',
+    lchord:'power', cut:60, res:16, env:48, glide:4, drive:70, crush:3, chorus:12, delay:10, reverb:22, pump:22,
+    gen(){ setSteps('kick',[0,3,6,8,11]); setSteps('snare',[4,12]);
+      setSteps('hat',[0,2,4,6,8,10,12,14]);
+      setSteps('bass',[0,3,6,8,11,14],[0,0,3,0,0,2]);
+      setSteps('lead',[0,6,8,14],[0,3,0,2]); } },
+  { name:'Robot Rock', bpm:135, root:52, scale:'phrygian', lead:'sawtooth', bass:'square',
+    lchord:'power', bchord:'power', cut:58, res:20, env:50, glide:3, drive:72, crush:5, chorus:8, delay:14, reverb:20, pump:26,
+    gen(){ setSteps('kick',[0,4,8,12]); setSteps('snare',[4,12]);
+      setSteps('hat',[0,2,4,6,8,10,12,14]); pattern.hat[14].open=true;
+      setSteps('bass',[0,2,4,6,8,10,12,14],[0,0,0,1,0,0,3,1]);
+      setSteps('lead',[2,6,10,14],[0,1,3,1]); } },
+  // ---- Mangue Beat (Chico Science & Nação Zumbi / maracatu fusion) ----
+  { name:'Mangue Beat', bpm:102, root:57, scale:'penta_min', lead:'sawtooth', bass:'square',
+    lchord:'power', cut:62, res:20, env:58, glide:4, drive:42, crush:3, chorus:10, delay:16, reverb:20, pump:48,
+    gen(){ setSteps('kick',[0,3,6,8,10,11,14]); setSteps('snare',[4,12,15]);
+      setSteps('hat',[0,2,4,6,8,10,12,14]); pattern.hat[6].open=pattern.hat[14].open=true;
+      setSteps('clap',[3,7,11]);
+      setSteps('bass',[0,3,6,8,10,11,14],[0,0,2,0,3,2,1]);
+      setSteps('lead',[2,6,10,14],[0,3,0,4]); } },
+  { name:'Maracatu Atomico', bpm:88, root:57, scale:'minor', lead:'sawtooth', bass:'square',
+    lchord:'power', cut:56, res:16, env:50, glide:5, drive:58, crush:5, chorus:8, delay:14, reverb:30, pump:36,
+    gen(){ setSteps('kick',[0,3,8,10,11,13]); setSteps('snare',[4,12,14]);
+      setSteps('hat',[0,2,4,6,8,10,12,14]); pattern.hat[2].open=pattern.hat[10].open=true;
+      setSteps('clap',[3,6,11,13]);
+      setSteps('bass',[0,3,8,10,11,13],[0,0,0,3,2,0]);
+      setSteps('lead',[6,11,14],[3,5,7]); } },
 ];
 function applyPreset(p){
   setSliderVal('sBpm',p.bpm);
@@ -840,7 +959,7 @@ let vizMode='orb';
 const VIZ_MODES=[
   {id:'orb',name:'◉ Resonator'},{id:'bars',name:'▮ Spectrum'},{id:'rings',name:'◎ Pulse'},
   {id:'wave',name:'◠ Waveform'},{id:'tunnel',name:'∞ Lissajous'},{id:'grid',name:'⊞ Matrix'},
-  {id:'calm',name:'○ Calm'},
+  {id:'calm',name:'○ Calm'},{id:'flow',name:'♥ Flow'},
 ];
 function loadPrefs(){
   try{ const t=localStorage.getItem('rs_theme'); if(t) accent=t;
@@ -935,14 +1054,25 @@ function wireUI(){
 
   document.getElementById('bPin').onclick=toggleCursorLock;
   document.getElementById('bPin2').onclick=toggleCursorLock;
+  document.getElementById('bEvolve').onclick=toggleEvolve;
+  { const bc2=document.getElementById('bClear2'); if(bc2) bc2.onclick=clearPat; }
+
+  // keyboard legend
+  buildLegend();
+  document.getElementById('bKeys').onclick=()=>toggleLegend(true);
+  document.getElementById('legendClose').onclick=()=>toggleLegend(false);
+  document.getElementById('legend').addEventListener('click',e=>{ if(e.target.id==='legend') toggleLegend(false); });
 
   bindSlider('sBright','vBright',x=>x,x=>setSliderVal('sCut',x));
   bindSlider('sSpace','vSpace',x=>x,x=>setSliderVal('sReverb',x));
   document.getElementById('bPlay2').onclick=togglePlay;
   document.getElementById('bSurprise').onclick=()=>{ const p=PRESETS[(Math.random()*PRESETS.length)|0];
     applyPreset(p); const sv=document.getElementById('selVibe'); if(sv) sv.value=String(PRESETS.indexOf(p)); };
-  document.getElementById('bAdvanced').onclick=()=>{ document.getElementById('studio').classList.remove('simple'); toast('advanced <b>mode</b>'); };
-  document.getElementById('bSimple').onclick=()=>{ document.getElementById('studio').classList.add('simple'); toast('simple <b>mode</b>'); };
+  const setSimpleMode=(simple)=>{ document.getElementById('studio').classList.toggle('simple',simple);
+    const ba=document.getElementById('bAdvanced'); if(ba) ba.textContent=simple?'⚙ Advanced':'◐ Simple'; };
+  document.getElementById('bAdvanced').onclick=()=>{ const s=document.getElementById('studio').classList.contains('simple');
+    setSimpleMode(!s); toast(s?'advanced <b>mode</b>':'simple <b>mode</b>'); };
+  document.getElementById('bSimple').onclick=()=>{ setSimpleMode(true); toast('simple <b>mode</b>'); };
 }
 
 /* ---------------- record the master out ---------------- */
@@ -976,6 +1106,18 @@ function resize(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight
   cvs.width=W*DPR;cvs.height=H*DPR;cx2.setTransform(DPR,0,0,DPR,0,0);CX=W/2;CY=H*0.42;}
 addEventListener('resize',resize);resize();
 
+/* prebaked additive glow sprite — replaces expensive per-frame shadowBlur/gradients (240Hz-friendly) */
+let GLOWQ=1, glowSprite=document.createElement('canvas'), glowCtx=glowSprite.getContext('2d'), glowAccent='';
+function buildGlowSprite(rgb){ const S=128; glowSprite.width=S; glowSprite.height=S; glowCtx.clearRect(0,0,S,S);
+  const g=glowCtx.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);
+  g.addColorStop(0,`rgba(${rgb},0.9)`); g.addColorStop(0.4,`rgba(${rgb},0.35)`); g.addColorStop(1,`rgba(${rgb},0)`);
+  glowCtx.fillStyle=g; glowCtx.fillRect(0,0,S,S); glowAccent=rgb; }
+function stampGlow(x,y,d,a){ const o=cx2.globalAlpha; cx2.globalAlpha=a; cx2.drawImage(glowSprite,x-d/2,y-d/2,d,d); cx2.globalAlpha=o; }
+// re-stroke the CURRENT path a few times for a cheap additive bloom, then a crisp core
+function glowStroke(rgb,coreW,coreA,passes){ passes=passes*GLOWQ|0;
+  for(let p=passes;p>=1;p--){ cx2.lineWidth=coreW+p*2.4; cx2.strokeStyle=`rgba(${rgb},${coreA*0.16})`; cx2.stroke(); }
+  cx2.lineWidth=coreW; cx2.strokeStyle=`rgba(${rgb},${coreA})`; cx2.stroke(); }
+
 let mx=0.5,my=0.42,tmx=0.5,tmy=0.42,rot=0;
 let shake=0, kickFlash=0, accent='#5ef2e8';
 const sparks=[], rings=[];
@@ -998,13 +1140,16 @@ function pump(){ // drain visual queues synced to audio clock
   for(let i=stepQueue.length-1;i>=0;i--){ if(stepQueue[i].time<=now){
     document.querySelectorAll('.cell.cur').forEach(c=>c.classList.remove('cur'));
     const st=stepQueue[i].step; TRACKS.forEach(tr=>cellEls[tr.id][st]&&cellEls[tr.id][st].classList.add('cur'));
-    document.getElementById('mStep').textContent=String(st+1).padStart(2,'0');
+    const _sStr=String(st+1).padStart(2,'0'); if(_sStr!==_stepStr){elStep.textContent=_sStr; _stepStr=_sStr;}
     stepQueue.splice(i,1);
   }}
 }
 
 const _rgb={}; function hexToRgb(h){if(_rgb[h])return _rgb[h];const n=parseInt(h.slice(1),16);return _rgb[h]=[n>>16&255,n>>8&255,n&255];}
 let fpsAcc=0,fpsN=0,fpsShown=60,lastT=0,time=0;
+const elFlash=document.getElementById('flash'), elVoices=document.getElementById('mVoices'),
+      elFps=document.getElementById('mFps'), elStep=document.getElementById('mStep');
+let _fpsStr='',_vStr='',_stepStr='',_flashStr='';
 
 /* ---- swappable visualizer renderers (theme-aware, reuse analyser data) ---- */
 const VIZ={};
@@ -1028,13 +1173,10 @@ VIZ.orb=function(acc,ampE,dtN,baseR,idle){
       const wob=Math.sin(time*0.0017+idx*0.5+L*2)*7;
       const r=(baseR + td*70 + wob + ampE*26 + kickFlash*40)*sc;
       const x=Math.cos(a)*r,y=Math.sin(a)*r; i===0?cx2.moveTo(x,y):cx2.lineTo(x,y);}
-    cx2.closePath(); cx2.strokeStyle=`rgba(${acc},${alpha})`; cx2.lineWidth=L?1:2;
-    cx2.shadowColor=`rgba(${acc},0.9)`; cx2.shadowBlur=L?6:20+ampE*40; cx2.stroke();
+    cx2.closePath(); glowStroke(acc, L?1:2, alpha, L?2:3);
   }
   const coreR=baseR*0.3+ampE*baseR*0.5+kickFlash*40;
-  const g=cx2.createRadialGradient(0,0,0,0,0,coreR);
-  g.addColorStop(0,`rgba(${acc},${0.5+ampE*0.5})`); g.addColorStop(0.5,`rgba(${acc},0.08)`); g.addColorStop(1,'rgba(0,0,0,0)');
-  cx2.fillStyle=g; cx2.shadowBlur=0; cx2.beginPath(); cx2.arc(0,0,coreR,0,TAU); cx2.fill();
+  stampGlow(0,0, coreR*2, 0.5+ampE*0.5);
   cx2.restore();
 };
 VIZ.bars=function(acc,ampE,dtN,baseR,idle){
@@ -1043,9 +1185,8 @@ VIZ.bars=function(acc,ampE,dtN,baseR,idle){
   for(let i=0;i<n;i++){
     const v=idle?0.08+0.4*Math.pow(Math.max(0,Math.sin(time*0.002-i*0.18)),3):(specData?specData[i*3+2]/255:0);
     const h=(v*v)*H*0.42 + kickFlash*30;
-    const grd=cx2.createLinearGradient(0,CY-h,0,CY+h);
-    grd.addColorStop(0,`rgba(${acc},${0.12+v*0.5})`); grd.addColorStop(0.5,`rgba(${acc},${0.5+v*0.5})`); grd.addColorStop(1,`rgba(${acc},${0.12+v*0.5})`);
-    cx2.fillStyle=grd; cx2.fillRect(i*bw+1,CY-h,bw-2,h*2);
+    stampGlow(i*bw+bw/2, CY, bw*1.1, 0.12+v*0.6);
+    cx2.fillStyle=`rgba(${acc},${0.5+v*0.5})`; cx2.fillRect(i*bw+1,CY-h,bw-2,h*2);
   }
   cx2.restore();
 };
@@ -1057,21 +1198,17 @@ VIZ.rings=function(acc,ampE,dtN,baseR,idle){
     cx2.strokeStyle=`rgba(${acc},${(1-ph)*(0.12+ampE*0.5)})`; cx2.lineWidth=1+ampE*3+kickFlash*6; cx2.stroke();
   }
   const coreR=baseR*0.4+ampE*baseR*0.7+kickFlash*46;
-  const g=cx2.createRadialGradient(0,0,0,0,0,coreR);
-  g.addColorStop(0,`rgba(${acc},${0.6+ampE*0.4})`); g.addColorStop(1,'rgba(0,0,0,0)');
-  cx2.fillStyle=g; cx2.beginPath(); cx2.arc(0,0,coreR,0,TAU); cx2.fill();
+  stampGlow(0,0, coreR*2, 0.6+ampE*0.4);
   cx2.restore();
 };
 VIZ.wave=function(acc,ampE,dtN,baseR,idle){
   cx2.save(); cx2.globalCompositeOperation='lighter';
   const n=timeData?timeData.length:256;
-  cx2.strokeStyle=`rgba(${acc},${0.5+ampE*0.5})`; cx2.lineWidth=2;
-  cx2.shadowColor=`rgba(${acc},0.9)`; cx2.shadowBlur=12+ampE*30;
   cx2.beginPath();
   for(let i=0;i<n;i+=2){const v=idle?0.3*Math.sin(i*0.05+time*0.002):(timeData?(timeData[i]-128)/128:0);
     const x=(i/n)*W, y=CY+v*H*0.3; i===0?cx2.moveTo(x,y):cx2.lineTo(x,y);}
-  cx2.stroke();
-  cx2.strokeStyle=`rgba(${acc},${0.14+ampE*0.25})`; cx2.shadowBlur=0; cx2.beginPath();
+  glowStroke(acc, 2, 0.5+ampE*0.5, 3);
+  cx2.strokeStyle=`rgba(${acc},${0.14+ampE*0.25})`; cx2.lineWidth=1; cx2.beginPath();
   for(let i=0;i<n;i+=3){const v=idle?0:(timeData?(timeData[i]-128)/128:0); const x=(i/n)*W,y=CY*1.5-v*H*0.16; i===0?cx2.moveTo(x,y):cx2.lineTo(x,y);}
   cx2.stroke();
   cx2.restore();
@@ -1079,16 +1216,15 @@ VIZ.wave=function(acc,ampE,dtN,baseR,idle){
 VIZ.tunnel=function(acc,ampE,dtN,baseR,idle){
   cx2.save(); cx2.translate(CX,CY); cx2.rotate(rot*0.5); cx2.globalCompositeOperation='lighter';
   const n=timeData?timeData.length:256;
-  cx2.shadowColor=`rgba(${acc},0.9)`; cx2.shadowBlur=10+ampE*24; cx2.lineWidth=1.5;
   for(let layer=0;layer<3;layer++){
     const sc=(0.45+layer*0.28)*(1+ampE*0.5)+kickFlash*0.3;
-    cx2.globalAlpha=0.7-layer*0.2; cx2.strokeStyle=`rgba(${acc},${0.5+ampE*0.4})`; cx2.beginPath();
+    cx2.globalAlpha=0.7-layer*0.2; cx2.beginPath();
     for(let i=0;i<n;i+=4){
       const vx=idle?Math.sin(i*0.05+time*0.002):(timeData?(timeData[i]-128)/128:0);
       const vy=idle?Math.cos(i*0.05+time*0.0023):(timeData?(timeData[(i+96)%n]-128)/128:0);
       const x=vx*baseR*1.7*sc, y=vy*baseR*1.7*sc; i===0?cx2.moveTo(x,y):cx2.lineTo(x,y);
     }
-    cx2.stroke();
+    glowStroke(acc, 1.5, 0.5+ampE*0.4, 2);
   }
   cx2.globalAlpha=1; cx2.restore();
 };
@@ -1106,18 +1242,79 @@ VIZ.grid=function(acc,ampE,dtN,baseR,idle){
 VIZ.calm=function(acc,ampE,dtN,baseR,idle){
   cx2.save(); cx2.translate(CX,CY); cx2.globalCompositeOperation='lighter';
   const r=baseR*(1.1+ampE*0.6)+kickFlash*30;
-  const g=cx2.createRadialGradient(0,0,0,0,0,r*2);
-  g.addColorStop(0,`rgba(${acc},${0.3+ampE*0.3})`); g.addColorStop(0.4,`rgba(${acc},0.06)`); g.addColorStop(1,'rgba(0,0,0,0)');
-  cx2.fillStyle=g; cx2.beginPath(); cx2.arc(0,0,r*2,0,TAU); cx2.fill();
+  stampGlow(0,0, r*4, 0.3+ampE*0.3);
   cx2.strokeStyle=`rgba(${acc},${0.25+ampE*0.4})`; cx2.lineWidth=1.5;
   cx2.beginPath(); cx2.arc(0,0,r,0,TAU); cx2.stroke();
   cx2.restore();
+};
+/* ---- QOTSA "Go with the Flow" (Shynola 2003): red/black/white rotoscope rush ---- */
+VIZ.FLOW_TINT=false;                 // false = authentic QOTSA red; true = use theme accent
+VIZ.flow=function(acc,ampE,dtN,baseR,idle){
+  const RED   = VIZ.FLOW_TINT ? acc : '220,38,38';
+  const WHITE = '235,235,228';
+  cx2.fillStyle='#0a0708'; cx2.fillRect(0,0,W,H);            // opaque ground (defeats trail by design)
+  const horizonY = CY + baseR*0.55;
+  const vpx = CX + (mx-0.5)*W*0.18;
+  const vpy = horizonY + (my-0.42)*40;
+  const t   = time*0.001;
+  const drift = t*0.9 + ampE*1.6;
+  cx2.fillStyle=`rgba(${RED},1)`; cx2.fillRect(0,horizonY,W,H-horizonY);  // red desert
+  cx2.lineCap='round';
+  const N=26;
+  for(let i=0;i<N;i++){
+    const ph=((i/N) + drift*0.12) % 1, ease=ph*ph;
+    const ang=(i/N)*TAU + rot*0.4, ca=Math.cos(ang), sa=Math.sin(ang);
+    const r0=baseR*0.10 + ease*Math.max(W,H)*0.85;
+    const r1=r0 + (10 + ease*60 + ampE*40 + kickFlash*30);
+    const above=(vpy+sa*r0)<horizonY;
+    cx2.strokeStyle = above ? `rgba(${RED},${0.20+ease*0.6})` : `rgba(${WHITE},${0.15+ease*0.7})`;
+    cx2.lineWidth = 1 + ease*4 + kickFlash*2;
+    cx2.beginPath(); cx2.moveTo(vpx+ca*r0,vpy+sa*r0); cx2.lineTo(vpx+ca*r1,vpy+sa*r1); cx2.stroke();
+  }
+  cx2.strokeStyle=`rgba(${WHITE},0.9)`; cx2.lineWidth=2+kickFlash*3; cx2.beginPath();
+  const segs=48;
+  for(let i=0;i<=segs;i++){
+    const fx=i/segs, depth=Math.pow(fx<0.5?fx*2:(1-fx)*2,1.4), x=fx*W;
+    const yw=Math.sin(fx*6.2 + drift*2.0)*(18+ampE*70)*depth;
+    const y=horizonY + 30 + depth*(H-horizonY)*0.6 + yw;
+    i===0?cx2.moveTo(x,y):cx2.lineTo(x,y);
+  }
+  cx2.stroke();
+  const hs=(baseR*0.42)*(1 + kickFlash*0.45 + ampE*0.12 + 0.04*Math.sin(t*4));
+  const hx=CX+(mx-0.5)*30, hy=CY-baseR*0.15+(my-0.42)*24;
+  cx2.save(); cx2.translate(hx,hy); cx2.scale(hs/100,hs/100);
+  cx2.beginPath();
+  cx2.moveTo(0,30);
+  cx2.bezierCurveTo(0,10,-15,-40,-50,-40);
+  cx2.bezierCurveTo(-95,-40,-95,18,-95,18);
+  cx2.bezierCurveTo(-95,55,-55,80,0,108);
+  cx2.bezierCurveTo(55,80,95,55,95,18);
+  cx2.bezierCurveTo(95,18,95,-40,50,-40);
+  cx2.bezierCurveTo(15,-40,0,10,0,30);
+  cx2.closePath();
+  cx2.fillStyle=`rgba(${RED},1)`; cx2.fill();
+  cx2.lineWidth=6/(hs/100); cx2.strokeStyle=`rgba(${WHITE},${0.85+kickFlash*0.15})`; cx2.stroke();
+  cx2.restore();
+  cx2.fillStyle='#0a0708'; cx2.beginPath(); cx2.moveTo(0,H);
+  const sN=20, base=H-baseR*0.42;
+  for(let i=0;i<=sN;i++){
+    const x=(i/sN)*W, bass=specData?specData[(i%9)]/255:0;
+    const bob=Math.sin(i*1.3 + t*2.2)*(8+ampE*22) - bass*38 - kickFlash*16;
+    cx2.lineTo(x, base + bob);
+  }
+  cx2.lineTo(W,H); cx2.closePath(); cx2.fill();
+  if(kickFlash>0.04){
+    cx2.lineWidth=4+kickFlash*10; cx2.strokeStyle=`rgba(${WHITE},${kickFlash*0.8})`;
+    cx2.strokeRect(8,8,W-16,H-16);
+  }
+  cx2.lineCap='butt';
 };
 
 function draw(now){
   requestAnimationFrame(draw);
   let dt=(now-lastT)/1000; lastT=now; if(dt>0.1)dt=0.1; const dtN=dt*60;
   if(dt>0){fpsAcc+=1/dt;fpsN++;} if(fpsN>=20){fpsShown=Math.round(fpsAcc/fpsN);fpsAcc=0;fpsN=0;}
+  const _gq=fpsShown>=200?1:fpsShown>=120?0.85:fpsShown>=90?0.6:0.35; GLOWQ+=(_gq-GLOWQ)*0.05; // adaptive, never a frame cap
   time+=dt*1000;
   pump();
 
@@ -1142,14 +1339,16 @@ function draw(now){
   const sx=(Math.random()-0.5)*shake, sy=(Math.random()-0.5)*shake;
   shake*=Math.pow(0.0001,dt);
   kickFlash*=Math.pow(0.00001,dt);
-  document.getElementById('flash').style.opacity=(kickFlash*0.5).toFixed(3);
+  const _fStr=(kickFlash*0.5).toFixed(3); if(_fStr!==_flashStr){elFlash.style.opacity=_fStr; _flashStr=_fStr;}
 
   cx2.setTransform(DPR,0,0,DPR,sx,sy);
   // trail
   cx2.globalCompositeOperation='source-over';
-  cx2.fillStyle='rgba(7,7,10,0.24)'; cx2.fillRect(-20,-20,W+40,H+40);
+  const trailA=1-Math.pow(1-0.24,dt*60); // dt-scaled so trails keep length at 240Hz
+  cx2.fillStyle=`rgba(7,7,10,${trailA})`; cx2.fillRect(-20,-20,W+40,H+40);
 
   const [ar,ag,ab]=hexToRgb(accent); const acc=`${ar},${ag},${ab}`;
+  if(glowAccent!==acc) buildGlowSprite(acc);
 
   // ---- visualizer (swappable mode) ----
   const baseR=Math.min(W,H)*0.20;
@@ -1177,8 +1376,8 @@ function draw(now){
     cx2.beginPath(); cx2.arc(mx*W,my*H,15,0,TAU); cx2.strokeStyle=`rgba(${acc},0.3)`; cx2.stroke(); }
 
   rot+=(0.0012+ampE*0.004)*dtN;
-  document.getElementById('mVoices').textContent=activeVoices;
-  document.getElementById('mFps').textContent=String(fpsShown).padStart(2,'0');
+  const _v=String(activeVoices); if(_v!==_vStr){elVoices.textContent=_v; _vStr=_v;}
+  const _fp=String(fpsShown).padStart(2,'0'); if(_fp!==_fpsStr){elFps.textContent=_fp; _fpsStr=_fp;}
 }
 
 /* ---------------- input ---------------- */
@@ -1192,18 +1391,26 @@ cvs.addEventListener('touchstart',e=>{const p=evPos(e); setPos(e); strike(p[0],p
 // pin the XY filter so it stays put while you tweak everything else
 function toggleCursorLock(){
   cursorLock=!cursorLock;
-  ['bPin','bPin2'].forEach(id=>{const b=document.getElementById(id);
-    if(b){ b.classList.toggle('on',cursorLock); b.textContent=cursorLock?'🎯 Pinned':(id==='bPin'?'🎯 Pin filter':'🎯 Pin'); }});
+  ['bPin','bPin2'].forEach(id=>{const b=document.getElementById(id); if(!b)return;
+    b.classList.toggle('on',cursorLock);
+    if(id==='bPin') b.textContent=cursorLock?'🎯 Pinned':'🎯 Pin filter';
+    else b.innerHTML=cursorLock?'🎯 Pinned <em>F</em>':'🎯 Pin <em>F</em>';});
   toast(cursorLock?'filter <b>pinned</b> · cursor frozen':'filter <b>free</b> again');
 }
 
 const KEYS='zxcvbnm,'.split('').concat('asdfghjkl'.split(''));
 addEventListener('keydown',e=>{
   if(e.repeat) return; const k=e.key.toLowerCase();
+  if(e.key==='Escape'){ document.getElementById('legend').classList.remove('show'); return; }
+  if(e.key==='?'){ toggleLegend(); return; }
   if(e.code==='Space'){ e.preventDefault(); if(started)togglePlay(); return; }
   if(k==='h'){ toggleStudio(); return; }
   if(k==='d'){ if(started)dice(); return; }
   if(k==='f'){ toggleCursorLock(); return; }
+  if(k==='r'){ toggleRec(); return; }
+  if(k==='c'){ clearPat(); return; }
+  if(k==='m'){ toggleMotion(); return; }
+  if(k==='e'){ toggleEvolve(); return; }
   const i=KEYS.indexOf(k);
   if(i>=0 && started){ const nx=clamp(i/(KEYS.length-1),0,1); strike(nx,my,0.9); }
 });
@@ -1297,6 +1504,30 @@ let toastT=0; const toastEl=document.getElementById('toast');
 function toast(h){ toastEl.innerHTML=h; toastEl.classList.add('show'); clearTimeout(toastT);
   toastT=setTimeout(()=>toastEl.classList.remove('show'),1400); }
 
+/* ---------------- keyboard legend (always discoverable) ---------------- */
+const KEYMAP=[
+  ['Space','Play / Stop'],
+  ['R','Record &amp; save .webm'],
+  ['D','Shuffle / new beat'],
+  ['E','Auto-evolve (~30s beat)'],
+  ['C','Clear pattern'],
+  ['F','Pin filter (freeze cursor)'],
+  ['M','Motion — tilt &amp; shake'],
+  ['H','Show / hide panel'],
+  ['?','Open this help'],
+  ['Click','Strike a note'],
+  ['Move','Filter (XY pad)'],
+  ['Z–M / A–L','Play notes'],
+];
+function buildLegend(){ const r=document.getElementById('legendRows'); if(!r) return; r.innerHTML='';
+  KEYMAP.forEach(([k,d])=>{ const kb=document.createElement('kbd'); kb.textContent=k;
+    const ds=document.createElement('div'); ds.className='desc'; ds.innerHTML=d; r.appendChild(kb); r.appendChild(ds); }); }
+function toggleLegend(force){ const el=document.getElementById('legend');
+  el.classList.toggle('show', force!==undefined?force:!el.classList.contains('show')); }
+function toggleEvolve(){ autoEvolve=!autoEvolve; const b=document.getElementById('bEvolve');
+  if(b)b.classList.toggle('on',autoEvolve); if(!autoEvolve)livePattern=null;
+  toast('auto-evolve <b>'+(autoEvolve?'on · ~30s arrangement':'off · 1-bar loop')+'</b>'); }
+
 /* ---------------- power on ---------------- */
 document.getElementById('ignite').addEventListener('click', async ()=>{
   if(started) return;
@@ -1307,7 +1538,10 @@ document.getElementById('ignite').addEventListener('click', async ()=>{
   document.getElementById('gate').classList.add('hide');
   document.getElementById('studio').classList.remove('hidden');
   startSeq();
-  setTimeout(()=>toast('try a <b>Vibe</b> · change <b>Color</b> &amp; <b>Visual</b> · tap ⚙ for advanced'),900);
+  // first-time players see the shortcuts up front
+  let seen=false; try{ seen=!!localStorage.getItem('rs_seenkeys'); localStorage.setItem('rs_seenkeys','1'); }catch(e){}
+  if(seen) setTimeout(()=>toast('try a <b>Vibe</b> · change <b>Color</b> &amp; <b>Visual</b> · ⌨ <b>Keys</b> for shortcuts'),900);
+  else setTimeout(()=>toggleLegend(true),1100);
 });
 
 /* ---------------- gate tagline cycler (curiosity hook) ---------------- */
