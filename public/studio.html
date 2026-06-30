@@ -184,6 +184,41 @@
   .legend-rows kbd{justify-self:start;background:var(--panel2);border:1px solid var(--line);border-bottom-width:2px;
     border-radius:4px;padding:4px 10px;color:var(--ink);font-family:"Space Mono",monospace;font-size:10px;min-width:38px;text-align:center}
   .legend-rows .desc{color:var(--bone);letter-spacing:.04em}
+  /* beat crate — search / browse / save beats */
+  #crate{position:fixed;inset:0;z-index:61;display:none;align-items:stretch;justify-content:center;
+    padding:4vh 3vw;background:rgba(5,5,8,.8);backdrop-filter:blur(6px)}
+  #crate.show{display:flex}
+  .crate-panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;width:min(960px,96vw);
+    max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 40px 120px -40px #000}
+  .crate-head{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .crate-head .title{font-family:"Sora",sans-serif;font-weight:300;letter-spacing:.2em;text-transform:uppercase;color:var(--ink);font-size:15px;white-space:nowrap}
+  .crate-search{flex:1;display:flex;gap:8px;min-width:200px}
+  .crate-search input{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    font-family:"Space Mono",monospace;font-size:12px;padding:10px 12px;letter-spacing:.04em;outline:none}
+  .crate-search input:focus{border-color:var(--accent)}
+  .crate-head .x{background:none;border:1px solid var(--line);color:var(--dim);font-family:inherit;font-size:9px;
+    letter-spacing:.12em;padding:7px 11px;cursor:pointer;text-transform:uppercase}
+  .crate-body{padding:16px 18px;overflow:auto;display:flex;flex-direction:column;gap:20px}
+  .crate-section h3{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);
+    margin-bottom:11px;display:flex;align-items:center;gap:12px}
+  .crate-section h3 .ln{flex:1;height:1px;background:var(--line)}
+  .crate-section h3 button{background:var(--panel2);border:1px solid var(--line);color:var(--bone);
+    font-family:inherit;font-size:9px;letter-spacing:.1em;padding:6px 11px;cursor:pointer;text-transform:uppercase}
+  .crate-section h3 button:hover{color:var(--accent);border-color:var(--accent)}
+  .crate-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:11px}
+  .bcard{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:13px;cursor:pointer;
+    transition:.15s;position:relative;overflow:hidden}
+  .bcard:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 10px 30px -16px var(--accent)}
+  .bcard .bname{font-size:13px;color:var(--ink);letter-spacing:.03em;margin-bottom:3px;padding-right:18px}
+  .bcard .bmeta{font-size:9px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
+  .bcard .bmeta b{color:var(--accent);font-weight:400}
+  .bcard .bprev{display:flex;gap:2px;margin-top:11px;height:22px;align-items:flex-end}
+  .bcard .bprev i{flex:1;background:var(--line);border-radius:1px;height:20%}
+  .bcard .bprev i.k{background:var(--accent)}
+  .bcard .bprev i.s{background:var(--bone)}
+  .bcard .act{position:absolute;top:9px;right:9px;font-size:13px;color:var(--dim);background:none;border:none;cursor:pointer;line-height:1}
+  .bcard .act:hover{color:var(--accent)}
+  .crate-empty{color:var(--dim);font-size:11px;letter-spacing:.06em;padding:6px 0}
   #toast{position:fixed;top:64px;left:50%;transform:translateX(-50%) translateY(-10px);z-index:45;
     background:rgba(12,13,17,.9);border:1px solid var(--line);color:var(--bone);font-size:10px;letter-spacing:.14em;
     text-transform:uppercase;padding:9px 16px;opacity:0;transition:.3s;pointer-events:none}
@@ -213,6 +248,7 @@
     <button class="hero" id="bPlay2">▶ Play <em>⎵</em></button>
     <div class="sbtns">
       <button class="btn" id="bSurprise">🎲 Surprise</button>
+      <button class="btn" id="bCrate">🗂 Beats <em>B</em></button>
       <button class="btn" id="bPin2">🎯 Pin <em>F</em></button>
       <button class="btn" id="bClear2">🧹 Clear <em>C</em></button>
       <button class="btn" id="bKeys">⌨ Keys <em>?</em></button>
@@ -299,6 +335,31 @@
   </div>
 </div>
 <div id="toast"></div>
+
+<!-- beat crate (search / browse / save) -->
+<div id="crate">
+  <div class="crate-panel">
+    <div class="crate-head">
+      <span class="title">🗂 Beat Crate</span>
+      <div class="crate-search">
+        <input id="crateQuery" type="text" placeholder="search or seed a beat… (e.g. desert storm)" autocomplete="off" spellcheck="false">
+        <button class="x" id="crateFind">Find</button>
+      </div>
+      <button class="x" id="crateRadio">📻 Radio</button>
+      <button class="x" id="crateClose">close · esc</button>
+    </div>
+    <div class="crate-body">
+      <div class="crate-section">
+        <h3>Generated <span class="ln"></span><button id="crateMore">🎲 Shuffle 8 more</button></h3>
+        <div class="crate-grid" id="crateFeedGrid"></div>
+      </div>
+      <div class="crate-section">
+        <h3>Saved <span class="ln"></span><button id="crateSave">💾 Save current</button></h3>
+        <div class="crate-grid" id="crateSavedGrid"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- keyboard shortcuts legend -->
 <div id="legend">
@@ -699,7 +760,8 @@ function scheduler(){
     stepQueue.push({time:t,step:current16});
     const spb=60/bpm; nextNoteTime+=0.25*spb;
     current16=(current16+1)%STEPS;
-    if(current16===0) barIndex=(barIndex+1)%64;
+    if(current16===0){ barIndex=(barIndex+1)%64;
+      if(radioOn && barIndex%8===0) loadBeat(generateBeat((Math.random()*4294967296)>>>0)); }
   }
 }
 function scheduleStep(step,t){
@@ -1067,6 +1129,17 @@ function wireUI(){
   document.getElementById('legendClose').onclick=()=>toggleLegend(false);
   document.getElementById('legend').addEventListener('click',e=>{ if(e.target.id==='legend') toggleLegend(false); });
 
+  // beat crate
+  loadSaved();
+  document.getElementById('bCrate').onclick=openCrate;
+  document.getElementById('crateClose').onclick=closeCrate;
+  document.getElementById('crateFind').onclick=searchBeat;
+  document.getElementById('crateMore').onclick=shuffleFeed;
+  document.getElementById('crateSave').onclick=()=>saveBeat(currentBeat());
+  document.getElementById('crateRadio').onclick=toggleRadio;
+  document.getElementById('crateQuery').addEventListener('keydown',e=>{ if(e.key==='Enter') searchBeat(); });
+  document.getElementById('crate').addEventListener('click',e=>{ if(e.target.id==='crate') closeCrate(); });
+
   bindSlider('sBright','vBright',x=>x,x=>setSliderVal('sCut',x));
   bindSlider('sSpace','vSpace',x=>x,x=>setSliderVal('sReverb',x));
   document.getElementById('bPlay2').onclick=togglePlay;
@@ -1405,7 +1478,8 @@ function toggleCursorLock(){
 const KEYS='zxcvbnm,'.split('').concat('asdfghjkl'.split(''));
 addEventListener('keydown',e=>{
   if(e.repeat) return; const k=e.key.toLowerCase();
-  if(e.key==='Escape'){ document.getElementById('legend').classList.remove('show'); return; }
+  if(e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)){ if(e.key==='Escape')e.target.blur(); return; }
+  if(e.key==='Escape'){ document.getElementById('legend').classList.remove('show'); closeCrate(); return; }
   if(e.key==='?'){ toggleLegend(); return; }
   if(e.code==='Space'){ e.preventDefault(); if(started)togglePlay(); return; }
   if(k==='h'){ toggleStudio(); return; }
@@ -1415,6 +1489,7 @@ addEventListener('keydown',e=>{
   if(k==='c'){ clearPat(); return; }
   if(k==='m'){ toggleMotion(); return; }
   if(k==='e'){ toggleEvolve(); return; }
+  if(k==='b'){ toggleCrate(); return; }
   const i=KEYS.indexOf(k);
   if(i>=0 && started){ const nx=clamp(i/(KEYS.length-1),0,1); strike(nx,my,0.9); }
 });
@@ -1518,6 +1593,7 @@ const KEYMAP=[
   ['F','Pin filter (freeze cursor)'],
   ['M','Motion — tilt &amp; shake'],
   ['H','Show / hide panel'],
+  ['B','Browse beats (Crate)'],
   ['?','Open this help'],
   ['Click','Strike a note'],
   ['Move','Filter (XY pad)'],
@@ -1531,6 +1607,109 @@ function toggleLegend(force){ const el=document.getElementById('legend');
 function toggleEvolve(){ autoEvolve=!autoEvolve; const b=document.getElementById('bEvolve');
   if(b)b.classList.toggle('on',autoEvolve); if(!autoEvolve)livePattern=null;
   toast('auto-evolve <b>'+(autoEvolve?'on · ~30s arrangement':'off · 1-bar loop')+'</b>'); }
+
+/* ============================================================
+   BEAT CRATE — search, browse & save beats
+   ============================================================ */
+const _NAME_A=['Crimson','Velvet','Neon','Desert','Midnight','Static','Lunar','Iron','Golden','Hollow','Electric','Savage','Cosmic','Concrete','Phantom','Acid','Smoke','Glass','Wild','Slow','Molten','Paper','Chrome','Ghost','Brass','Ruby','Hazy','Stone'];
+const _NAME_B=['Mirage','Engine','Pulse','Drifter','Tide','Bloom','Riot','Voyage','Echo','Machine','Ritual','Sermon','Horizon','Gospel','Circuit','Anthem','Mantra','Fever','Parade','Dawn','Hymn','Cargo','Vapor','Tonic','Saga','Bones','Comet','Lagoon'];
+function beatName(rng){ return _NAME_A[(rng()*_NAME_A.length)|0]+' '+_NAME_B[(rng()*_NAME_B.length)|0]; }
+function hashStr(s){ let h=2166136261>>>0; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+function titleCase(s){ return s.replace(/\w\S*/g,t=>t.charAt(0).toUpperCase()+t.slice(1).toLowerCase()); }
+function noteName(m){ return NOTE_NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1); }
+function snapshotPattern(){ const o={}; TRACKS.forEach(tr=>o[tr.id]=pattern[tr.id].map(c=>({...c}))); return o; }
+function restorePattern(s){ TRACKS.forEach(tr=>{ for(let i=0;i<STEPS;i++) pattern[tr.id][i]={...s[tr.id][i]}; }); }
+
+// deterministic full beat from a numeric seed (same seed -> same beat)
+function generateBeat(seed){
+  seed=seed>>>0; const rng=mulberry(seed);
+  const base=PRESETS[(rng()*PRESETS.length)|0];
+  const sc=SCALES[base.scale]||SCALES.minor, mp=sc.length*2;
+  const saved=snapshotPattern(); clearPattern(); base.gen();
+  ['kick','snare','hat','clap'].forEach(id=>pattern[id].forEach(c=>{ if(rng()<0.08) c.on=!c.on; }));
+  pattern.kick[0].on=true;
+  pattern.lead.forEach(c=>{ if(c.on&&rng()<0.3) c.pitch=clamp(c.pitch+(rng()<0.5?2:-2),0,mp); });
+  pattern.bass.forEach(c=>{ if(c.on&&rng()<0.25) c.pitch=clamp(c.pitch+(rng()<0.5?0:3),0,mp); });
+  const pat=snapshotPattern(); restorePattern(saved);
+  const jit=(v,d,lo,hi)=>clamp(Math.round(v+(rng()*2-1)*d),lo,hi);
+  return {
+    seed, genre:base.name, name:beatName(rng),
+    bpm:jit(base.bpm,8,60,180), root:base.root+([-5,-3,0,0,2,5,7][(rng()*7)|0]), scale:base.scale,
+    lead:base.lead, bass:base.bass, lchord:base.lchord||'off', bchord:base.bchord||'off',
+    cut:jit(base.cut,10,20,95), res:jit(base.res,8,0,90), env:jit(base.env,10,10,95), glide:base.glide,
+    drive:jit(base.drive,5,2,55), crush:base.crush, chorus:jit(base.chorus,8,0,80),
+    delay:jit(base.delay,8,0,90), reverb:jit(base.reverb,8,0,90), pump:base.pump, pattern:pat,
+  };
+}
+
+let curBeatName='';
+function loadBeat(b){
+  setSliderVal('sBpm',b.bpm);
+  rootMidi=b.root; const sr=document.getElementById('selRoot'); if(sr&&[...sr.options].some(o=>+o.value===b.root)) sr.value=b.root;
+  scaleName=b.scale; const ss=document.getElementById('selScale'); if(ss) ss.value=b.scale;
+  synthCfg.lead.wave=b.lead; const lw=document.getElementById('selLeadWave'); if(lw) lw.value=b.lead;
+  synthCfg.bass.wave=b.bass; const bw=document.getElementById('selBassWave'); if(bw) bw.value=b.bass;
+  synthCfg.lead.chord=b.lchord||'off'; synthCfg.bass.chord=b.bchord||'off';
+  setSliderVal('sCut',b.cut); setSliderVal('sRes',b.res); setSliderVal('sEnv',b.env); setSliderVal('sGlide',b.glide);
+  setSliderVal('sDrive',b.drive); setSliderVal('sCrush',b.crush); setSliderVal('sChorus',b.chorus);
+  setSliderVal('sDelay',b.delay); setSliderVal('sReverb',b.reverb);
+  syncSimple('sBright',b.cut,'vBright'); syncSimple('sSpace',b.reverb,'vSpace');
+  sidechain.on=b.pump>0; const bsd=document.getElementById('bSide'); if(bsd)bsd.classList.toggle('on',sidechain.on);
+  if(b.pump>0) setSliderVal('sSide',b.pump);
+  TRACKS.forEach(tr=>{ for(let i=0;i<STEPS;i++){ const c=b.pattern[tr.id][i]||{};
+    pattern[tr.id][i]= tr.type==='drum'?{on:!!c.on,open:!!c.open}:{on:!!c.on,pitch:c.pitch==null?7:c.pitch}; } });
+  renderAll(); curBeatName=b.name;
+  if(b.seed) try{ history.replaceState(null,'','#b='+b.seed); }catch(e){}  // shareable by URL
+  toast('♪ <b>'+b.name+'</b> · '+b.genre+' · '+b.bpm+'bpm');
+}
+function currentBeat(){
+  const g=id=>parseFloat(document.getElementById(id).value);
+  return { seed:0, genre:'custom', name:(curBeatName||('My '+beatName(mulberry((performance.now()|0)>>>0)))),
+    bpm:g('sBpm'), root:rootMidi, scale:scaleName, lead:synthCfg.lead.wave, bass:synthCfg.bass.wave,
+    lchord:synthCfg.lead.chord, bchord:synthCfg.bass.chord,
+    cut:g('sCut'),res:g('sRes'),env:g('sEnv'),glide:g('sGlide'),drive:g('sDrive'),crush:g('sCrush'),
+    chorus:g('sChorus'),delay:g('sDelay'),reverb:g('sReverb'),pump:sidechain.on?g('sSide'):0,
+    pattern:snapshotPattern() };
+}
+
+let savedBeats=[];
+function loadSaved(){ try{ savedBeats=JSON.parse(localStorage.getItem('rs_crate')||'[]'); }catch(e){ savedBeats=[]; } }
+function persistSaved(){ try{ localStorage.setItem('rs_crate',JSON.stringify(savedBeats)); }catch(e){} }
+function saveBeat(b){ savedBeats.unshift(JSON.parse(JSON.stringify(b))); if(savedBeats.length>60)savedBeats.pop(); persistSaved(); renderSaved(); toast('saved · <b>'+b.name+'</b>'); }
+
+function previewBars(b){ let h='';
+  for(let i=0;i<STEPS;i++){ const k=b.pattern.kick[i]&&b.pattern.kick[i].on, s=b.pattern.snare[i]&&b.pattern.snare[i].on, ht=b.pattern.hat[i]&&b.pattern.hat[i].on;
+    const cls=k?'k':s?'s':''; const hh=k?'90%':s?'62%':ht?'34%':'18%'; h+=`<i class="${cls}" style="height:${hh}"></i>`; }
+  return h; }
+function makeCard(b,kind){
+  const c=document.createElement('div'); c.className='bcard';
+  c.innerHTML=`<div class="bname">${b.name}</div><div class="bmeta"><b>${b.genre}</b> · ${b.bpm}bpm · ${noteName(b.root)} ${b.scale.replace('_',' ')}</div><div class="bprev">${previewBars(b)}</div>`+
+    (kind==='gen'?'<button class="act" title="save">♡</button>':'<button class="act" title="delete">✕</button>');
+  c.addEventListener('click',e=>{ if(e.target.classList.contains('act')) return; loadBeat(b); if(started&&!playing)startSeq(); closeCrate(); });
+  const act=c.querySelector('.act');
+  if(kind==='gen') act.onclick=e=>{e.stopPropagation(); saveBeat(b);};
+  else act.onclick=e=>{e.stopPropagation(); const i=savedBeats.indexOf(b); if(i>=0){savedBeats.splice(i,1); persistSaved(); renderSaved();}};
+  return c;
+}
+let crateFeed=[];
+function renderFeed(list){ const g=document.getElementById('crateFeedGrid'); g.innerHTML=''; (list||crateFeed).forEach(b=>g.appendChild(makeCard(b,'gen'))); }
+function shuffleFeed(){ crateFeed=Array.from({length:8},()=>generateBeat((Math.random()*4294967296)>>>0)); renderFeed(); }
+function renderSaved(){ const g=document.getElementById('crateSavedGrid'); g.innerHTML='';
+  if(!savedBeats.length){ g.innerHTML='<div class="crate-empty">no saved beats yet — tap ♡ on a card or “Save current”.</div>'; return; }
+  savedBeats.forEach(b=>g.appendChild(makeCard(b,'saved'))); }
+function searchBeat(){ const q=(document.getElementById('crateQuery').value||'').trim();
+  if(!q){ shuffleFeed(); return; }
+  const seed = /^(0x)?[0-9a-f]{4,}$/i.test(q) ? (parseInt(q.replace(/^0x/,''),16)>>>0) : hashStr(q.toLowerCase());
+  const b=generateBeat(seed); if(q.length<=22) b.name=titleCase(q);
+  crateFeed=[b,...crateFeed].slice(0,8); renderFeed(); }
+function openCrate(){ document.getElementById('crate').classList.add('show'); if(!crateFeed.length) shuffleFeed(); renderSaved(); }
+function closeCrate(){ document.getElementById('crate').classList.remove('show'); }
+function toggleCrate(){ document.getElementById('crate').classList.contains('show')?closeCrate():openCrate(); }
+
+/* generative radio — auto-loads a fresh beat every 8 bars */
+let radioOn=false;
+function toggleRadio(){ radioOn=!radioOn; const b=document.getElementById('crateRadio'); if(b)b.style.color=radioOn?'var(--accent)':'';
+  toast('radio <b>'+(radioOn?'on · new beat every 8 bars':'off')+'</b>'); if(radioOn&&started&&!playing)startSeq(); }
 
 /* ---------------- power on ---------------- */
 document.getElementById('ignite').addEventListener('click', async ()=>{
@@ -1568,6 +1747,8 @@ setInterval(()=>{
 loadPrefs();
 wireUI();
 buildSeqUI();
+// open a shared beat from the URL (#b=<seed>)
+(function(){ const mh=(location.hash||'').match(/b=(\d+)/); if(mh){ try{ loadBeat(generateBeat(parseInt(mh[1],10)>>>0)); }catch(e){} } })();
 requestAnimationFrame(draw);
 </script>
 </body>
