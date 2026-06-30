@@ -89,18 +89,50 @@
   #hintbar{position:fixed;left:0;right:0;bottom:0;z-index:20;text-align:center;
     font-size:9px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;padding:6px;pointer-events:none}
 
-  /* gate */
-  #gate{position:fixed;inset:0;z-index:50;background:var(--void);display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:38px;transition:opacity .8s}
-  #gate.hide{opacity:0;pointer-events:none}
-  .gate-mark{font-family:"Sora",sans-serif;font-weight:200;font-size:min(13vw,82px);letter-spacing:.3em;
-    color:var(--ink);text-transform:uppercase;text-indent:.3em;text-align:center;line-height:.95}
-  .gate-sub{color:var(--dim);font-size:11px;letter-spacing:.42em;text-transform:uppercase;margin-top:-20px;text-align:center}
-  .ignite{cursor:pointer;background:transparent;border:1px solid var(--accent);color:var(--accent);
-    font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.32em;text-transform:uppercase;
-    padding:18px 44px;position:relative;overflow:hidden;transition:color .25s}
-  .ignite::after{content:"";position:absolute;inset:0;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .25s;z-index:-1}
-  .ignite:hover{color:#06080a}.ignite:hover::after{transform:scaleX(1)}
+  /* gate — lets the live visual glow through behind the type */
+  #gate{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+    padding:calc(28px + env(safe-area-inset-top)) 24px calc(28px + env(safe-area-inset-bottom));
+    background:radial-gradient(125% 92% at 50% 38%, rgba(7,7,10,.42), rgba(7,7,10,.9) 56%, #07070a 100%);
+    transition:opacity .9s ease, transform .9s ease}
+  #gate.hide{opacity:0;pointer-events:none;transform:scale(1.06)}
+  .gate-inner{display:flex;flex-direction:column;align-items:center;text-align:center;
+    gap:22px;max-width:560px;width:100%;animation:floatIn 1.1s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes floatIn{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+  .gate-eyebrow{font-size:clamp(8px,2.4vw,10px);letter-spacing:.4em;text-transform:uppercase;color:var(--dim);
+    padding-left:.4em;display:flex;align-items:center;gap:10px;white-space:nowrap}
+  .gate-eyebrow::before,.gate-eyebrow::after{content:"";width:clamp(14px,5vw,26px);height:1px;background:var(--line)}
+  .gate-mark{display:flex;flex-direction:column;align-items:center;gap:.02em;line-height:.86;
+    font-family:"Sora",sans-serif;font-weight:200;text-transform:uppercase}
+  .gate-mark span{font-size:clamp(40px,13vw,86px);letter-spacing:.14em;text-indent:.14em;color:var(--ink);
+    text-shadow:0 0 38px rgba(94,242,232,.18)}
+  .gate-mark .accent{font-weight:600;letter-spacing:.16em;text-indent:.16em;
+    background:linear-gradient(96deg,var(--accent) 0%,#bff7f1 50%,#ff9ad6 100%);background-size:200% 100%;
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
+    animation:shimmer 6s linear infinite}
+  @keyframes shimmer{to{background-position:200% 0}}
+  .gate-tag{font-size:13px;letter-spacing:.06em;color:var(--bone);min-height:1.4em;
+    transition:opacity .4s;font-family:"Space Mono",monospace}
+  .ignite{cursor:pointer;background:rgba(94,242,232,.04);border:1px solid var(--accent);color:var(--accent);
+    font-family:"Space Mono",monospace;font-size:13px;letter-spacing:.34em;text-transform:uppercase;
+    padding:20px 52px;position:relative;overflow:hidden;transition:color .3s, box-shadow .3s, transform .15s;
+    border-radius:2px;box-shadow:0 0 0 0 rgba(94,242,232,.25);margin-top:6px;text-indent:.34em}
+  .ignite::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,var(--accent),#bff7f1);
+    transform:scaleX(0);transform-origin:left;transition:transform .3s ease;z-index:-1}
+  .ignite:hover,.ignite:active{color:#06080a;box-shadow:0 0 38px -6px var(--accent)}
+  .ignite:hover::after,.ignite:active::after{transform:scaleX(1)}
+  .ignite:active{transform:scale(.97)}
+  .ignite .ring{position:absolute;inset:-1px;border:1px solid var(--accent);opacity:0;border-radius:2px;
+    animation:pulsering 2.6s ease-out infinite}
+  @keyframes pulsering{0%{opacity:.45;transform:scale(1)}100%{opacity:0;transform:scale(1.35)}}
+  .gate-feat{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 18px;margin-top:4px;
+    font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  .gate-feat span{display:inline-flex;align-items:center;gap:7px}
+  .gate-feat b{color:var(--accent);font-weight:400;font-size:7px}
+  @media (max-width:640px){
+    .gate-mark span{letter-spacing:.1em;text-indent:.1em}
+    .ignite{width:100%;max-width:320px;padding:22px 0}
+    .gate-tag{font-size:12px}
+  }
   #toast{position:fixed;top:64px;left:50%;transform:translateX(-50%) translateY(-10px);z-index:45;
     background:rgba(12,13,17,.9);border:1px solid var(--line);color:var(--bone);font-size:10px;letter-spacing:.14em;
     text-transform:uppercase;padding:9px 16px;opacity:0;transition:.3s;pointer-events:none}
@@ -171,13 +203,29 @@
     <div class="ctl"><label>Mid <span id="vMid">0</span></label><input type="range" id="sMid" min="-18" max="18" value="0"></div>
     <div class="ctl"><label>High <span id="vHigh">0</span></label><input type="range" id="sHigh" min="-18" max="18" value="3"></div>
   </div>
+
+  <!-- motion (mobile gesture control) -->
+  <div class="rack">
+    <span class="rlabel">motion</span>
+    <div class="ctl"><label>Tilt ↔</label><select id="selMotX"></select></div>
+    <div class="ctl"><label>Tilt ↕</label><select id="selMotY"></select></div>
+    <button class="btn" id="bLock">🔒 Lock angle</button>
+    <span class="rlabel" id="motReadout" style="min-width:auto;color:var(--accent);letter-spacing:.1em">tilt to dial · lock to hold</span>
+  </div>
 </div>
 
 <div id="hintbar">move=filter (XY) · click=strike · Z–M / A–L=play · space=play/stop · H=panel · D=dice&nbsp;&nbsp;//&nbsp;&nbsp;📱 Motion=tilt &amp; shake</div>
 
 <div id="gate">
-  <div><div class="gate-mark">Resonance&nbsp;STUDIO</div><div class="gate-sub">Under Science · Synth Lab</div></div>
-  <button class="ignite" id="ignite">Power On</button>
+  <div class="gate-inner">
+    <div class="gate-eyebrow">Under Science · Synth Lab</div>
+    <h1 class="gate-mark"><span>Resonance</span><span class="accent">Studio</span></h1>
+    <div class="gate-tag" id="gateTag">a synth you play by moving</div>
+    <button class="ignite" id="ignite">Power&nbsp;On<span class="ring"></span></button>
+    <div class="gate-feat">
+      <span><b>●</b> live synthesis</span><span><b>●</b> tilt &amp; shake</span><span><b>●</b> make a beat</span>
+    </div>
+  </div>
 </div>
 <div id="toast"></div>
 
@@ -662,6 +710,13 @@ function wireUI(){
   bSide.classList.toggle('on',sidechain.on);
   bSide.onclick=()=>{ sidechain.on=!sidechain.on; bSide.classList.toggle('on',sidechain.on); toast('pump <b>'+(sidechain.on?'on':'off')+'</b>'); };
   bindSlider('sSide','vSide',x=>x,x=>sidechain.amount=x/100);
+
+  // motion target selectors + lock
+  const selX=document.getElementById('selMotX'), selY=document.getElementById('selMotY');
+  MOT_TARGETS.forEach(t=>{ selX.appendChild(new Option(t.name,t.id)); selY.appendChild(new Option(t.name,t.id)); });
+  selX.value=motionTargets.x; selY.value=motionTargets.y;
+  selX.onchange=()=>motionTargets.x=selX.value; selY.onchange=()=>motionTargets.y=selY.value;
+  document.getElementById('bLock').onclick=toggleLock;
 }
 
 /* ---------------- record the master out ---------------- */
@@ -739,11 +794,15 @@ function draw(now){
     perfFilter.frequency.setTargetAtTime(20000*Math.pow(0.0025,norm),ctx.currentTime,0.03);
     perfFilter.Q.setTargetAtTime(0.7+mx*10,ctx.currentTime,0.05);
   }
+  applyMotion();
 
   let amp=0;
   if(analyser){ analyser.getByteFrequencyData(specData); analyser.getByteTimeDomainData(timeData);
     let s=0; for(let i=0;i<timeData.length;i+=8){const v=(timeData[i]-128)/128;s+=v*v;} amp=Math.sqrt(s/(timeData.length/8)); }
-  const ampE=Math.min(amp*2.4,1);
+  let ampE=Math.min(amp*2.4,1);
+  // idle "breathing" energy before power-on so the gate visual feels alive
+  const idle=!started;
+  if(idle) ampE=0.22+0.16*Math.sin(time*0.0011)+0.08*Math.sin(time*0.0029);
 
   // shake offset
   const sx=(Math.random()-0.5)*shake, sy=(Math.random()-0.5)*shake;
@@ -763,7 +822,8 @@ function draw(now){
   const bars=96, baseR=Math.min(W,H)*0.20;
   for(let i=0;i<bars;i++){
     const a=(i/bars)*TAU - Math.PI/2 + rot*0.2;
-    const v=specData?specData[(i*2)+2]/255:0;
+    const v=idle ? 0.18+0.5*Math.pow(Math.max(0,Math.sin(time*0.0016 - i*0.16)),3)
+                 : (specData?specData[(i*2)+2]/255:0);
     const len=8+v*Math.min(W,H)*0.22;
     const r0=baseR*0.62, r1=r0+len;
     cx2.strokeStyle=`rgba(${acc},${0.12+v*0.7})`;
@@ -778,7 +838,8 @@ function draw(now){
     const N=120, sc=1-L*0.18, alpha=0.85-L*0.4;
     cx2.beginPath();
     for(let i=0;i<=N;i++){const idx=i%N, a=(idx/N)*TAU;
-      const td=timeData?(timeData[Math.floor(idx/N*timeData.length)]-128)/128:0;
+      const td=idle ? 0.35*Math.sin(a*3+time*0.0018)
+                    : (timeData?(timeData[Math.floor(idx/N*timeData.length)]-128)/128:0);
       const wob=Math.sin(time*0.0017+idx*0.5+L*2)*7;
       const r=(baseR + td*70 + wob + ampE*26 + kickFlash*40)*sc;
       const x=Math.cos(a)*r,y=Math.sin(a)*r; i===0?cx2.moveTo(x,y):cx2.lineTo(x,y);}
@@ -843,11 +904,11 @@ function toggleStudio(){
 // shake = strike a note. iOS needs a permission gesture (the Motion button).
 let motionOn=false, lastShake=0, accelPrev={x:0,y:0,z:0};
 function handleOrient(e){
-  if(!motionOn) return;
-  const g=clamp((e.gamma||0)/42,-1,1);        // left-right tilt
-  const b=clamp(((e.beta||40)-40)/42,-1,1);   // front-back tilt (centered ~40°)
-  tmx=clamp((g+1)/2,0,1);
-  tmy=clamp((b+1)/2,0,1);
+  if(!motionOn||motionLock) return;            // when locked, hold the last angle
+  const g=clamp((e.gamma||0)/40,-1,1);         // left-right tilt -> X axis
+  const b=clamp(((e.beta||45)-20)/60,0,1);     // front-back tilt -> Y axis
+  motionVal.x=(g+1)/2;
+  motionVal.y=b;
 }
 function handleMotion(e){
   if(!motionOn) return;
@@ -869,7 +930,7 @@ async function enableMotion(){
     addEventListener('devicemotion',handleMotion);
     motionOn=true;
     document.getElementById('bMotion').classList.add('on');
-    toast('tilt=<b>filter+pitch</b> · shake=<b>note</b>');
+    toast('tilt=<b>dial fx</b> · shake=<b>note</b> · lock=<b>hold angle</b>');
   }catch(err){ toast('motion <b>unavailable</b>'); }
 }
 function toggleMotion(){
@@ -880,6 +941,40 @@ function toggleMotion(){
     document.getElementById('bMotion').classList.remove('on');
     toast('motion <b>off</b>');
   } else enableMotion();
+}
+
+/* tilt -> effect mapping with a freeze/lock so you can rest the phone */
+const MOT_TARGETS=[
+  {id:'cutoff',name:'Cutoff',slider:'sCut'},
+  {id:'reso',  name:'Reso',  slider:'sRes'},
+  {id:'envmod',name:'EnvMod',slider:'sEnv'},
+  {id:'drive', name:'Drive', slider:'sDrive'},
+  {id:'crush', name:'Crush', slider:'sCrush'},
+  {id:'chorus',name:'Chorus',slider:'sChorus'},
+  {id:'delay', name:'Delay', slider:'sDelay'},
+  {id:'reverb',name:'Reverb',slider:'sReverb'},
+];
+let motionTargets={x:'cutoff', y:'reverb'}, motionLock=false, motionVal={x:0.78, y:0.34};
+function motTgt(id){return MOT_TARGETS.find(t=>t.id===id)||MOT_TARGETS[0];}
+function setSliderVal(id,v){const el=document.getElementById(id); if(!el)return;
+  el.value=Math.round(clamp(v,parseFloat(el.min),parseFloat(el.max))); el.dispatchEvent(new Event('input'));}
+function applyMotion(){
+  if(!motionOn) return;
+  if(!motionLock){
+    setSliderVal(motTgt(motionTargets.x).slider, motionVal.x*100);
+    setSliderVal(motTgt(motionTargets.y).slider, motionVal.y*100);
+  }
+  const ro=document.getElementById('motReadout');
+  if(ro) ro.textContent=(motionLock?'🔒 ':'')+motTgt(motionTargets.x).name+' '+Math.round(motionVal.x*100)
+    +'% · '+motTgt(motionTargets.y).name+' '+Math.round(motionVal.y*100)+'%';
+}
+function toggleLock(){
+  if(!motionOn){ toast('enable <b>motion</b> first'); return; }
+  motionLock=!motionLock;
+  const b=document.getElementById('bLock');
+  b.classList.toggle('on',motionLock);
+  b.textContent=motionLock?'🔓 Unlock':'🔒 Lock angle';
+  toast(motionLock?'angle <b>locked</b> · rest the phone':'angle <b>live</b>');
 }
 
 /* ---------------- toast ---------------- */
@@ -899,6 +994,23 @@ document.getElementById('ignite').addEventListener('click', async ()=>{
   startSeq();
   setTimeout(()=>toast('move=<b>filter</b> · space=<b>play</b> · D=<b>dice</b> · H=<b>panel</b>'),800);
 });
+
+/* ---------------- gate tagline cycler (curiosity hook) ---------------- */
+const GATE_TAGS=[
+  'a synth you play by moving',
+  'tilt it · shake it · lock it',
+  'make a beat in 10 seconds',
+  'no app. no samples. pure sound.',
+  'your phone is the instrument',
+  'turn motion into music',
+];
+let _gt=0;
+setInterval(()=>{
+  const el=document.getElementById('gateTag');
+  if(!el||started) return;
+  el.style.opacity=0;
+  setTimeout(()=>{ _gt=(_gt+1)%GATE_TAGS.length; el.textContent=GATE_TAGS[_gt]; el.style.opacity=1; },400);
+},2800);
 
 wireUI();
 buildSeqUI();
