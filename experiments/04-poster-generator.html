@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>UNDER SCIENCE LAB // 04 · Poster Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@200;300;600;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#0a0a0c;overflow:hidden;color:#cfcfd4;
+    font-family:"Space Mono",monospace;user-select:none}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  /* the poster is a fixed 2:3 canvas, centered, with a frame */
+  #poster{box-shadow:0 30px 120px -30px rgba(0,0,0,.9), 0 0 0 1px #1c1c22;background:#000;
+    transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+  .bar{position:fixed;z-index:10;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#54545c}
+  .tl{top:20px;left:22px}
+  .mark{font-family:"Sora",sans-serif;font-weight:200;letter-spacing:.4em;font-size:15px;color:#eee;text-transform:uppercase}
+  .ctrls{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:10;display:flex;gap:8px}
+  .btn{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#bfbfc6;
+    background:rgba(20,20,24,.6);border:1px solid #2c2c34;padding:10px 18px;cursor:pointer;transition:.18s}
+  .btn:hover{color:#000;background:#e8e8ea;border-color:#e8e8ea}
+  .hint{position:fixed;bottom:58px;left:50%;transform:translateX(-50%);z-index:10;font-size:10px;letter-spacing:.2em;color:#3a3a42;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="bar tl"><div class="mark">Poster&nbsp;Generator</div><div style="margin-top:6px">generative one-sheet · 04</div></div>
+<div id="wrap"><canvas id="poster"></canvas></div>
+<div class="ctrls">
+  <button class="btn" id="gen">⟳ New Poster</button>
+  <button class="btn" id="save">↓ Save PNG</button>
+</div>
+<div class="hint">space · generate&nbsp;&nbsp;·&nbsp;&nbsp;each one is unique &amp; seeded</div>
+<script>
+"use strict";
+/* ============================================================
+   LAB 04 — POSTER GENERATOR
+   Every press composes a unique cinematic one-sheet from a seeded
+   RNG: a generative abstract "key art" (rings / strata / orbits),
+   monochrome grade, kinetic typography, credits block, grain.
+   Save to PNG. A concrete sketch of the Room Poster idea.
+   ============================================================ */
+const cvs=document.getElementById('poster'),ctx=cvs.getContext('2d');
+const TAU=Math.PI*2,clamp=(v,a,b)=>v<a?a:v>b?b:v;
+
+// fit a 2:3 poster to the viewport
+let PW,PH,S;
+function fit(){
+  const maxH=innerHeight*0.82, maxW=innerWidth*0.92;
+  PH=Math.min(maxH,maxW*1.5); PW=PH/1.5; S=2; // supersample for crisp text
+  cvs.width=PW*S; cvs.height=PH*S; cvs.style.width=PW+'px'; cvs.style.height=PH+'px';
+  ctx.setTransform(S,0,0,S,0,0);
+}
+addEventListener('resize',()=>{fit();render();});
+
+// ---- seeded RNG ----
+let seed=12345;
+function srand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;}
+function pick(a){return a[(srand()*a.length)|0];}
+
+const NAMES=['RESONANCE','AFTERMATH','GRAVITY WELL','ECLIPSE','THE VESSEL','HALCYON',
+  'CINDERFALL','MIRAGE','THRESHOLD','VOIDLINE','AURORA DECAY','STATIC BLOOM','NIGHT SCIENCE',
+  'SPECIMEN ZERO','TREMOR','LUCID ENGINE','COLD SIGNAL','UNDERTOW'];
+const TAGS=['a field recording','sound becomes matter','the chamber remembers',
+  'nothing resonates alone','recorded below sea level','first contact, last light',
+  'every frequency has a body','tuned to the dark'];
+const STUDIOS=['UNDER SCIENCE','PLAYOFF PICTURES','RESONANCE LAB','SPECIMEN CO.','NIGHT DIVISION'];
+const ROLES=['DIR.','SOUND','LIGHT','SPECIMEN','MIX','GRADE','SYSTEM'];
+const STYLES=['orbits','strata','rings','grid','eclipse'];
+const GRADES=[ // monochrome-leaning duotones
+  {bg:'#070708',ink:'#f2f2f4',accent:'#f2f2f4'},
+  {bg:'#08080c',ink:'#eaeaee',accent:'#9fd2ff'},
+  {bg:'#0a0707',ink:'#f0eaea',accent:'#ff6a6a'},
+  {bg:'#070a08',ink:'#e9f0ea',accent:'#7dff8e'},
+  {bg:'#09080c',ink:'#ece9f2',accent:'#b89bff'},
+];
+
+let grade,style;
+function newSeed(){seed=(Date.now()^(Math.random()*1e9))>>>0;}
+
+function render(){
+  grade=pick(GRADES); style=pick(STYLES);
+  const w=PW,h=PH;
+  // ground
+  ctx.fillStyle=grade.bg; ctx.fillRect(0,0,w,h);
+
+  // soft top glow
+  const gg=ctx.createRadialGradient(w*0.5,h*0.34,0,w*0.5,h*0.34,h*0.6);
+  gg.addColorStop(0,hexA(grade.accent,0.10)); gg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=gg; ctx.fillRect(0,0,w,h);
+
+  // ---- generative key art ----
+  ctx.save();
+  ctx.translate(w*0.5,h*0.40);
+  ctx.globalCompositeOperation='lighter';
+  const R=Math.min(w,h)*0.34;
+  if(style==='orbits'){
+    const n=4+(srand()*6|0);
+    for(let i=0;i<n;i++){
+      const rr=R*(0.3+i/n*0.9), ecc=0.5+srand()*0.6, rot=srand()*TAU;
+      ctx.strokeStyle=hexA(grade.accent,0.12+0.5*(i/n));
+      ctx.lineWidth=0.6+srand()*1.4;
+      ctx.beginPath();
+      for(let a=0;a<=80;a++){const t=a/80*TAU;const x=Math.cos(t)*rr,y=Math.sin(t)*rr*ecc;
+        const px=x*Math.cos(rot)-y*Math.sin(rot),py=x*Math.sin(rot)+y*Math.cos(rot);
+        a===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}
+      ctx.closePath();ctx.stroke();
+      // a body on the orbit
+      const bt=srand()*TAU,bx=Math.cos(bt)*rr,by=Math.sin(bt)*rr*ecc;
+      const bpx=bx*Math.cos(rot)-by*Math.sin(rot),bpy=bx*Math.sin(rot)+by*Math.cos(rot);
+      ctx.fillStyle=hexA(grade.accent,0.9);ctx.beginPath();ctx.arc(bpx,bpy,1.5+srand()*3,0,TAU);ctx.fill();
+    }
+  } else if(style==='strata'){
+    for(let i=0;i<46;i++){
+      const yy=-R*1.1+i/46*R*2.2;
+      ctx.strokeStyle=hexA(grade.accent,0.06+0.4*srand());
+      ctx.lineWidth=0.5+srand();
+      ctx.beginPath();
+      for(let x=-R*1.3;x<=R*1.3;x+=8){
+        const off=Math.sin(x*0.01+i*0.4)*(8+srand()*22)*(1-Math.abs(yy)/(R*1.2));
+        x===-((R*1.3)|0)?ctx.moveTo(x,yy+off):ctx.lineTo(x,yy+off);
+      }
+      ctx.stroke();
+    }
+  } else if(style==='rings'){
+    const n=18+(srand()*20|0);
+    for(let i=0;i<n;i++){
+      const rr=R*(i/n);
+      ctx.strokeStyle=hexA(grade.accent,0.05+0.35*(i/n));
+      ctx.lineWidth=0.5+(i%4===0?1.6:0.3);
+      ctx.beginPath();ctx.arc(0,0,rr,0,TAU);ctx.stroke();
+    }
+    ctx.fillStyle=hexA(grade.accent,0.9);ctx.beginPath();ctx.arc(0,0,R*0.06,0,TAU);ctx.fill();
+  } else if(style==='grid'){
+    const cells=10+(srand()*8|0), step=R*2/cells;
+    for(let gx=0;gx<cells;gx++)for(let gy=0;gy<cells;gy++){
+      if(srand()<0.55)continue;
+      const x=-R+gx*step,y=-R+gy*step;
+      ctx.strokeStyle=hexA(grade.accent,0.1+0.4*srand());
+      ctx.lineWidth=0.6;
+      ctx.strokeRect(x,y,step*0.86,step*0.86);
+    }
+  } else { // eclipse
+    const grd=ctx.createRadialGradient(0,0,R*0.2,0,0,R);
+    grd.addColorStop(0,'rgba(0,0,0,0)');grd.addColorStop(0.7,hexA(grade.accent,0.5));grd.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=grd;ctx.beginPath();ctx.arc(0,0,R,0,TAU);ctx.fill();
+    ctx.fillStyle=grade.bg;ctx.beginPath();ctx.arc(R*0.18,-R*0.1,R*0.78,0,TAU);ctx.fill();
+    ctx.strokeStyle=hexA(grade.accent,0.9);ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(0,0,R*0.8,0,TAU);ctx.stroke();
+  }
+  ctx.restore();
+
+  // ---- typography ----
+  ctx.globalCompositeOperation='source-over';
+  const studio=pick(STUDIOS), name=pick(NAMES), tag=pick(TAGS);
+  ctx.textAlign='center';
+
+  // studio (top)
+  ctx.fillStyle=hexA(grade.ink,0.55);
+  ctx.font=`300 ${w*0.022}px "Space Mono"`;
+  ctx.fillText(spaced(studio,0.4),w*0.5,h*0.085);
+  rule(w*0.5,h*0.10,w*0.10,grade.accent);
+
+  // title (big, can wrap)
+  ctx.fillStyle=grade.ink;
+  const words=name.split(' ');
+  let fs=w*(words.length>1?0.13:0.155);
+  ctx.font=`800 ${fs}px "Sora"`;
+  const lines=words.length>1?[words[0],words.slice(1).join(' ')]:[name];
+  const ty=h*0.70;
+  lines.forEach((ln,i)=>{
+    ctx.font=`800 ${fs}px "Sora"`;
+    // shrink to fit width
+    while(ctx.measureText(ln).width>w*0.9&&fs>10){fs*=0.95;ctx.font=`800 ${fs}px "Sora"`;}
+    ctx.fillText(ln.toUpperCase(),w*0.5,ty+i*fs*1.0);
+  });
+
+  // tagline
+  ctx.fillStyle=hexA(grade.ink,0.7);
+  ctx.font=`300 ${w*0.026}px "Sora"`;
+  ctx.fillText(tag,w*0.5,ty+lines.length*fs*0.95+w*0.05);
+
+  // credits block (billing-style)
+  const credits=ROLES.slice(0,4+(srand()*3|0)).map(r=>r+' '+code()).join('    ');
+  ctx.fillStyle=hexA(grade.ink,0.4);
+  ctx.font=`400 ${w*0.018}px "Space Mono"`;
+  ctx.fillText(credits,w*0.5,h*0.92);
+  ctx.fillStyle=hexA(grade.ink,0.3);
+  ctx.font=`400 ${w*0.016}px "Space Mono"`;
+  ctx.fillText('UNDER SCIENCE LAB · SEED '+seed.toString(16).toUpperCase().padStart(8,'0'),w*0.5,h*0.955);
+
+  // frame line
+  ctx.strokeStyle=hexA(grade.ink,0.10);ctx.lineWidth=1;
+  ctx.strokeRect(w*0.04,h*0.03,w*0.92,h*0.94);
+
+  grainPass(w,h);
+  // little pop animation
+  cvs.style.transform='scale(0.985)';requestAnimationFrame(()=>cvs.style.transform='scale(1)');
+}
+
+function spaced(s,em){return s.split('').join(String.fromCharCode(8202).repeat(2));}
+function rule(cx,y,wd,col){ctx.strokeStyle=hexA(col,0.7);ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(cx-wd/2,y);ctx.lineTo(cx+wd/2,y);ctx.stroke();}
+function code(){return (srand()*0xffff|0).toString(16).toUpperCase().padStart(4,'0');}
+function hexA(h,a){const n=parseInt(h.slice(1),16);return`rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;}
+
+function grainPass(w,h){
+  const gw=Math.floor(w),gh=Math.floor(h);
+  const img=ctx.getImageData(0,0,gw*S,gh*S);
+  const d=img.data;
+  for(let i=0;i<d.length;i+=4){
+    const n=(Math.random()*36-18);
+    d[i]=clamp(d[i]+n,0,255);d[i+1]=clamp(d[i+1]+n,0,255);d[i+2]=clamp(d[i+2]+n,0,255);
+  }
+  ctx.putImageData(img,0,0);
+}
+
+function generate(){newSeed();render();}
+document.getElementById('gen').onclick=generate;
+document.getElementById('save').onclick=()=>{
+  const a=document.createElement('a');
+  a.download='under-science-poster-'+seed.toString(16)+'.png';
+  a.href=cvs.toDataURL('image/png');a.click();
+};
+addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();generate();}});
+
+fit();
+// fonts may load late; render now and again shortly after
+render();
+setTimeout(render,400);
+</script>
+</body>
+</html>

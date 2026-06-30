@@ -1,0 +1,15 @@
+{
+  "name": "Resonance Studio",
+  "short_name": "Resonance",
+  "description": "A playable browser synth & beat studio — search beats, tilt to play, make music in seconds.",
+  "start_url": "./studio.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#07070a",
+  "theme_color": "#07070a",
+  "categories": ["music", "entertainment"],
+  "icons": [
+    { "src": "./logo-playoff.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

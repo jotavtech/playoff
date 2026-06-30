@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>UNDER SCIENCE // Lab Index</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@200;300;600&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{--ink:#e8e8ea;--dim:#54545c;--line:#1a1a20}
+  html,body{min-height:100%;background:#07070a;color:var(--ink);
+    font-family:"Space Mono",monospace;-webkit-font-smoothing:antialiased}
+  body{padding:min(8vw,80px) min(8vw,80px) 120px}
+  a{color:inherit;text-decoration:none}
+
+  header{display:flex;flex-direction:column;gap:14px;margin-bottom:64px;max-width:760px}
+  .mark{font-family:"Sora",sans-serif;font-weight:200;letter-spacing:.4em;text-indent:.4em;
+    font-size:min(8vw,46px);text-transform:uppercase;line-height:1;color:#f4f4f6}
+  .sub{color:var(--dim);font-size:12px;letter-spacing:.34em;text-transform:uppercase}
+  .lede{color:#9a9aa2;font-size:13px;line-height:1.8;margin-top:10px;max-width:560px}
+  .rule{width:60px;height:1px;background:var(--ink);opacity:.5;margin-top:6px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1px;
+    background:var(--line);border:1px solid var(--line)}
+  .card{background:#0a0a0d;padding:26px 24px;position:relative;overflow:hidden;
+    transition:background .25s, transform .25s;min-height:200px;display:flex;flex-direction:column;
+    justify-content:space-between}
+  .card:hover{background:#0e0e13}
+  .card .n{font-size:11px;letter-spacing:.2em;color:var(--dim)}
+  .card h2{font-family:"Sora",sans-serif;font-weight:300;font-size:24px;letter-spacing:.04em;
+    text-transform:uppercase;margin:14px 0 8px;color:#f2f2f5}
+  .card p{font-size:12px;line-height:1.7;color:#85858d;max-width:34ch}
+  .card .go{margin-top:18px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--dim);display:flex;align-items:center;gap:8px;transition:color .2s}
+  .card:hover .go{color:var(--accent,#5ef2e8)}
+  .card .swatch{position:absolute;top:0;left:0;width:100%;height:3px;background:var(--accent,#5ef2e8);
+    transform:scaleX(0);transform-origin:left;transition:transform .3s ease}
+  .card:hover .swatch{transform:scaleX(1)}
+  .tag{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);
+    border:1px solid var(--line);padding:3px 8px;align-self:flex-start;margin-top:4px}
+
+  footer{margin-top:70px;color:var(--dim);font-size:11px;letter-spacing:.16em;line-height:2;max-width:640px}
+  footer b{color:#9a9aa2;font-weight:400}
+  code{background:#111;border:1px solid var(--line);padding:1px 6px;color:#bfbfc6;font-size:11px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="mark">Under&nbsp;Science</div>
+    <div class="sub">Experimental Lab · Sketchbook</div>
+    <div class="rule"></div>
+    <p class="lede">Protótipos soltos — cada um explora uma ideia de áudio-visual reativo
+      no universo monocromático/cinematográfico. Não são produto; são fagulhas pra ideias futuras.
+      Abra, mexa, quebre, roube partes.</p>
+  </header>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    Tudo roda 100% no navegador, sem build, sem dependências. <br>
+    Abra direto (<b>file://</b>) ou sirva a pasta: <code>npx serve experiments</code><br>
+    Atalhos comuns: <b>space</b> = ação principal · <b>click/move</b> = interação · <b>1–n</b> = presets.
+  </footer>
+
+<script>
+const ITEMS=[
+  {n:'★',file:'../public/studio.html',title:'Resonance STUDIO',accent:'#5ef2e8',tag:'groovebox · synth · beats',
+   desc:'Studio completo: sequenciador sample-accurate + auto-evolve de ~30s, 20 vibes (House…Stoner/QOTSA/Mangue), bateria sintetizada + 2 synths com power chords, EQ + FX (drive só nos synths, bitcrusher, chorus, delay sync, reverb), Beat Crate (pesquisar/navegar/salvar/compartilhar beats + rádio), 11 visuais (inclui ♥ Flow e ✦ Warp) a 240Hz, 12 temas + cor livre, controle por movimento e tela cheia.'},
+  {n:'00',file:'../public/resonator.html',title:'Resonance Chamber',accent:'#7dff8e',tag:'audio · instrument',
+   desc:'Instrumento polifônico tocável: drone supersaw, plucks, reverb por convolução, arpejador generativo e teclado.'},
+  {n:'01',file:'01-cinematic-bars.html',title:'Cinematic Bars',accent:'#ffffff',tag:'ui · reactive',
+   desc:'Barras de letterbox que respiram com um sinal de energia. Quatro humores cinematográficos. A UI performa.'},
+  {n:'02',file:'02-liquid-chrome.html',title:'Liquid Chrome',accent:'#cfcfd4',tag:'fluid · oled',
+   desc:'Fluido metálico monocromático em metaballs, com shading "chrome" e luz em movimento. Vibe de wallpaper OLED.'},
+  {n:'03',file:'03-flow-field.html',title:'Flow Field',accent:'#9d7bff',tag:'particles · noise',
+   desc:'Milhares de partículas advectadas por um campo de ruído. Clique injeta vórtices. Música como vento.'},
+  {n:'04',file:'04-poster-generator.html',title:'Poster Generator',accent:'#ff6a6a',tag:'generative · type',
+   desc:'Gera one-sheets cinematográficos únicos com RNG semeado: key art abstrata, tipografia e export PNG.'},
+];
+const grid=document.getElementById('grid');
+ITEMS.forEach(it=>{
+  const a=document.createElement('a');
+  a.href=it.file; a.className='card'; a.style.setProperty('--accent',it.accent);
+  a.innerHTML=`<div class="swatch"></div>
+    <div><div class="n">EXP ${it.n}</div><h2>${it.title}</h2><p>${it.desc}</p>
+    <span class="tag">${it.tag}</span></div>
+    <div class="go">open experiment →</div>`;
+  grid.appendChild(a);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>UNDER SCIENCE LAB // 01 · Cinematic Bars</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@200;300;600;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;overflow:hidden;color:#e8e8ea;
+    font-family:"Space Mono",monospace;cursor:default;user-select:none;touch-action:none}
+  canvas{position:fixed;inset:0;display:block}
+
+  /* reactive letterbox bars — the signature element */
+  .bar{position:fixed;left:0;right:0;height:18vh;background:#000;z-index:10;
+    will-change:height,transform}
+  .bar.top{top:0}
+  .bar.bot{bottom:0}
+  .bar::after{content:"";position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.10)}
+  .bar.top::after{bottom:0}
+  .bar.bot::after{top:0}
+
+  /* title card living inside the frame */
+  .frame{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;pointer-events:none}
+  .title{font-family:"Sora",sans-serif;font-weight:200;text-transform:uppercase;
+    letter-spacing:.34em;text-indent:.34em;font-size:min(9vw,76px);line-height:.95;
+    color:#f4f4f6;opacity:0;transform:translateY(14px);transition:opacity 1.1s,transform 1.1s;text-align:center}
+  .title.show{opacity:1;transform:none}
+  .subtitle{margin-top:18px;font-size:11px;letter-spacing:.5em;text-transform:uppercase;
+    color:#6a6a72;opacity:0;transition:opacity 1.4s;transition-delay:.3s}
+  .subtitle.show{opacity:.9}
+
+  /* HUD */
+  .hud{position:fixed;z-index:20;font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+    color:#54545c;pointer-events:none}
+  .hud.tl{top:calc(18vh + 16px);left:20px}
+  .hud.tr{top:calc(18vh + 16px);right:20px;text-align:right}
+  .hud b{color:#bfbfc6;font-weight:400}
+  .modes{position:fixed;bottom:calc(18vh + 18px);left:50%;transform:translateX(-50%);
+    z-index:20;display:flex;gap:1px}
+  .mode{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#54545c;
+    background:rgba(20,20,24,.6);border:1px solid #1c1c22;padding:8px 15px;cursor:pointer;
+    transition:.18s;backdrop-filter:blur(6px)}
+  .mode:hover{color:#bfbfc6;border-color:#2c2c34}
+  .mode.on{color:#000;background:#e8e8ea;border-color:#e8e8ea}
+
+  .grain{position:fixed;inset:0;z-index:15;pointer-events:none;opacity:.05;mix-blend-mode:overlay}
+  .hint{position:fixed;bottom:calc(18vh - 26px);left:50%;transform:translateX(-50%);z-index:20;
+    font-size:10px;letter-spacing:.2em;color:#3a3a42;text-transform:uppercase}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="bar top" id="barTop"></div>
+<div class="bar bot" id="barBot"></div>
+
+<div class="frame">
+  <div class="title" id="title">Resonance</div>
+  <div class="subtitle" id="subtitle">Under Science · Cinematic Bars</div>
+</div>
+
+<div class="hud tl">scene <b id="hScene">01</b> · mode <b id="hMode">drama</b></div>
+<div class="hud tr">signal <b id="hSig">0.00</b><br>bars <b id="hBars">18.0 vh</b></div>
+
+<div class="modes" id="modes"></div>
+<div class="hint">space · new scene&nbsp;&nbsp;·&nbsp;&nbsp;click · pulse</div>
+
+<canvas class="grain" id="grain"></canvas>
+
+<script>
+"use strict";
+/* ============================================================
+   LAB 01 — CINEMATIC BARS
+   A prototype of audio/energy-reactive letterbox bars. The black
+   bars "breathe" with a simulated signal envelope; mood modes
+   change the grade, motion and typography. This is the core idea
+   behind a reactive cinematic frame: the UI itself performs.
+   ============================================================ */
+const TAU=Math.PI*2, clamp=(v,a,b)=>v<a?a:v>b?b:v, lerp=(a,b,t)=>a+(b-a)*t;
+const cvs=document.getElementById('c'), ctx=cvs.getContext('2d');
+let W,H,DPR;
+function resize(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
+  cvs.width=W*DPR;cvs.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);}
+addEventListener('resize',resize);resize();
+
+// ---- simulated signal: a musical-ish energy envelope with beats ----
+let sig=0, sigT=0, beatPhase=0, bpm=92;
+function signal(dt){
+  beatPhase+=dt*(bpm/60);
+  // kick every beat, gentle swell between
+  const beat=Math.pow(Math.max(0,Math.sin(beatPhase*TAU)),8);
+  const swell=0.35+0.25*Math.sin(sigT*0.6)+0.12*Math.sin(sigT*1.7);
+  sigT+=dt;
+  const target=clamp(swell*0.6+beat*0.7+pulse,0,1);
+  sig=lerp(sig,target,clamp(dt*9,0,1));
+  pulse*=Math.pow(0.001,dt); // decay manual pulses
+  return sig;
+}
+let pulse=0;
+
+// ---- modes: each is a different cinematic personality ----
+const MODES={
+  drama:{name:'drama', barBase:18, barReact:9,  grade:'#0a0a0c', accent:'#ffffff', motion:0.6, blobs:5},
+  tension:{name:'tension', barBase:26, barReact:6, grade:'#0c0708', accent:'#ff6a6a', motion:1.4, blobs:7},
+  euphoria:{name:'euphoria', barBase:10, barReact:14, grade:'#08080c', accent:'#9fd2ff', motion:1.0, blobs:6},
+  noir:{name:'noir', barBase:22, barReact:7, grade:'#000', accent:'#cfcfd4', motion:0.35, blobs:4},
+};
+let mode=MODES.drama;
+
+const modesEl=document.getElementById('modes');
+Object.values(MODES).forEach((m,i)=>{
+  const b=document.createElement('button');
+  b.className='mode'+(i===0?' on':''); b.textContent=m.name;
+  b.onclick=()=>setMode(m,b); modesEl.appendChild(b);
+});
+function setMode(m,btn){
+  mode=m;
+  [...modesEl.children].forEach(c=>c.classList.toggle('on',c===btn));
+  document.getElementById('hMode').textContent=m.name;
+}
+
+// ---- generative title words ----
+const WORDS=['Resonance','Specimen','Aftermath','Gravity','Vessel','Eclipse','Tremor',
+  'Halcyon','Cinder','Mirage','Threshold','Lucid','Voidline','Aurora','Static','Bloom'];
+const SUBS=['Under Science · Cinematic Bars','chamber sequence','field recording',
+  'night session','signal study','first contact'];
+let sceneN=1;
+function newScene(){
+  sceneN++;
+  const t=document.getElementById('title'), s=document.getElementById('subtitle');
+  t.classList.remove('show'); s.classList.remove('show');
+  setTimeout(()=>{
+    t.textContent=WORDS[(Math.random()*WORDS.length)|0];
+    s.textContent=SUBS[(Math.random()*SUBS.length)|0];
+    document.getElementById('hScene').textContent=String(sceneN).padStart(2,'0');
+    t.classList.add('show'); s.classList.add('show');
+  },420);
+  // also rotate mode for variety
+  const keys=Object.keys(MODES); const mk=keys[(Math.random()*keys.length)|0];
+  setMode(MODES[mk],[...modesEl.children][keys.indexOf(mk)]);
+}
+setTimeout(()=>{document.getElementById('title').classList.add('show');
+  document.getElementById('subtitle').classList.add('show');},300);
+
+addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault();newScene();}});
+addEventListener('mousedown',()=>pulse=clamp(pulse+0.8,0,1));
+addEventListener('touchstart',()=>pulse=clamp(pulse+0.8,0,1),{passive:true});
+
+// ---- background: drifting chrome blobs behind the frame ----
+const blobs=[];
+function seed(){blobs.length=0;for(let i=0;i<8;i++)blobs.push({
+  x:Math.random(),y:Math.random(),r:0.1+Math.random()*0.25,
+  a:Math.random()*TAU,sp:0.1+Math.random()*0.3,ph:Math.random()*TAU});}
+seed();
+
+let last=0;
+function frame(now){
+  requestAnimationFrame(frame);
+  let dt=(now-last)/1000; last=now; if(dt>0.1)dt=0.1;
+  const s=signal(dt);
+
+  // grade background
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle=mode.grade; ctx.fillRect(0,0,W,H);
+
+  // blobs (monochrome chrome gradient, reactive scale)
+  ctx.globalCompositeOperation='lighter';
+  const n=mode.blobs;
+  for(let i=0;i<n;i++){
+    const b=blobs[i];
+    b.a+=dt*b.sp*mode.motion;
+    const x=(0.5+Math.cos(b.a)*0.32+ (b.x-0.5)*0.4)*W;
+    const y=(0.5+Math.sin(b.a*0.8)*0.28+ (b.y-0.5)*0.4)*H;
+    const rr=b.r*Math.min(W,H)*(0.7+s*0.8+0.2*Math.sin(sigT*2+b.ph));
+    const [cr,cg,cb]=hex(mode.accent);
+    const g=ctx.createRadialGradient(x,y,0,x,y,rr);
+    g.addColorStop(0,`rgba(${cr},${cg},${cb},${0.05+s*0.10})`);
+    g.addColorStop(0.5,`rgba(${cr},${cg},${cb},${0.02+s*0.04})`);
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,rr,0,TAU); ctx.fill();
+  }
+
+  // thin reactive scan ring
+  ctx.globalCompositeOperation='lighter';
+  const [ar,ag,ab]=hex(mode.accent);
+  ctx.strokeStyle=`rgba(${ar},${ag},${ab},${0.06+s*0.18})`;
+  ctx.lineWidth=1;
+  ctx.beginPath();
+  const R=Math.min(W,H)*(0.18+s*0.10);
+  for(let a=0;a<=64;a++){
+    const ang=a/64*TAU;
+    const r=R+Math.sin(ang*6+sigT*3)*s*18;
+    const x=W/2+Math.cos(ang)*r, y=H/2+Math.sin(ang)*r;
+    a===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath(); ctx.stroke();
+
+  // ---- drive the bars (the star of the show) ----
+  const vh=mode.barBase - s*mode.barReact;
+  document.getElementById('barTop').style.height=vh+'vh';
+  document.getElementById('barBot').style.height=vh+'vh';
+  // subtle horizontal "breathing" via transform for momentum
+  const sk=s*0.4;
+  document.getElementById('barTop').style.transform=`translateY(${-sk}px)`;
+  document.getElementById('barBot').style.transform=`translateY(${sk}px)`;
+
+  document.getElementById('hSig').textContent=s.toFixed(2);
+  document.getElementById('hBars').textContent=vh.toFixed(1)+' vh';
+}
+requestAnimationFrame(frame);
+
+function hex(h){const n=parseInt(h.slice(1),16);return[n>>16&255,n>>8&255,n&255];}
+
+// ---- film grain ----
+const gc=document.getElementById('grain'),gx=gc.getContext('2d');
+function grain(){
+  gc.width=160;gc.height=90;
+  const img=gx.createImageData(160,90),d=img.data;
+  for(let i=0;i<d.length;i+=4){const v=(Math.random()*255)|0;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;}
+  gx.putImageData(img,0,0);
+  setTimeout(grain,1000/24);
+}
+grain();
+</script>
+</body>
+</html>
