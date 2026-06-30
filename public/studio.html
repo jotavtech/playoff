@@ -344,7 +344,7 @@ function pitchFreq(idx, octShift){
 let ctx=null, started=false;
 let master=null, perfFilter=null, comp=null, masterLimiter=null, busHP=null, analyser=null, specData=null, timeData=null;
 let eqLow=null, eqMid=null, eqHigh=null;
-let drive=null, crusher=null;
+let drive=null, driveGain=null, crusher=null;
 let voiceBus=null, duckGain=null;
 let recDest=null, mediaRec=null, recChunks=[], recording2=false;
 let sidechain={on:true, amount:0.6, time:0.14};
@@ -395,11 +395,13 @@ function makeImpulse(seconds,decay){
   }
   return buf;
 }
-function makeDriveCurve(amount){ // 0..1 soft clip
-  const k=amount*120, n=2048, c=new Float32Array(n);
-  for(let i=0;i<n;i++){const x=i*2/n-1; c[i]=(1+k)*x/(1+k*Math.abs(x));}
+function makeDriveCurve(amount){ // 0..1 tanh soft-clip, PEAK-normalized so it adds grit, not loudness
+  const d=1+amount*amount*55, n=2048, c=new Float32Array(n), nrm=Math.tanh(d);
+  for(let i=0;i<n;i++){const x=i*2/n-1; c[i]=Math.tanh(d*x)/nrm;}
   return c;
 }
+// loudness make-up: the more drive, the more we turn it DOWN so it never hurts the ears
+function driveComp(amount){ return 1/(1+amount*1.9); }
 function makeNoise(){
   const len=ctx.sampleRate*2, b=ctx.createBuffer(1,len,ctx.sampleRate), d=b.getChannelData(0);
   for(let i=0;i<len;i++)d[i]=Math.random()*2-1; return b;
@@ -430,6 +432,7 @@ async function buildAudio(){
 
   // distortion + crusher inserts
   drive=ctx.createWaveShaper(); drive.curve=makeDriveCurve(0.12); drive.oversample='4x';
+  driveGain=ctx.createGain(); driveGain.gain.value=driveComp(0.12); // post-drive make-up gain
   voiceBus=ctx.createGain(); voiceBus.gain.value=0.78;
   // synths route through duckGain (sidechain pump); drums hit voiceBus direct
   duckGain=ctx.createGain(); duckGain.gain.value=1; duckGain.connect(voiceBus);
@@ -445,8 +448,8 @@ async function buildAudio(){
   crusher=crusherNode;
 
   // serial: voiceBus -> drive -> [crusher] -> eq -> busHP -> comp -> perfFilter -> limiter -> master
-  voiceBus.connect(drive);
-  if(crusher){ drive.connect(crusher); crusher.connect(eqLow); } else { drive.connect(eqLow); }
+  voiceBus.connect(drive); drive.connect(driveGain);
+  if(crusher){ driveGain.connect(crusher); crusher.connect(eqLow); } else { driveGain.connect(eqLow); }
   eqLow.connect(eqMid); eqMid.connect(eqHigh); eqHigh.connect(busHP); busHP.connect(comp);
   comp.connect(perfFilter); perfFilter.connect(masterLimiter); masterLimiter.connect(master);
   master.connect(ctx.destination); master.connect(analyser);
@@ -856,55 +859,55 @@ const PRESETS=[
       setSteps('lead',[2,10],[7,7]); } },
   // ---- rock / stoner family: heavy fuzz + power chords ----
   { name:'Rock', bpm:120, root:52, scale:'blues', lead:'sawtooth', bass:'square',
-    lchord:'power', cut:64, res:16, env:50, glide:3, drive:56, crush:2, chorus:8, delay:10, reverb:18, pump:28,
+    lchord:'power', cut:64, res:16, env:50, glide:3, drive:34, crush:2, chorus:8, delay:10, reverb:18, pump:28,
     gen(){ setSteps('kick',[0,4,8,10,12]); setSteps('snare',[4,12]); setSteps('hat',[0,2,4,6,8,10,12,14]);
       setSteps('bass',[0,4,8,12],[0,0,3,0]);
       setSteps('lead',[0,8,11],[0,3,0]); } },
   { name:'Stoner', bpm:74, root:50, scale:'minor', lead:'sawtooth', bass:'square',
-    lchord:'power', cut:56, res:18, env:46, glide:5, drive:78, crush:6, chorus:6, delay:12, reverb:26, pump:18,
+    lchord:'power', cut:56, res:18, env:46, glide:5, drive:44, crush:6, chorus:6, delay:12, reverb:26, pump:18,
     gen(){ setSteps('kick',[0,3,8,11]); setSteps('snare',[8]); setSteps('hat',[0,4,8,12]); pattern.hat[4].open=pattern.hat[12].open=true;
       setSteps('bass',[0,8],[0,0]);
       setSteps('lead',[0,8,11,14],[0,0,3,2]); } },
   { name:'Grunge', bpm:100, root:55, scale:'minor', lead:'sawtooth', bass:'square',
-    lchord:'power', cut:58, res:14, env:45, glide:4, drive:66, crush:4, chorus:14, delay:8, reverb:24, pump:24,
+    lchord:'power', cut:58, res:14, env:45, glide:4, drive:38, crush:4, chorus:14, delay:8, reverb:24, pump:24,
     gen(){ setSteps('kick',[0,6,8,14]); setSteps('snare',[4,12]); setSteps('hat',[0,4,8,12]);
       setSteps('bass',[0,8],[0,3]);
       setSteps('lead',[0,4,8,12],[0,0,3,0]); } },
   { name:'Doom', bpm:60, root:48, scale:'phrygian', lead:'sawtooth', bass:'square',
-    lchord:'power', bchord:'power', cut:50, res:12, env:40, glide:8, drive:90, crush:10, chorus:4, delay:6, reverb:42, pump:10,
+    lchord:'power', bchord:'power', cut:50, res:12, env:40, glide:8, drive:52, crush:10, chorus:4, delay:6, reverb:42, pump:10,
     gen(){ setSteps('kick',[0,8]); setSteps('snare',[8]); setSteps('hat',[0,8]);
       setSteps('bass',[0,8],[0,0]);
       setSteps('lead',[0,8],[0,3]); } },
   // ---- QOTSA / desert-rock (Songs for the Deaf era) ----
   { name:'Go w/ Flow', bpm:159, root:57, scale:'minor', lead:'sawtooth', bass:'sawtooth',
-    lchord:'power', bchord:'power', cut:62, res:18, env:52, glide:2, drive:74, crush:4, chorus:10, delay:12, reverb:16, pump:30,
+    lchord:'power', bchord:'power', cut:62, res:18, env:52, glide:2, drive:40, crush:4, chorus:10, delay:12, reverb:16, pump:30,
     gen(){ setSteps('kick',[0,2,3,6,8,10,11,14]); setSteps('snare',[4,12]);
       setSteps('hat',[0,2,4,6,8,10,12,14]); pattern.hat[6].open=pattern.hat[14].open=true;
       setSteps('clap',[4,12]);
       setSteps('bass',[0,2,3,6,8,10,11,14],[0,0,2,3,0,0,2,3]);
       setSteps('lead',[0,3,6,8,11,14],[0,2,3,0,2,3]); } },
   { name:'No 1 Knows', bpm:92, root:49, scale:'minor', lead:'sawtooth', bass:'square',
-    lchord:'power', cut:60, res:16, env:48, glide:4, drive:70, crush:3, chorus:12, delay:10, reverb:22, pump:22,
+    lchord:'power', cut:60, res:16, env:48, glide:4, drive:36, crush:3, chorus:12, delay:10, reverb:22, pump:22,
     gen(){ setSteps('kick',[0,3,6,8,11]); setSteps('snare',[4,12]);
       setSteps('hat',[0,2,4,6,8,10,12,14]);
       setSteps('bass',[0,3,6,8,11,14],[0,0,3,0,0,2]);
       setSteps('lead',[0,6,8,14],[0,3,0,2]); } },
   { name:'Robot Rock', bpm:135, root:52, scale:'phrygian', lead:'sawtooth', bass:'square',
-    lchord:'power', bchord:'power', cut:58, res:20, env:50, glide:3, drive:72, crush:5, chorus:8, delay:14, reverb:20, pump:26,
+    lchord:'power', bchord:'power', cut:58, res:20, env:50, glide:3, drive:38, crush:5, chorus:8, delay:14, reverb:20, pump:26,
     gen(){ setSteps('kick',[0,4,8,12]); setSteps('snare',[4,12]);
       setSteps('hat',[0,2,4,6,8,10,12,14]); pattern.hat[14].open=true;
       setSteps('bass',[0,2,4,6,8,10,12,14],[0,0,0,1,0,0,3,1]);
       setSteps('lead',[2,6,10,14],[0,1,3,1]); } },
   // ---- Mangue Beat (Chico Science & Nação Zumbi / maracatu fusion) ----
   { name:'Mangue Beat', bpm:102, root:57, scale:'penta_min', lead:'sawtooth', bass:'square',
-    lchord:'power', cut:62, res:20, env:58, glide:4, drive:42, crush:3, chorus:10, delay:16, reverb:20, pump:48,
+    lchord:'power', cut:62, res:20, env:58, glide:4, drive:26, crush:3, chorus:10, delay:16, reverb:20, pump:48,
     gen(){ setSteps('kick',[0,3,6,8,10,11,14]); setSteps('snare',[4,12,15]);
       setSteps('hat',[0,2,4,6,8,10,12,14]); pattern.hat[6].open=pattern.hat[14].open=true;
       setSteps('clap',[3,7,11]);
       setSteps('bass',[0,3,6,8,10,11,14],[0,0,2,0,3,2,1]);
       setSteps('lead',[2,6,10,14],[0,3,0,4]); } },
   { name:'Maracatu Atomico', bpm:88, root:57, scale:'minor', lead:'sawtooth', bass:'square',
-    lchord:'power', cut:56, res:16, env:50, glide:5, drive:58, crush:5, chorus:8, delay:14, reverb:30, pump:36,
+    lchord:'power', cut:56, res:16, env:50, glide:5, drive:32, crush:5, chorus:8, delay:14, reverb:30, pump:36,
     gen(){ setSteps('kick',[0,3,8,10,11,13]); setSteps('snare',[4,12,14]);
       setSteps('hat',[0,2,4,6,8,10,12,14]); pattern.hat[2].open=pattern.hat[10].open=true;
       setSteps('clap',[3,6,11,13]);
@@ -1000,7 +1003,8 @@ function wireUI(){
   bindSlider('sRes','vRes',x=>Math.round(x*0.22),x=>macro.reso=x/100);
   bindSlider('sEnv','vEnv',x=>x,x=>macro.envmod=x/100);
   bindSlider('sGlide','vGlide',x=>x,x=>macro.glide=x/100);
-  bindSlider('sDrive','vDrive',x=>x,x=>{ if(drive)drive.curve=makeDriveCurve(x/100);});
+  bindSlider('sDrive','vDrive',x=>x,x=>{ if(drive)drive.curve=makeDriveCurve(x/100);
+    if(driveGain)driveGain.gain.setTargetAtTime(driveComp(x/100),ctx.currentTime,0.05);});
   bindSlider('sCrush','vCrush',x=>x,x=>{ if(crusher){ const bits=lerp(16,3,x/100), red=lerp(1,24,x/100);
     crusher.parameters.get('bits').setValueAtTime(bits,ctx.currentTime);
     crusher.parameters.get('reduction').setValueAtTime(red,ctx.currentTime);} });
