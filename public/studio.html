@@ -205,6 +205,11 @@
   .crate-section h3 button{background:var(--panel2);border:1px solid var(--line);color:var(--bone);
     font-family:inherit;font-size:9px;letter-spacing:.1em;padding:6px 11px;cursor:pointer;text-transform:uppercase}
   .crate-section h3 button:hover{color:var(--accent);border-color:var(--accent)}
+  .crate-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:13px}
+  .crate-chip{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);background:var(--panel2);
+    border:1px solid var(--line);padding:6px 12px;cursor:pointer;border-radius:20px;transition:.15s}
+  .crate-chip:hover{color:var(--bone);border-color:#2c2f39}
+  .crate-chip.on{color:#06080a;background:var(--accent);border-color:var(--accent)}
   .crate-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:11px}
   .bcard{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:13px;cursor:pointer;
     transition:.15s;position:relative;overflow:hidden}
@@ -345,12 +350,14 @@
         <input id="crateQuery" type="text" placeholder="search or seed a beat… (e.g. desert storm)" autocomplete="off" spellcheck="false">
         <button class="x" id="crateFind">Find</button>
       </div>
+      <button class="x" id="crateLink">🔗 Link</button>
       <button class="x" id="crateRadio">📻 Radio</button>
       <button class="x" id="crateClose">close · esc</button>
     </div>
     <div class="crate-body">
       <div class="crate-section">
         <h3>Generated <span class="ln"></span><button id="crateMore">🎲 Shuffle 8 more</button></h3>
+        <div class="crate-chips" id="crateChips"></div>
         <div class="crate-grid" id="crateFeedGrid"></div>
       </div>
       <div class="crate-section">
@@ -1138,6 +1145,7 @@ function wireUI(){
   document.getElementById('crateMore').onclick=shuffleFeed;
   document.getElementById('crateSave').onclick=()=>saveBeat(currentBeat());
   document.getElementById('crateRadio').onclick=toggleRadio;
+  document.getElementById('crateLink').onclick=copyLink;
   document.getElementById('crateQuery').addEventListener('keydown',e=>{ if(e.key==='Enter') searchBeat(); });
   document.getElementById('crate').addEventListener('click',e=>{ if(e.target.id==='crate') closeCrate(); });
 
@@ -1621,10 +1629,12 @@ function noteName(m){ return NOTE_NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1); }
 function snapshotPattern(){ const o={}; TRACKS.forEach(tr=>o[tr.id]=pattern[tr.id].map(c=>({...c}))); return o; }
 function restorePattern(s){ TRACKS.forEach(tr=>{ for(let i=0;i<STEPS;i++) pattern[tr.id][i]={...s[tr.id][i]}; }); }
 
-// deterministic full beat from a numeric seed (same seed -> same beat)
-function generateBeat(seed){
+// deterministic full beat from a numeric seed (same seed -> same beat). allowed = optional genre filter.
+function generateBeat(seed, allowed){
   seed=seed>>>0; const rng=mulberry(seed);
-  const base=PRESETS[(rng()*PRESETS.length)|0];
+  const pool = (allowed&&allowed.length) ? PRESETS.filter(p=>allowed.includes(p.name)) : PRESETS;
+  const src = pool.length?pool:PRESETS;
+  const base=src[(rng()*src.length)|0];
   const sc=SCALES[base.scale]||SCALES.minor, mp=sc.length*2;
   const saved=snapshotPattern(); clearPattern(); base.gen();
   ['kick','snare','hat','clap'].forEach(id=>pattern[id].forEach(c=>{ if(rng()<0.08) c.on=!c.on; }));
@@ -1692,9 +1702,19 @@ function makeCard(b,kind){
   else act.onclick=e=>{e.stopPropagation(); const i=savedBeats.indexOf(b); if(i>=0){savedBeats.splice(i,1); persistSaved(); renderSaved();}};
   return c;
 }
-let crateFeed=[];
+let crateFeed=[], crateGenre=null;
+const GENRE_GROUPS=[['All',null],['House/Techno',['House','Techno']],['Synth',['Synthwave','Robot Rock']],
+  ['Chill',['Lo-Fi','Ambient']],['Trap',['Trap']],['Rock',['Rock','Grunge']],
+  ['Stoner/QOTSA',['Stoner','Doom','Go w/ Flow','No 1 Knows']],['Brazil',['Mangue Beat','Maracatu Atomico']]];
+function buildChips(){ const c=document.getElementById('crateChips'); if(!c||c.children.length) return;
+  GENRE_GROUPS.forEach(([name,list],i)=>{ const el=document.createElement('button'); el.className='crate-chip'+(i===0?' on':''); el.textContent=name;
+    el.onclick=()=>{ crateGenre=list; [...c.children].forEach(x=>x.classList.remove('on')); el.classList.add('on'); shuffleFeed(); }; c.appendChild(el); }); }
 function renderFeed(list){ const g=document.getElementById('crateFeedGrid'); g.innerHTML=''; (list||crateFeed).forEach(b=>g.appendChild(makeCard(b,'gen'))); }
-function shuffleFeed(){ crateFeed=Array.from({length:8},()=>generateBeat((Math.random()*4294967296)>>>0)); renderFeed(); }
+function shuffleFeed(){ crateFeed=Array.from({length:8},()=>generateBeat((Math.random()*4294967296)>>>0,crateGenre)); renderFeed(); }
+function copyLink(){ if(!location.hash){ toast('load a <b>generated</b> beat first to share'); return; }
+  const url=location.href;
+  try{ navigator.clipboard.writeText(url).then(()=>toast('link <b>copied</b> · share it!'),()=>toast('copy <b>blocked</b>')); }
+  catch(e){ toast('copy <b>blocked</b>'); } }
 function renderSaved(){ const g=document.getElementById('crateSavedGrid'); g.innerHTML='';
   if(!savedBeats.length){ g.innerHTML='<div class="crate-empty">no saved beats yet — tap ♡ on a card or “Save current”.</div>'; return; }
   savedBeats.forEach(b=>g.appendChild(makeCard(b,'saved'))); }
@@ -1703,7 +1723,7 @@ function searchBeat(){ const q=(document.getElementById('crateQuery').value||'')
   const seed = /^(0x)?[0-9a-f]{4,}$/i.test(q) ? (parseInt(q.replace(/^0x/,''),16)>>>0) : hashStr(q.toLowerCase());
   const b=generateBeat(seed); if(q.length<=22) b.name=titleCase(q);
   crateFeed=[b,...crateFeed].slice(0,8); renderFeed(); }
-function openCrate(){ document.getElementById('crate').classList.add('show'); if(!crateFeed.length) shuffleFeed(); renderSaved(); }
+function openCrate(){ document.getElementById('crate').classList.add('show'); buildChips(); if(!crateFeed.length) shuffleFeed(); renderSaved(); }
 function closeCrate(){ document.getElementById('crate').classList.remove('show'); }
 function toggleCrate(){ document.getElementById('crate').classList.contains('show')?closeCrate():openCrate(); }
 
