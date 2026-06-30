@@ -65,6 +65,14 @@
   .sw{width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:.15s;
     box-shadow:0 0 10px -2px currentColor}
   .sw:hover{transform:scale(1.1)} .sw.on{border-color:var(--ink);transform:scale(1.15)}
+  .swatches{flex-wrap:wrap;max-width:100%}
+  .colorrow{min-width:100%}
+  .sbtns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  input[type=color].sw{padding:0;background:none;-webkit-appearance:none;appearance:none;border:2px solid var(--line);
+    background-image:conic-gradient(from 0deg,#ff4d4d,#ffb347,#ffe14d,#7dff8e,#5ef2e8,#9d7bff,#ff4d9d,#ff4d4d)}
+  input[type=color].sw::-webkit-color-swatch-wrapper{padding:0}
+  input[type=color].sw::-webkit-color-swatch{border:none;border-radius:50%}
+  input[type=color].sw::-moz-color-swatch{border:none;border-radius:50%}
   @media (max-width:760px){
     .sctl{min-width:46%;flex:1 1 46%}
     #simpleBar .hero{flex:1 1 100%;text-align:center}
@@ -182,13 +190,16 @@
   <!-- SIMPLE bar (beginner mode) -->
   <div class="rack" id="simpleBar">
     <button class="hero" id="bPlay2">▶ Play</button>
+    <div class="sbtns">
+      <button class="btn" id="bSurprise">🎲 Surprise</button>
+      <button class="btn" id="bPin2">🎯 Pin</button>
+      <button class="btn" id="bAdvanced">⚙ Advanced</button>
+    </div>
     <div class="sctl"><label>Vibe</label><select id="selVibe"></select></div>
+    <div class="sctl"><label>Visual</label><select id="selViz"></select></div>
     <div class="sctl"><label>Brightness <b id="vBright">78</b></label><input type="range" id="sBright" min="0" max="100" value="78"></div>
     <div class="sctl"><label>Space <b id="vSpace">28</b></label><input type="range" id="sSpace" min="0" max="100" value="28"></div>
-    <div class="sctl"><label>Visual</label><select id="selViz"></select></div>
-    <div class="sctl"><label>Color</label><div class="swatches" id="swatches"></div></div>
-    <button class="btn" id="bSurprise">🎲 Surprise me</button>
-    <button class="btn" id="bAdvanced">⚙ Advanced</button>
+    <div class="sctl colorrow"><label>Color</label><div class="swatches" id="swatches"></div></div>
   </div>
 
   <!-- transport -->
@@ -199,6 +210,7 @@
     <button class="btn" id="bClear">Clear</button>
     <button class="btn" id="bRec">● Rec</button>
     <button class="btn" id="bMotion">⟲ Motion</button>
+    <button class="btn" id="bPin">🎯 Pin filter</button>
     <button class="btn" id="bSimple">◐ Simple</button>
     <button class="btn" id="bHide">▼ Hide</button>
     <div class="ctl"><label>BPM <span id="vBpm">120</span></label><input type="range" id="sBpm" min="60" max="180" value="120"></div>
@@ -283,6 +295,7 @@ const SCALES={
   minor:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10], phrygian:[0,1,3,5,7,8,10],
   major:[0,2,4,5,7,9,11], penta_min:[0,3,5,7,10], penta_maj:[0,2,4,7,9],
   hirajoshi:[0,2,3,7,8], blues:[0,3,5,6,7,10],
+  harm_minor:[0,2,3,5,7,8,11], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
 };
 let rootMidi=57;        // A3
 let scaleName='minor';
@@ -505,8 +518,8 @@ function clap(t,vel){
 }
 
 let synthCfg={
-  lead:{wave:'sawtooth', octShift:0, detune:9, sub:false},
-  bass:{wave:'square',   octShift:-2, detune:4, sub:true},
+  lead:{wave:'sawtooth', octShift:0, detune:9, sub:false, chord:'off'},
+  bass:{wave:'square',   octShift:-2, detune:4, sub:true,  chord:'off'},
 };
 let macro={cutoff:0.78, reso:0.22, envmod:0.55, glide:0.06};
 
@@ -535,6 +548,15 @@ function playSynth(which, freq, t, dur, vel){
   o1.connect(f); o2.connect(f);
   if(cfg.sub){ const s=ctx.createOscillator(); s.type='sine'; s.frequency.setValueAtTime(freq/2,t);
     const sg=ctx.createGain(); sg.gain.value=0.5; s.connect(sg); sg.connect(f); s.start(t); s.stop(t+dur+0.2); }
+  // power chord: stack a fifth + octave for that thick guitar/stoner girth
+  if(cfg.chord==='power'){
+    [Math.pow(2,7/12), 2].forEach(mult=>{
+      const oc=ctx.createOscillator(); oc.type=cfg.wave; oc.frequency.setValueAtTime(freq*mult,t);
+      oc.detune.value=cfg.detune*0.5;
+      const og=ctx.createGain(); og.gain.value=0.62;
+      oc.connect(og); og.connect(f); oc.start(t); oc.stop(t+dur+0.2);
+    });
+  }
   f.connect(g); g.connect(pan); pan.connect(duckGain||voiceBus);
   o1.start(t); o2.start(t); o1.stop(t+dur+0.2); o2.stop(t+dur+0.2);
   activeVoices++;
@@ -748,6 +770,27 @@ const PRESETS=[
     gen(){ setSteps('kick',[0,4,8,12]); setSteps('clap',[4,12]); setSteps('hat',[2,6,10,14]);
       setSteps('bass',[0,2,4,6,8,10,12,14],[0,0,0,0,3,3,0,0]);
       setSteps('lead',[2,10],[7,7]); } },
+  // ---- rock / stoner family: heavy fuzz + power chords ----
+  { name:'Rock', bpm:120, root:52, scale:'blues', lead:'sawtooth', bass:'square',
+    lchord:'power', cut:64, res:16, env:50, glide:3, drive:56, crush:2, chorus:8, delay:10, reverb:18, pump:28,
+    gen(){ setSteps('kick',[0,4,8,10,12]); setSteps('snare',[4,12]); setSteps('hat',[0,2,4,6,8,10,12,14]);
+      setSteps('bass',[0,4,8,12],[0,0,3,0]);
+      setSteps('lead',[0,8,11],[0,3,0]); } },
+  { name:'Stoner', bpm:74, root:50, scale:'minor', lead:'sawtooth', bass:'square',
+    lchord:'power', cut:56, res:18, env:46, glide:5, drive:78, crush:6, chorus:6, delay:12, reverb:26, pump:18,
+    gen(){ setSteps('kick',[0,3,8,11]); setSteps('snare',[8]); setSteps('hat',[0,4,8,12]); pattern.hat[4].open=pattern.hat[12].open=true;
+      setSteps('bass',[0,8],[0,0]);
+      setSteps('lead',[0,8,11,14],[0,0,3,2]); } },
+  { name:'Grunge', bpm:100, root:55, scale:'minor', lead:'sawtooth', bass:'square',
+    lchord:'power', cut:58, res:14, env:45, glide:4, drive:66, crush:4, chorus:14, delay:8, reverb:24, pump:24,
+    gen(){ setSteps('kick',[0,6,8,14]); setSteps('snare',[4,12]); setSteps('hat',[0,4,8,12]);
+      setSteps('bass',[0,8],[0,3]);
+      setSteps('lead',[0,4,8,12],[0,0,3,0]); } },
+  { name:'Doom', bpm:60, root:48, scale:'phrygian', lead:'sawtooth', bass:'square',
+    lchord:'power', bchord:'power', cut:50, res:12, env:40, glide:8, drive:90, crush:10, chorus:4, delay:6, reverb:42, pump:10,
+    gen(){ setSteps('kick',[0,8]); setSteps('snare',[8]); setSteps('hat',[0,8]);
+      setSteps('bass',[0,8],[0,0]);
+      setSteps('lead',[0,8],[0,3]); } },
 ];
 function applyPreset(p){
   setSliderVal('sBpm',p.bpm);
@@ -755,6 +798,7 @@ function applyPreset(p){
   scaleName=p.scale; const ss=document.getElementById('selScale'); if(ss) ss.value=p.scale;
   synthCfg.lead.wave=p.lead; const lw=document.getElementById('selLeadWave'); if(lw) lw.value=p.lead;
   synthCfg.bass.wave=p.bass; const bw=document.getElementById('selBassWave'); if(bw) bw.value=p.bass;
+  synthCfg.lead.chord=p.lchord||'off'; synthCfg.bass.chord=p.bchord||'off';
   setSliderVal('sCut',p.cut); setSliderVal('sRes',p.res); setSliderVal('sEnv',p.env); setSliderVal('sGlide',p.glide);
   setSliderVal('sDrive',p.drive); setSliderVal('sCrush',p.crush); setSliderVal('sChorus',p.chorus);
   setSliderVal('sDelay',p.delay); setSliderVal('sReverb',p.reverb);
@@ -772,10 +816,16 @@ function syncSimple(id,v,labId){ const el=document.getElementById(id); if(el)el.
 /* ---------------- color themes ---------------- */
 const THEMES=[
   {name:'Ice',   accent:'#5ef2e8'},
+  {name:'Aqua',  accent:'#3bb0ff'},
   {name:'Rose',  accent:'#ff4d9d'},
+  {name:'Blood', accent:'#ff3b3b'},
+  {name:'Ember', accent:'#ff7a2f'},
   {name:'Gold',  accent:'#ffb347'},
-  {name:'Iris',  accent:'#9d7bff'},
+  {name:'Sun',   accent:'#ffe14d'},
+  {name:'Lime',  accent:'#c6ff4d'},
   {name:'Toxic', accent:'#7dff8e'},
+  {name:'Iris',  accent:'#9d7bff'},
+  {name:'Grape', accent:'#c44dff'},
   {name:'Mono',  accent:'#e8eaef'},
 ];
 function applyTheme(hex){
@@ -789,7 +839,8 @@ function applyTheme(hex){
 let vizMode='orb';
 const VIZ_MODES=[
   {id:'orb',name:'◉ Resonator'},{id:'bars',name:'▮ Spectrum'},{id:'rings',name:'◎ Pulse'},
-  {id:'wave',name:'◠ Waveform'},{id:'calm',name:'○ Calm'},
+  {id:'wave',name:'◠ Waveform'},{id:'tunnel',name:'∞ Lissajous'},{id:'grid',name:'⊞ Matrix'},
+  {id:'calm',name:'○ Calm'},
 ];
 function loadPrefs(){
   try{ const t=localStorage.getItem('rs_theme'); if(t) accent=t;
@@ -875,7 +926,15 @@ function wireUI(){
   THEMES.forEach(t=>{ const d=document.createElement('div'); d.className='sw'; d.dataset.hex=t.accent;
     d.style.background=t.accent; d.style.color=t.accent; d.title=t.name;
     d.onclick=()=>applyTheme(t.accent); sw.appendChild(d); });
+  // free custom color picker — pick literally any accent
+  const cust=document.createElement('input'); cust.type='color'; cust.className='sw'; cust.title='Custom color';
+  cust.value=/^#[0-9a-fA-F]{6}$/.test(accent)?accent:'#5ef2e8';
+  cust.oninput=()=>applyTheme(cust.value);
+  sw.appendChild(cust);
   applyTheme(accent); // marks active swatch + sets css var (accent comes from loadPrefs)
+
+  document.getElementById('bPin').onclick=toggleCursorLock;
+  document.getElementById('bPin2').onclick=toggleCursorLock;
 
   bindSlider('sBright','vBright',x=>x,x=>setSliderVal('sCut',x));
   bindSlider('sSpace','vSpace',x=>x,x=>setSliderVal('sReverb',x));
@@ -1017,6 +1076,33 @@ VIZ.wave=function(acc,ampE,dtN,baseR,idle){
   cx2.stroke();
   cx2.restore();
 };
+VIZ.tunnel=function(acc,ampE,dtN,baseR,idle){
+  cx2.save(); cx2.translate(CX,CY); cx2.rotate(rot*0.5); cx2.globalCompositeOperation='lighter';
+  const n=timeData?timeData.length:256;
+  cx2.shadowColor=`rgba(${acc},0.9)`; cx2.shadowBlur=10+ampE*24; cx2.lineWidth=1.5;
+  for(let layer=0;layer<3;layer++){
+    const sc=(0.45+layer*0.28)*(1+ampE*0.5)+kickFlash*0.3;
+    cx2.globalAlpha=0.7-layer*0.2; cx2.strokeStyle=`rgba(${acc},${0.5+ampE*0.4})`; cx2.beginPath();
+    for(let i=0;i<n;i+=4){
+      const vx=idle?Math.sin(i*0.05+time*0.002):(timeData?(timeData[i]-128)/128:0);
+      const vy=idle?Math.cos(i*0.05+time*0.0023):(timeData?(timeData[(i+96)%n]-128)/128:0);
+      const x=vx*baseR*1.7*sc, y=vy*baseR*1.7*sc; i===0?cx2.moveTo(x,y):cx2.lineTo(x,y);
+    }
+    cx2.stroke();
+  }
+  cx2.globalAlpha=1; cx2.restore();
+};
+VIZ.grid=function(acc,ampE,dtN,baseR,idle){
+  cx2.save(); cx2.globalCompositeOperation='lighter';
+  const cols=16, rows=9, gx=W/cols, gy=H/rows, len=specData?specData.length:256;
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+    const v=idle?0.2+0.3*Math.sin(time*0.002+c*0.4+r*0.3):(specData?specData[((r*cols+c)*2)%len]/255:0);
+    const sz=1+v*9+kickFlash*6;
+    cx2.fillStyle=`rgba(${acc},${0.08+v*0.7})`;
+    cx2.beginPath(); cx2.arc(gx*(c+0.5),gy*(r+0.5),sz,0,TAU); cx2.fill();
+  }
+  cx2.restore();
+};
 VIZ.calm=function(acc,ampE,dtN,baseR,idle){
   cx2.save(); cx2.translate(CX,CY); cx2.globalCompositeOperation='lighter';
   const r=baseR*(1.1+ampE*0.6)+kickFlash*30;
@@ -1083,9 +1169,12 @@ function draw(now){
     p.x+=p.vx*dtN;p.y+=p.vy*dtN;p.vx*=0.97;p.vy*=0.97;p.life-=0.02*dtN; if(p.life<=0)sparks.splice(i,1);}
   cx2.restore();
 
-  // crosshair
+  // crosshair (ring = pinned)
   cx2.globalCompositeOperation='lighter'; cx2.fillStyle=`rgba(${acc},0.6)`;
   cx2.beginPath(); cx2.arc(mx*W,my*H,3,0,TAU); cx2.fill();
+  if(cursorLock){ cx2.strokeStyle=`rgba(${acc},0.85)`; cx2.lineWidth=1.5;
+    cx2.beginPath(); cx2.arc(mx*W,my*H,10,0,TAU); cx2.stroke();
+    cx2.beginPath(); cx2.arc(mx*W,my*H,15,0,TAU); cx2.strokeStyle=`rgba(${acc},0.3)`; cx2.stroke(); }
 
   rot+=(0.0012+ampE*0.004)*dtN;
   document.getElementById('mVoices').textContent=activeVoices;
@@ -1093,11 +1182,20 @@ function draw(now){
 }
 
 /* ---------------- input ---------------- */
-function setPos(e){const t=e.touches?e.touches[0]:e; tmx=clamp(t.clientX/W,0,1); tmy=clamp(t.clientY/H,0,1);}
+let cursorLock=false;
+function evPos(e){const t=e.touches?e.touches[0]:e; return [clamp(t.clientX/W,0,1),clamp(t.clientY/H,0,1)];}
+function setPos(e){ if(cursorLock) return; const p=evPos(e); tmx=p[0]; tmy=p[1]; }
 cvs.addEventListener('mousemove',setPos);
 cvs.addEventListener('touchmove',e=>setPos(e),{passive:true});
-cvs.addEventListener('mousedown',e=>{setPos(e); strike(tmx,tmy,1);});
-cvs.addEventListener('touchstart',e=>{setPos(e); strike(tmx,tmy,1);},{passive:true});
+cvs.addEventListener('mousedown',e=>{const p=evPos(e); setPos(e); strike(p[0],p[1],1);});
+cvs.addEventListener('touchstart',e=>{const p=evPos(e); setPos(e); strike(p[0],p[1],1);},{passive:true});
+// pin the XY filter so it stays put while you tweak everything else
+function toggleCursorLock(){
+  cursorLock=!cursorLock;
+  ['bPin','bPin2'].forEach(id=>{const b=document.getElementById(id);
+    if(b){ b.classList.toggle('on',cursorLock); b.textContent=cursorLock?'🎯 Pinned':(id==='bPin'?'🎯 Pin filter':'🎯 Pin'); }});
+  toast(cursorLock?'filter <b>pinned</b> · cursor frozen':'filter <b>free</b> again');
+}
 
 const KEYS='zxcvbnm,'.split('').concat('asdfghjkl'.split(''));
 addEventListener('keydown',e=>{
@@ -1105,6 +1203,7 @@ addEventListener('keydown',e=>{
   if(e.code==='Space'){ e.preventDefault(); if(started)togglePlay(); return; }
   if(k==='h'){ toggleStudio(); return; }
   if(k==='d'){ if(started)dice(); return; }
+  if(k==='f'){ toggleCursorLock(); return; }
   const i=KEYS.indexOf(k);
   if(i>=0 && started){ const nx=clamp(i/(KEYS.length-1),0,1); strike(nx,my,0.9); }
 });
