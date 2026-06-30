@@ -22,6 +22,7 @@ npx serve experiments
 
 | # | Nome | Ideia | Interação |
 |---|------|-------|-----------|
+| ★ | **Resonance STUDIO** (`../public/studio.html`) | Groovebox completo: sequenciador sample-accurate + auto-evolve (~30s), 20 vibes (House…Stoner/QOTSA/Mangue Beat), bateria + 2 synths com power chords, EQ/FX (drive só nos synths, bitcrusher, chorus, delay sync, reverb), **Beat Crate** (pesquisar/navegar/salvar/compartilhar beats + rádio), 11 visuais a 240Hz (♥ Flow, ✦ Warp, ≋ Aurora…), 12 temas + cor livre, controle por movimento, tela cheia | `space`=play · `B`=beats · `E`=evolve · `R`=rec · `F`=pin · `D`=shuffle · `?`=atalhos · mover=filtro · clique=nota |
 | 00 | **Resonance Chamber** (`../public/resonator.html`) | Instrumento polifônico: drone supersaw + sub, plucks, reverb por convolução, delay ping-pong, arpejador generativo, gravador de loop | mover/click · teclado Z–M & A–L · 1–6 specimens · space=arp · R=rec |
 | 01 | **Cinematic Bars** | Barras de letterbox que respiram com um sinal de energia; 4 humores cinematográficos | space=nova cena · click=pulso |
 | 02 | **Liquid Chrome** | Fluido metálico monocromático (metaballs) com shading "chrome" e luz móvel — vibe wallpaper OLED | mover=atrai · click=adiciona orb |
