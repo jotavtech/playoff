@@ -58,7 +58,7 @@
      so every control reachable in simple is also reachable in advanced */
   #studio.simple .adv{display:none}
   #simpleBar{border-bottom:1px solid var(--line)}
-  #simpleBar{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:16px}
+  #simpleBar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 14px;padding:16px}
   .hero{font-family:"Space Mono",monospace;font-size:13px;letter-spacing:.24em;text-transform:uppercase;
     color:#06080a;background:var(--accent);border:1px solid var(--accent);padding:15px 30px;cursor:pointer;
     border-radius:3px;box-shadow:0 0 28px -8px var(--accent);transition:.15s;white-space:nowrap;text-indent:.24em}
@@ -245,7 +245,7 @@
 <div id="studio" class="hidden simple">
   <!-- SIMPLE bar (beginner mode) -->
   <div class="rack" id="simpleBar">
-    <button class="hero" id="bPlay2">▶ Play <em>⎵</em></button>
+    <button class="hero" id="bPlay2">▶ Play <em>spc</em></button>
     <div class="sbtns">
       <button class="btn" id="bSurprise">🎲 Surprise</button>
       <button class="btn" id="bCrate">🗂 Beats <em>B</em></button>
@@ -264,7 +264,7 @@
   <!-- transport -->
   <div class="rack adv">
     <span class="rlabel">transport</span>
-    <button class="btn primary" id="bPlay">▶ Play <em>⎵</em></button>
+    <button class="btn primary" id="bPlay">▶ Play <em>spc</em></button>
     <button class="btn" id="bDice">⚄ Shuffle <em>D</em></button>
     <button class="btn on" id="bEvolve">✨ Evolve <em>E</em></button>
     <button class="btn" id="bClear">Clear <em>C</em></button>
@@ -457,12 +457,12 @@ function makeImpulse(seconds,decay){
   return buf;
 }
 function makeDriveCurve(amount){ // 0..1 tanh soft-clip, PEAK-normalized so it adds grit, not loudness
-  const d=1+amount*amount*55, n=2048, c=new Float32Array(n), nrm=Math.tanh(d);
+  const d=1+amount*amount*36, n=2048, c=new Float32Array(n), nrm=Math.tanh(d);
   for(let i=0;i<n;i++){const x=i*2/n-1; c[i]=Math.tanh(d*x)/nrm;}
   return c;
 }
-// loudness make-up: the more drive, the more we turn it DOWN so it never hurts the ears
-function driveComp(amount){ return 1/(1+amount*1.9); }
+// loudness make-up: the more drive, the more we turn it DOWN so it never blows out
+function driveComp(amount){ return 1/(1+amount*2.4); }
 function makeNoise(){
   const len=ctx.sampleRate*2, b=ctx.createBuffer(1,len,ctx.sampleRate), d=b.getChannelData(0);
   for(let i=0;i<len;i++)d[i]=Math.random()*2-1; return b;
@@ -495,8 +495,10 @@ async function buildAudio(){
   drive=ctx.createWaveShaper(); drive.curve=makeDriveCurve(0.12); drive.oversample='4x';
   driveGain=ctx.createGain(); driveGain.gain.value=driveComp(0.12); // post-drive make-up gain
   voiceBus=ctx.createGain(); voiceBus.gain.value=0.78;
-  // synths route through duckGain (sidechain pump); drums hit voiceBus direct
-  duckGain=ctx.createGain(); duckGain.gain.value=1; duckGain.connect(voiceBus);
+  // synths route through duckGain (sidechain pump) -> drive -> bus; DRUMS hit voiceBus dry
+  // (keeping drive off the drums is what stops the whole mix from sounding blown out)
+  duckGain=ctx.createGain(); duckGain.gain.value=1;
+  duckGain.connect(drive); drive.connect(driveGain); driveGain.connect(voiceBus);
 
   // try worklet bitcrusher
   let crusherNode=null;
@@ -508,9 +510,8 @@ async function buildAudio(){
   }catch(e){ crusherNode=null; }
   crusher=crusherNode;
 
-  // serial: voiceBus -> drive -> [crusher] -> eq -> busHP -> comp -> perfFilter -> limiter -> master
-  voiceBus.connect(drive); drive.connect(driveGain);
-  if(crusher){ driveGain.connect(crusher); crusher.connect(eqLow); } else { driveGain.connect(eqLow); }
+  // drive sits on the synth path (above); full mix: voiceBus -> [crusher] -> eq -> busHP -> comp -> perfFilter -> limiter -> master
+  if(crusher){ voiceBus.connect(crusher); crusher.connect(eqLow); } else { voiceBus.connect(eqLow); }
   eqLow.connect(eqMid); eqMid.connect(eqHigh); eqHigh.connect(busHP); busHP.connect(comp);
   comp.connect(perfFilter); perfFilter.connect(masterLimiter); masterLimiter.connect(master);
   master.connect(ctx.destination); master.connect(analyser);
@@ -789,13 +790,13 @@ function startSeq(){
   schedTimer=setInterval(scheduler,TICK);
   document.getElementById('bPlay').textContent='■ Stop';
   document.getElementById('bPlay').classList.add('on');
-  const p2=document.getElementById('bPlay2'); if(p2){p2.innerHTML='■ Stop <em>⎵</em>'; p2.classList.add('playing');}
+  const p2=document.getElementById('bPlay2'); if(p2){p2.innerHTML='■ Stop <em>spc</em>'; p2.classList.add('playing');}
 }
 function stopSeq(){
   playing=false; clearInterval(schedTimer); schedTimer=null;
   document.getElementById('bPlay').textContent='▶ Play';
   document.getElementById('bPlay').classList.remove('on');
-  const p2=document.getElementById('bPlay2'); if(p2){p2.innerHTML='▶ Play <em>⎵</em>'; p2.classList.remove('playing');}
+  const p2=document.getElementById('bPlay2'); if(p2){p2.innerHTML='▶ Play <em>spc</em>'; p2.classList.remove('playing');}
   document.querySelectorAll('.cell.cur').forEach(c=>c.classList.remove('cur'));
 }
 function togglePlay(){ playing?stopSeq():startSeq(); }
@@ -926,7 +927,7 @@ const PRESETS=[
       setSteps('bass',[0,4,8,12],[0,0,3,0]);
       setSteps('lead',[0,8,11],[0,3,0]); } },
   { name:'Stoner', bpm:74, root:50, scale:'minor', lead:'sawtooth', bass:'square',
-    lchord:'power', cut:56, res:18, env:46, glide:5, drive:44, crush:6, chorus:6, delay:12, reverb:26, pump:18,
+    lchord:'power', cut:56, res:18, env:46, glide:5, drive:36, crush:6, chorus:6, delay:12, reverb:26, pump:18,
     gen(){ setSteps('kick',[0,3,8,11]); setSteps('snare',[8]); setSteps('hat',[0,4,8,12]); pattern.hat[4].open=pattern.hat[12].open=true;
       setSteps('bass',[0,8],[0,0]);
       setSteps('lead',[0,8,11,14],[0,0,3,2]); } },
@@ -936,13 +937,13 @@ const PRESETS=[
       setSteps('bass',[0,8],[0,3]);
       setSteps('lead',[0,4,8,12],[0,0,3,0]); } },
   { name:'Doom', bpm:60, root:48, scale:'phrygian', lead:'sawtooth', bass:'square',
-    lchord:'power', bchord:'power', cut:50, res:12, env:40, glide:8, drive:52, crush:10, chorus:4, delay:6, reverb:42, pump:10,
+    lchord:'power', bchord:'power', cut:50, res:12, env:40, glide:8, drive:40, crush:10, chorus:4, delay:6, reverb:42, pump:10,
     gen(){ setSteps('kick',[0,8]); setSteps('snare',[8]); setSteps('hat',[0,8]);
       setSteps('bass',[0,8],[0,0]);
       setSteps('lead',[0,8],[0,3]); } },
   // ---- QOTSA / desert-rock (Songs for the Deaf era) ----
   { name:'Go w/ Flow', bpm:159, root:57, scale:'minor', lead:'sawtooth', bass:'sawtooth',
-    lchord:'power', bchord:'power', cut:62, res:18, env:52, glide:2, drive:40, crush:4, chorus:10, delay:12, reverb:16, pump:30,
+    lchord:'power', bchord:'power', cut:62, res:18, env:52, glide:2, drive:32, crush:4, chorus:10, delay:12, reverb:16, pump:30,
     gen(){ setSteps('kick',[0,2,3,6,8,10,11,14]); setSteps('snare',[4,12]);
       setSteps('hat',[0,2,4,6,8,10,12,14]); pattern.hat[6].open=pattern.hat[14].open=true;
       setSteps('clap',[4,12]);
