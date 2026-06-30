@@ -4,6 +4,14 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>UNDER SCIENCE // Resonance STUDIO</title>
+<meta name="theme-color" content="#07070a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Resonance">
+<link rel="manifest" href="studio.webmanifest">
+<link rel="apple-touch-icon" href="logo-playoff.png">
+<meta name="description" content="A playable browser synth & beat studio — search beats, play by tilting your phone, make music in seconds." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@200;300;600&display=swap" rel="stylesheet">
@@ -258,6 +266,7 @@
       <button class="btn" id="bPin2">🎯 Pin <em>F</em></button>
       <button class="btn" id="bClear2">🧹 Clear <em>C</em></button>
       <button class="btn" id="bKeys">⌨ Keys <em>?</em></button>
+      <button class="btn" id="bFull">⛶ Full</button>
       <button class="btn" id="bAdvanced">⚙ Advanced</button>
     </div>
     <div class="sctl"><label>Vibe</label><select id="selVibe"></select></div>
@@ -1135,6 +1144,7 @@ function wireUI(){
 
   document.getElementById('bPin').onclick=toggleCursorLock;
   document.getElementById('bPin2').onclick=toggleCursorLock;
+  document.getElementById('bFull').onclick=toggleFull;
   document.getElementById('bEvolve').onclick=toggleEvolve;
   { const bc2=document.getElementById('bClear2'); if(bc2) bc2.onclick=clearPat; }
 
@@ -1511,6 +1521,18 @@ addEventListener('keydown',e=>{
   const i=KEYS.indexOf(k);
   if(i>=0 && started){ const nx=clamp(i/(KEYS.length-1),0,1); strike(nx,my,0.9); }
 });
+
+/* ---------------- fullscreen (immersive) ---------------- */
+function toggleFull(){
+  const d=document.documentElement;
+  try{
+    if(!document.fullscreenElement && !document.webkitFullscreenElement){
+      (d.requestFullscreen||d.webkitRequestFullscreen||(()=>{})).call(d);
+    } else {
+      (document.exitFullscreen||document.webkitExitFullscreen||(()=>{})).call(document);
+    }
+  }catch(e){ toast('fullscreen <b>unavailable</b>'); }
+}
 
 /* ---------------- panel toggle ---------------- */
 function toggleStudio(){
