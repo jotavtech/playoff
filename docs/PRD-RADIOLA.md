@@ -1,3 +1,9 @@
+> **SUPERSEDIDO PELO PRD v5.** Este documento é o adendo v2.0 ao PRD v1 e descreve
+> o Radiola System, o Chromatic Engine e um BPM Reactor movido a `audio-features` —
+> API que o PRD v5 §4 assume responder 403, e features que o §8.1 mata por nome.
+> Fica no repositório como histórico de domínio. **Não execute nada daqui.**
+> O documento vigente é [`docs/PRD.md`](./PRD.md).
+
 # PLAYOFF — PRD ADENDO: RADIOLA SYSTEM, CHROMATIC ENGINE & AUDIO VISUALIZER
 
 > **Versão:** 2.0 — Radiola System  

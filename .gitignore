@@ -24,3 +24,6 @@ logs
 # Misc
 .DS_Store
 .idea
+
+# Coletor — saída do tsc (o padrão `dist` acima já cobre, explícito para não confundir)
+collector/dist

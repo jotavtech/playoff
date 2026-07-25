@@ -1,0 +1,133 @@
+# playoff-collector — coleta contínua de /me/player.
+#
+# Unidade de USUÁRIO: mora em ~/.config/systemd/user/. Isto arquiva a escuta de uma
+# pessoa na máquina dela e não toca em nada do sistema; rodar como root só
+# aumentaria o estrago possível sem comprar nada.
+#
+# Não instale este arquivo à mão: ele é um template. O `deploy/install.sh` troca os
+# três marcadores de caminho (binário do node, diretório do coletor, raiz do repo)
+# pelos valores reais desta máquina, escreve o resultado em ~/.config/systemd/user/
+# e recarrega o daemon. Editar a cópia instalada funciona até o próximo install.sh
+# sobrescrever — mexa aqui, não lá.
+#
+# ── por que serviço, e não timer ────────────────────────────────────────────
+#
+# Um timer systemd foi considerado e recusado. O padrão de AccuracySec é 1 minuto:
+# o systemd agrupa disparos vizinhos para acordar a CPU uma vez só, então um timer
+# de 20s dispararia quando desse, dentro do minuto. O intervalo nominal viraria
+# ficção — e junto com ele a resolução que o PRD §3.1 está comprando, porque skip
+# só é detectável se a amostragem for densa E conhecida. Um processo longo com
+# sleep interno controla o próprio período (com jitter deliberado, ver poll.ts),
+# mantém o access token quente entre polls e não paga boot de Node a cada 20s.
+
+[Unit]
+Description=playoff-collector — arquivo de escuta do Spotify
+Documentation=file://__COLLECTOR_DIR__/README.md
+
+# Não há `After=network-online.target` aqui de propósito: esse alvo existe só no
+# gerenciador do sistema, e uma unidade de usuário não consegue se ordenar contra
+# ele. Não faz falta — subir sem rede custa um poll, que o laço registra em
+# collector_poll como buraco observado e refaz no tick seguinte.
+
+# Sem limite de partidas. O padrão (5 em 10s e a unidade vai para `failed`) existe
+# para conter flap, mas aqui ele deixaria o coletor parado por horas depois de,
+# digamos, o banco demorar a subir no boot — e cada hora parada é dado que não
+# volta (PRD §3). A saída que de fato não deve reiniciar é tratada uma por uma em
+# RestartPreventExitStatus, abaixo.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=__COLLECTOR_DIR__
+ExecStart=__NODE__ dist/src/main.js run
+
+# As credenciais vêm daqui, e não do carregamento de .env que o próprio coletor
+# sabe fazer. `loadEnvFiles()` procura `.env` e `../.env` RELATIVOS ao cwd, e o
+# WorkingDirectory padrão do systemd é `/` — onde não existe .env nenhum. O
+# processo subiria, não acharia COLLECTOR_DATABASE_URL e morreria com "Falta a URL
+# do banco", que parece erro de configuração e é só erro de diretório. O
+# WorkingDirectory acima conserta essa busca por acidente; o EnvironmentFile faz o
+# cwd não importar.
+#
+# Sem o prefixo `-`: se o .env sumir, a unidade falha alto em vez de subir sem
+# credencial e ficar batendo 401 contra a API.
+#
+# Cuidado com a sintaxe: quem lê este arquivo é o systemd, não um shell. Nada de
+# `export`, nada de expansão de $VAR, nada de continuação de linha; valor com
+# espaço precisa de aspas. Um .env escrito como script de shell carrega pela
+# metade e em silêncio.
+EnvironmentFile=__REPO_DIR__/.env
+
+# PRD §10 pede "reinicia sozinho após queda". Queda aqui é qualquer coisa: OOM,
+# exceção não tratada, o laptop suspendendo no meio de uma query. Dez segundos é
+# curto o bastante para custar meio poll e longo o bastante para não virar
+# tempestade quando a causa for o banco fora do ar.
+#
+# A outra metade do mesmo critério — "não duplica eventos" — NÃO é problema desta
+# unidade: quem garante instância única é o advisory lock do Postgres (db.ts). Por
+# isso aqui não há PIDFile nem arquivo de lock: um lock em disco só descreve esta
+# máquina, e a duplicata que importa é a que escreve no mesmo banco.
+Restart=always
+RestartSec=10
+
+# A única saída que não adianta reiniciar. 78 é o que o main.ts devolve para
+# credencial morta (400 invalid_grant no endpoint de token) e para "outro coletor
+# já está com a trava". Retentar invalid_grant a cada 10s não conserta nada,
+# queima a cota — que desde jul/2026 é contada por conta de desenvolvedor, não por
+# client id — e enterra o erro real embaixo de milhares de linhas idênticas no
+# journal. Assim a unidade para em `failed`, que aparece em `systemctl --user
+# status`, e a correção é humana: `npm run authorize`.
+#
+# Efeito colateral conhecido: se um SIGKILL deixar a sessão do Postgres pendurada,
+# o restart seguinte pode encontrar a trava ocupada e sair 78 também. O sintoma é
+# o mesmo (`failed`, status=78) e o remédio é `systemctl --user restart`; o journal
+# distingue os dois casos na linha anterior.
+RestartPreventExitStatus=78
+
+# O main.ts trata SIGTERM: sai do laço, solta o advisory lock e fecha a linha em
+# collector_run com o motivo da parada. Vinte segundos dá folga para o poll em voo
+# terminar antes do SIGKILL.
+TimeoutStopSec=20
+
+# stdout e stderr vão direto para o journald. O log.ts já emite uma linha JSON por
+# evento, então não há arquivo para rotacionar nem log próprio para configurar:
+# `journalctl --user -u playoff-collector -f` é a interface.
+SyslogIdentifier=playoff-collector
+
+# ── endurecimento ───────────────────────────────────────────────────────────
+#
+# O processo lê o repo, fala com a API do Spotify e escreve no Postgres. Nada
+# mais. ProtectSystem=strict deixa o sistema de arquivos inteiro somente-leitura,
+# inclusive o próprio repo — o coletor não escreve em disco em runtime (estado vai
+# para o Postgres, log para o journald), e o `npm run build` roda fora da unidade.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+
+# Deliberadamente FORA da lista: RestrictAddressFamilies. Bloquear AF_NETLINK
+# parece inofensivo e quebra o getaddrinfo da glibc, que o usa para enumerar
+# interfaces — o sintoma seria DNS falhando só sob systemd, que é caro de
+# diagnosticar. Uma flag de endurecimento que impeça o coletor de subir é prejuízo
+# líquido: o risco real deste projeto é ficar dias sem coletar, não um processo
+# somente-leitura ser subvertido.
+#
+# Se a unidade falhar com erro de mount namespace ("Failed to set up mount
+# namespacing"), o kernel está com user namespace sem privilégio desabilitado.
+# Comente PrivateTmp e ProtectSystem e siga: coletar vale mais que a caixinha.
+
+[Install]
+# `default.target` é o alvo do gerenciador de usuário — o equivalente ao
+# multi-user.target do lado do sistema.
+WantedBy=default.target
+
+# ATENÇÃO: por padrão o gerenciador de usuário morre quando a sua última sessão
+# fecha, e leva o coletor junto — ele coletaria só enquanto houvesse login ativo.
+# Para subir no boot e sobreviver ao logout:
+#
+#     loginctl enable-linger <usuário>
+#
+# O install.sh faz isso. É a diferença entre arquivar o dia e arquivar as horas em
+# que você por acaso estava logado.

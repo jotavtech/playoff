@@ -1,0 +1,28 @@
+{
+  "name": "@playoff/collector",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Coletor de histórico de escuta. Processo standalone — não é rota do Nuxt. Faz poll em /me/player e escreve play_event.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/src/main.js run",
+    "probe": "node dist/src/main.js probe",
+    "authorize": "node dist/src/main.js authorize",
+    "migrate": "node dist/src/main.js migrate",
+    "derive": "node dist/src/main.js derive",
+    "test": "npm run build && node --test \"dist/test/**/*.test.js\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.7.0"
+  }
+}
