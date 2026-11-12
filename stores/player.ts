@@ -4,6 +4,7 @@ import { useRoomStore } from '~/stores/room'
 
 export const usePlayerStore = defineStore('player', {
   state: () => ({
+    playbackError: null as string | null,
     volume: 0.8 as number,
     muted: false as boolean,
     lastVotePulse: 0 as number,

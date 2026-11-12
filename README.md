@@ -18,6 +18,12 @@ npm install
 npm run dev      # http://localhost:3000
 ```
 
+## Player e letras
+
+- A busca usa a API oficial do Spotify. Para tocar no navegador, use uma conta Premium autorizada para o app.
+- O Playoff procura letras no LRCLIB e mostra os versos disponíveis para leitura. A sincronização com áudio do Spotify não é oferecida.
+- Em **Letras**, abra um arquivo de áudio e adicione a letra correspondente em formato `.lrc`. O áudio e o LRC ficam no navegador. Os versos seguem a reprodução, e clicar em um verso pula para o ponto correspondente. O medidor da Home reage à frequência do áudio local.
+
 ## Atalhos
 
 | Tecla | Ação |

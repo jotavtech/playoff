@@ -83,7 +83,8 @@ export async function loadGoWithTheFlow () {
     durationMs: previewUrl ? 30_000 : 3 * 60 * 1000 + 7 * 1000
   })
 
-  if (previewUrl) useSpotifyPlayer().playPreviewUrl(previewUrl)
+  stopDemoSignal()
+  if (previewUrl) { useSpotifyPlayer().playPreviewUrl(previewUrl); return }
 
   // Progresso (visual-only — sem áudio, mas o synth do analyser dá pulso)
   if (progressTimer) clearInterval(progressTimer)

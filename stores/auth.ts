@@ -5,6 +5,8 @@ const TOKEN_KEY = 'playoff:spotify_access_token'
 const EXPIRY_KEY = 'playoff:spotify_token_expiry'
 const REFRESH_KEY = 'playoff:spotify_refresh_token'
 
+let refreshing: Promise<boolean> | null = null
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null as SpotifyUser | null,
@@ -55,23 +57,30 @@ export const useAuthStore = defineStore('auth', {
       } catch { /* storage indisponível */ }
     },
 
-    async refreshAccessToken (): Promise<boolean> {
-      if (!this.refreshToken) return false
+    refreshAccessToken (): Promise<boolean> {
+      if (!refreshing) refreshing = this.requestRefresh().finally(() => { refreshing = null })
+      return refreshing
+    },
+
+    async requestRefresh (): Promise<boolean> {
+      const refreshToken = this.refreshToken
+      if (!refreshToken) return false
       try {
         const res = await fetch('/api/spotify/refresh', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: this.refreshToken })
+          body: JSON.stringify({ refresh_token: refreshToken })
         })
         if (!res.ok) return false
         const data = await res.json()
+        if (this.refreshToken !== refreshToken) return false
         this.setTokens(data.access_token, data.refresh_token || null, data.expires_in)
         return true
       } catch { return false }
     },
 
     async ensureFreshToken (): Promise<string | null> {
-      if (this.tokenValid) return this.accessToken
+      if (this.accessToken && Date.now() < this.tokenExpiry - 30_000) return this.accessToken
       const ok = await this.refreshAccessToken()
       return ok ? this.accessToken : null
     },
@@ -86,11 +95,11 @@ export const useAuthStore = defineStore('auth', {
         if (!res.ok) return
         const user = await res.json()
         this.user = user
-        this.isPremium = user.product === 'premium'
+        this.isPremium = user.product === 'premium' || Boolean(this.deviceId)
       } catch { /* offline / token revogado */ }
     },
 
-    setDeviceId (id: string) {
+    setDeviceId (id: string | null) {
       this.deviceId = id
     },
 

@@ -61,7 +61,9 @@ https://SEU-DOMINIO.vercel.app/auth/spotify/callback
 - [ ] `?demo=gwtf` mostra o disco girando com a cor da música.
 - [ ] **Login with Spotify** redireciona e volta autenticado.
 - [ ] Busca no Command Center (⌘K) retorna faixas reais.
-- [ ] Tocar uma faixa anima disco + visualizer + Chromatic Engine.
+- [ ] Tocar uma faixa com conta Premium autorizada e verificar progresso, pausa e busca.
+- [ ] Abrir **Letras** e conferir que o LRCLIB entrega a letra para leitura.
+- [ ] Abrir áudio local e um arquivo LRC; conferir salto por verso, pausa e medidor reativo na Home.
 - [ ] (Se host com WS) Salas conectam e a fila vota em tempo real.
 
 ## Notas técnicas

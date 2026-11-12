@@ -1,322 +1,373 @@
 import { useAuthStore } from '~/stores/auth'
 import { useMusicVisualStore } from '~/stores/musicVisual'
-import { useCinematicStore } from '~/stores/cinematic'
-import { inferMood } from '~/composables/useMoodMapper'
-import { extractPalette, extractChromaticPalette } from '~/composables/usePaletteExtractor'
+import { usePlayerStore } from '~/stores/player'
 import { useAudioAnalyser } from '~/composables/useAudioAnalyser'
 import type { SpotifyPlayerState, SpotifyTrack } from '~/types/spotify'
 import type { CurrentTrack } from '~/types/cinematic'
 
-/** Extrai paleta cromática + monocromática + mood de uma capa (Chromatic Engine). */
-async function applyCoverPalette (coverUrl: string | null, track: CurrentTrack) {
-  const music = useMusicVisualStore()
-  if (!coverUrl) return
-  const [mono, chroma] = await Promise.all([
-    extractPalette(coverUrl),
-    extractChromaticPalette(coverUrl)
-  ])
-  music.palette = mono
-  music.setChromatic(chroma)
-  const fakeTrack: SpotifyTrack = {
-    id: track.id, name: track.title, artists: [{ id: '', name: track.artist }],
-    popularity: 50, uri: '', duration_ms: track.durationMs,
-    preview_url: null, album: { id: '', name: track.album, images: [], release_date: '' }
-  }
-  music.currentMood = inferMood(fakeTrack, chroma.luminance)
-}
-
 declare global {
   interface Window {
-    Spotify: {
-      Player: new (opts: {
-        name: string
-        getOAuthToken: (cb: (token: string) => void) => void
-        volume: number
-      }) => SpotifySDKPlayer
-    }
+    Spotify?: { Player: new (options: {
+      name: string
+      volume: number
+      getOAuthToken: (cb: (token: string) => void) => void
+    }) => SpotifySDKPlayer }
     onSpotifyWebPlaybackSDKReady: () => void
   }
 }
-
 interface SpotifySDKPlayer {
   connect(): Promise<boolean>
   disconnect(): void
-  addListener(event: 'ready', cb: (data: { device_id: string }) => void): void
-  addListener(event: 'not_ready', cb: (data: { device_id: string }) => void): void
+  addListener(event: 'ready' | 'not_ready', cb: (data: { device_id: string }) => void): void
   addListener(event: 'player_state_changed', cb: (state: SpotifyPlayerState | null) => void): void
-  addListener(event: 'initialization_error', cb: (e: { message: string }) => void): void
-  addListener(event: 'authentication_error', cb: (e: { message: string }) => void): void
-  addListener(event: 'account_error', cb: (e: { message: string }) => void): void
+  addListener(event: 'initialization_error' | 'authentication_error' | 'account_error' | 'playback_error' | 'autoplay_failed', cb: () => void): void
   getCurrentState(): Promise<SpotifyPlayerState | null>
-  pause(): Promise<void>
-  resume(): Promise<void>
+  activateElement(): Promise<void>
   togglePlay(): Promise<void>
+  pause(): Promise<void>
   seek(ms: number): Promise<void>
   setVolume(v: number): Promise<void>
 }
 
 let sdkPlayer: SpotifySDKPlayer | null = null
-let sdkReady = false
-let progressInterval: ReturnType<typeof setInterval> | null = null
+let sdkLoad: Promise<void> | null = null
+let sdkInit: Promise<void> | null = null
+let poll: ReturnType<typeof setInterval> | null = null
+let raf = 0
+let audio: HTMLAudioElement | null = null
+let audioUrl: string | null = null
+let generation = 0
+let command = 0
+let pendingSpotifyTrack: string | null = null
+let clock = { position: 0, at: 0 }
+let lastPaint = 0
+const ROOT = 'https://api.spotify.com/v1/me/player'
 
-// Elemento de áudio para o fallback de 30s (non-premium / sem preview)
-let previewAudio: HTMLAudioElement | null = null
-
-function stopPreview () {
-  if (previewAudio) {
-    previewAudio.pause()
-    previewAudio.src = ''
-    previewAudio = null
-  }
+function loadSDK () {
+  if (window.Spotify?.Player) return Promise.resolve()
+  if (sdkLoad) return sdkLoad
+  sdkLoad = new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script')
+    const timer = setTimeout(() => finish(false), 9000)
+    function finish (ok: boolean) {
+      clearTimeout(timer)
+      script.onerror = null
+      if (ok) resolve()
+      else { script.remove(); reject(new Error('SDK unavailable')) }
+    }
+    window.onSpotifyWebPlaybackSDKReady = () => finish(Boolean(window.Spotify?.Player))
+    script.src = 'https://sdk.scdn.co/spotify-player.js'
+    script.async = true
+    script.onerror = () => finish(false)
+    document.head.appendChild(script)
+  }).finally(() => { sdkLoad = null })
+  return sdkLoad
 }
 
 export function useSpotifyPlayer () {
   const auth = useAuthStore()
   const music = useMusicVisualStore()
-  const cinematic = useCinematicStore()
+  const player = usePlayerStore()
+  const analyser = useAudioAnalyser()
 
-  // ─── Carrega o SDK lazily ────────────────────────────────────────────────
-  function loadSDK (): Promise<void> {
-    if (sdkReady || !import.meta.client) return Promise.resolve()
-    return new Promise((resolve) => {
-      window.onSpotifyWebPlaybackSDKReady = () => {
-        sdkReady = true
-        resolve()
+  function tick (now: number) {
+    if (now - lastPaint >= 48) {
+      lastPaint = now
+      if (music.isPlaying) {
+        if (audio) music.progressMs = audio.currentTime * 1000
+        else if (music.currentTrack?.source === 'spotify') {
+          music.progressMs = Math.min(music.currentTrack.durationMs, clock.position + Math.max(0, now - clock.at))
+        }
       }
-      if (document.querySelector('script[src*="spotify-player"]')) {
-        // já carregado, mas o callback pode já ter disparado
-        if ((window as any).Spotify) { sdkReady = true; resolve() }
-        return
-      }
-      const script = document.createElement('script')
-      script.src = 'https://sdk.scdn.co/spotify-player.js'
-      script.async = true
-      document.head.appendChild(script)
-    })
+    }
+    raf = requestAnimationFrame(tick)
   }
+  function ensureClock () { if (!raf) raf = requestAnimationFrame(tick) }
 
-  // ─── Inicializa o player ─────────────────────────────────────────────────
-  async function initPlayer () {
-    if (!auth.isPremium || !import.meta.client) return
-
-    await loadSDK()
-    if (sdkPlayer) return
-
-    sdkPlayer = new window.Spotify.Player({
-      name: 'PLAYOFF CHROME ENGINE',
-      volume: 0.8,
-      getOAuthToken: async (cb) => {
-        const token = await auth.ensureFreshToken()
-        if (token) cb(token)
-      }
-    })
-
-    sdkPlayer.addListener('ready', ({ device_id }) => {
-      auth.setDeviceId(device_id)
-      transferPlayback(device_id)
-    })
-
-    sdkPlayer.addListener('not_ready', () => {
-      auth.setDeviceId(null as any)
-    })
-
-    sdkPlayer.addListener('player_state_changed', onStateChange)
-
-    sdkPlayer.addListener('account_error', () => {
-      // Conta não é Premium — cai pro fallback de preview
-    })
-
-    sdkPlayer.connect()
-    startProgressPoll()
-  }
-
-  // ─── Estado do player → MusicVisualStore ────────────────────────────────
-  let lastTrackId: string | null = null
-
-  function onStateChange (state: SpotifyPlayerState | null) {
-    if (!state) return
-
-    const sdkTrack = state.track_window.current_track
-    const trackChanged = sdkTrack.id !== lastTrackId
-
-    if (trackChanged) {
-      lastTrackId = sdkTrack.id
-      const coverUrl = sdkTrack.album.images[0]?.url ?? null
-
+  function onState (state: SpotifyPlayerState | null) {
+    if (audio) return
+    if (!state?.track_window.current_track?.id) {
+      if (!pendingSpotifyTrack && music.currentTrack?.source === 'spotify') music.pause()
+      return
+    }
+    const item = state.track_window.current_track
+    if (pendingSpotifyTrack && pendingSpotifyTrack !== item.id) return
+    player.playbackError = null
+    if (music.currentTrack?.id !== item.id || music.currentTrack.source !== 'spotify') {
       const track: CurrentTrack = {
-        id: sdkTrack.id,
-        title: sdkTrack.name,
-        artist: sdkTrack.artists.map(a => a.name).join(', '),
-        album: sdkTrack.album.name,
-        coverUrl,
-        durationMs: state.duration
+        id: item.id, title: item.name, artist: item.artists.map(a => a.name).join(', '),
+        lyricsArtist: item.artists[0]?.name, album: item.album.name, coverUrl: item.album.images[0]?.url ?? null,
+        durationMs: state.duration, source: 'spotify', spotifyUrl: 'https://open.spotify.com/track/' + item.id
       }
-
-      // Atualiza palette cromática + mood antes do corte de cena (Chromatic Engine)
-      applyCoverPalette(coverUrl, track)
-
-      music.setTrack(track)
+      void music.setTrack(track, { immediate: true, autoplay: false })
     }
-
-    if (state.paused && music.isPlaying) {
-      music.isPlaying = false
-      cinematic.setBarsState('paused')
-    } else if (!state.paused && !music.isPlaying) {
-      music.isPlaying = true
-      cinematic.setBarsState('playing')
-    }
-
+    clock = { position: state.position, at: performance.now() }
     music.progressMs = state.position
+    if (state.paused) music.pause()
+    else music.play()
+    ensureClock()
   }
 
-  // ─── Poll de progresso (o SDK não emite eventos contínuos de posição) ───
-  function startProgressPoll () {
-    if (progressInterval) return
-    progressInterval = setInterval(async () => {
-      if (!sdkPlayer || !music.isPlaying) return
-      const state = await sdkPlayer.getCurrentState()
-      if (state) music.progressMs = state.position
-    }, 900)
-  }
-
-  // ─── Transfere a reprodução para o dispositivo SDK ───────────────────────
-  async function transferPlayback (deviceId: string) {
-    const token = await auth.ensureFreshToken()
-    if (!token) return
-    await fetch('https://api.spotify.com/v1/me/player', {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ device_ids: [deviceId], play: false })
-    }).catch(() => { /* falha silenciosa — dispositivo pode não estar pronto */ })
-  }
-
-  // ─── Toca uma faixa ──────────────────────────────────────────────────────
-  async function playTrack (track: SpotifyTrack) {
-    stopPreview()
-
-    if (auth.isPremium && auth.deviceId) {
-      const token = await auth.ensureFreshToken()
-      if (!token) return
-
-      // Corte de cena visual enquanto inicia o fetch
-      const currentTrack: CurrentTrack = {
-        id: track.id,
-        title: track.name,
-        artist: track.artists.map(a => a.name).join(', '),
-        album: track.album.name,
-        coverUrl: track.album.images[0]?.url ?? null,
-        durationMs: track.duration_ms
+  function initPlayer () {
+    if (!import.meta.client || sdkPlayer) return Promise.resolve()
+    if (sdkInit) return sdkInit
+    const session = generation
+    sdkInit = (async () => {
+      try {
+        await loadSDK()
+        if (session !== generation || !auth.isAuthenticated || !window.Spotify) return
+        const sdk = new window.Spotify.Player({
+          name: 'Playoff', volume: player.muted ? 0 : player.volume,
+          getOAuthToken: async (callback) => {
+            const token = await auth.ensureFreshToken()
+            if (token && sdkPlayer === sdk) callback(token)
+          }
+        })
+        sdkPlayer = sdk
+        const reset = (message: string) => {
+          if (sdkPlayer !== sdk) return
+          auth.setDeviceId(null)
+          player.playbackError = message
+          sdkPlayer = null
+          if (poll) clearInterval(poll)
+          poll = null
+          sdk.disconnect()
+        }
+        sdk.addListener('ready', ({ device_id }) => {
+          if (sdkPlayer !== sdk) return
+          auth.setDeviceId(device_id)
+          auth.isPremium = true
+          player.playbackError = null
+        })
+        sdk.addListener('not_ready', () => {
+          if (sdkPlayer !== sdk) return
+          auth.setDeviceId(null)
+          if (music.currentTrack?.source === 'spotify') music.pause()
+        })
+        sdk.addListener('player_state_changed', state => { if (sdkPlayer === sdk) onState(state) })
+        sdk.addListener('account_error', () => {
+          auth.isPremium = false
+          reset('A reprodução no navegador requer Spotify Premium. Você ainda pode ouvir uma prévia.')
+        })
+        sdk.addListener('initialization_error', () => reset('Este navegador não conseguiu iniciar o player do Spotify.'))
+        sdk.addListener('authentication_error', () => reset('O player do Spotify perdeu a conexão. Reconecte sua conta.'))
+        sdk.addListener('playback_error', () => { player.playbackError = 'O Spotify não conseguiu reproduzir esta faixa.' })
+        sdk.addListener('autoplay_failed', () => { player.playbackError = 'Toque em reproduzir para liberar o áudio no navegador.' })
+        if (!await sdk.connect()) { reset('Não foi possível conectar o player do Spotify.'); return }
+        if (sdkPlayer !== sdk) return
+        let polling = false
+        poll = setInterval(async () => {
+          if (polling || audio || !auth.deviceId || document.hidden) return
+          polling = true
+          const previous = clock
+          const revision = command
+          try {
+            const state = await sdk.getCurrentState()
+            if (sdkPlayer === sdk && clock === previous && command === revision) onState(state)
+          } catch { /* SDK will emit a connection event if the device is lost. */ }
+          finally { polling = false }
+        }, 1500)
+      } catch {
+        if (session === generation) {
+          const failed = sdkPlayer
+          sdkPlayer = null
+          auth.setDeviceId(null)
+          failed?.disconnect()
+          player.playbackError = 'Não foi possível carregar o player do Spotify.'
+        }
       }
-      applyCoverPalette(currentTrack.coverUrl, currentTrack)
-      await music.setTrack(currentTrack)
-
-      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${auth.deviceId}`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uris: [track.uri] })
-      }).catch(() => { /* ignora — corte de cena já aconteceu */ })
-
-      return
-    }
-
-    // Fallback free: preview de 30s via HTML5 audio.
-    // O preview_url do Spotify morreu para apps novos — quando vier null,
-    // resolve um preview equivalente pela iTunes Search (proxy /api/preview).
-    const currentTrack: CurrentTrack = {
-      id: track.id,
-      title: track.name,
-      artist: track.artists.map(a => a.name).join(', '),
-      album: track.album.name,
-      coverUrl: track.album.images[0]?.url ?? null,
-      durationMs: track.duration_ms
-    }
-    applyCoverPalette(currentTrack.coverUrl, currentTrack)
-    await music.setTrack(currentTrack)
-
-    const previewUrl = track.preview_url ?? await resolvePreviewUrl(track.name, track.artists[0]?.name ?? '')
-    if (previewUrl) playPreviewUrl(previewUrl)
-    // Sem preview em lugar nenhum: visual-only (cena reage, sem áudio)
+    })().finally(() => { if (session === generation) sdkInit = null })
+    return sdkInit
   }
 
-  // ─── Preview de 30s ──────────────────────────────────────────────────────
-  async function resolvePreviewUrl (title: string, artist: string): Promise<string | null> {
-    try {
-      const res = await fetch(
-        `/api/preview?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`
-      )
-      if (!res.ok) return null
-      const data = await res.json()
-      return data.previewUrl ?? null
-    } catch { return null }
+  async function spotify (endpoint: string, method: string, data?: object) {
+    const token = await auth.ensureFreshToken()
+    if (!token) throw new Error('Reconecte sua conta do Spotify.')
+    const send = (token: string) => fetch(ROOT + endpoint, {
+      method, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: data ? JSON.stringify(data) : undefined, signal: AbortSignal.timeout(8000)
+    })
+    let res = await send(token)
+    if (res.status === 401 && await auth.refreshAccessToken() && auth.accessToken) res = await send(auth.accessToken)
+    if (res.ok) return
+    throw new Error(res.status === 403 ? 'O Spotify não autorizou a reprodução para esta conta ou faixa.'
+      : res.status === 404 ? 'O dispositivo Spotify ainda não está disponível. Tente novamente.'
+      : res.status === 429 ? 'O Spotify limitou as solicitações. Tente novamente em instantes.'
+      : 'Não foi possível controlar o Spotify.')
   }
 
-  /**
-   * Toca uma URL de preview. Tenta com CORS (FFT real no visualizer); se o CDN
-   * não mandar os headers, recarrega sem CORS — toca igual, visual fica no synth.
-   */
-  function playPreviewUrl (url: string, withCors = true) {
-    stopPreview()
+  function stopAudio () {
+    if (audio) {
+      const previous = audio
+      audio = null
+      previous.pause()
+      previous.removeAttribute('src')
+      analyser.detachElement()
+    }
+    if (audioUrl) URL.revokeObjectURL(audioUrl)
+    audioUrl = null
+  }
+
+  function startAudio (url: string, source: 'local' | 'preview') {
     const el = new Audio()
-    if (withCors) el.crossOrigin = 'anonymous'
-    el.src = url
-    el.volume = 0.8
-    el.onended = () => music.pause()
-    el.onerror = () => {
-      if (withCors) playPreviewUrl(url, false)
+    audio = el
+    el.volume = player.muted ? 0 : player.volume
+    el.onloadedmetadata = () => {
+      if (audio === el && music.currentTrack && Number.isFinite(el.duration)) {
+        music.currentTrack.durationMs = el.duration * 1000
+      }
     }
-    previewAudio = el
-    if (withCors) useAudioAnalyser().attachElement(el)
-    el.play().catch(() => { /* autoplay bloqueado — destrava no próximo gesto */ })
-
-    // Progresso lido do próprio elemento (não deriva com atrasos de rede)
-    const tick = setInterval(() => {
-      if (previewAudio !== el) { clearInterval(tick); return }
-      if (music.isPlaying) music.progressMs = el.currentTime * 1000
-    }, 500)
+    el.onplaying = () => { if (audio === el) { player.playbackError = null; music.play() } }
+    el.onpause = el.onended = () => { if (audio === el) { music.progressMs = el.currentTime * 1000; music.pause() } }
+    el.onerror = () => {
+      if (audio !== el) return
+      music.pause()
+      player.playbackError = 'Não foi possível reproduzir este áudio.'
+    }
+    el.src = url
+    if (source === 'local') analyser.attachElement(el)
+    ensureClock()
+    void el.play().catch(() => {
+      if (audio === el && !el.error) player.playbackError = 'Toque em reproduzir para começar.'
+    })
   }
 
-  // ─── Controles ───────────────────────────────────────────────────────────
-  async function togglePlay () {
-    if (previewAudio) {
-      if (previewAudio.paused) { previewAudio.play(); music.play() }
-      else { previewAudio.pause(); music.pause() }
+  async function playTrack (item: SpotifyTrack) {
+    const id = ++command
+    pendingSpotifyTrack = null
+    const sdk = sdkPlayer
+    const device = auth.deviceId
+    player.playbackError = null
+    music.stopSimulation()
+    stopAudio()
+    const track: CurrentTrack = {
+      id: item.id, title: item.name, artist: item.artists.map(a => a.name).join(', '),
+      lyricsArtist: item.artists[0]?.name, album: item.album.name, coverUrl: item.album.images[0]?.url ?? null,
+      durationMs: item.duration_ms, catalogDurationMs: item.duration_ms,
+      spotifyUrl: 'https://open.spotify.com/track/' + item.id, source: 'spotify'
+    }
+    if (sdk && device) {
+      pendingSpotifyTrack = track.id
+      try {
+        await sdk.activateElement()
+        if (id !== command) return
+        await spotify('/play?device_id=' + encodeURIComponent(device), 'PUT', { uris: [item.uri] })
+        if (id !== command) return
+        const state = await sdk.getCurrentState().catch(() => null)
+        if (id === command) {
+          if (state?.track_window.current_track.id === track.id) onState(state)
+          else if (music.currentTrack?.id !== track.id) await music.setTrack(track, { immediate: true, autoplay: false })
+        }
+      } catch (e) {
+        if (id === command) player.playbackError = e instanceof Error ? e.message : 'O Spotify não respondeu.'
+      } finally {
+        if (id === command) pendingSpotifyTrack = null
+      }
       return
     }
-    if (sdkPlayer) await sdkPlayer.togglePlay()
-    else music.togglePlay()
+    const preview = await $fetch<{ previewUrl: string | null }>('/api/preview', {
+      query: { title: item.name, artist: item.artists[0]?.name ?? '' }, timeout: 6000
+    }).then(result => result.previewUrl, () => null)
+    if (id !== command) return
+    await music.setTrack({ ...track, source: preview ? 'preview' : 'spotify', durationMs: preview ? 30_000 : track.durationMs }, { immediate: true, autoplay: false })
+    if (id !== command) return
+    if (preview) {
+      startAudio(preview, 'preview')
+      void sdkPlayer?.pause().catch(() => {})
+    }
+    else player.playbackError = 'Prévia indisponível. Abra a faixa no Spotify.'
+  }
+
+  function playLocal (file: File) {
+    const id = ++command
+    pendingSpotifyTrack = null
+    stopAudio()
+    music.stopSimulation()
+    // Set the audio element first so late Spotify events cannot replace the track.
+    audioUrl = URL.createObjectURL(file)
+    const track: CurrentTrack = {
+      id: 'local-' + id, title: file.name.replace(/\.[^.]+$/, ''), artist: 'Arquivo local',
+      album: '', coverUrl: null, durationMs: 0, source: 'local'
+    }
+    music.localLyrics = []
+    void music.setTrack(track, { immediate: true, autoplay: false })
+    startAudio(audioUrl, 'local')
+    void sdkPlayer?.pause().catch(() => {})
+  }
+
+  function playPreviewUrl (url: string) {
+    command++
+    pendingSpotifyTrack = null
+    stopAudio()
+    if (music.currentTrack) music.currentTrack.source = 'preview'
+    startAudio(url, 'preview')
+  }
+
+  async function controls (action: () => Promise<void>) {
+    try { await action(); player.playbackError = null }
+    catch (e) { player.playbackError = e instanceof Error ? e.message : 'Não foi possível controlar a reprodução.' }
+  }
+
+  async function togglePlay () {
+    if (audio) {
+      const el = audio
+      if (el.paused) {
+        if (music.currentTrack?.source === 'local') analyser.attachElement(el)
+        await controls(() => el.play())
+      } else el.pause()
+    } else if (music.currentTrack?.source === 'spotify') {
+      if (sdkPlayer && auth.deviceId) await controls(async () => {
+        const sdk = sdkPlayer!
+        if (!music.isPlaying) await sdk.activateElement()
+        await sdk.togglePlay()
+      })
+      else player.playbackError = 'Abra a faixa no Spotify para ouvir.'
+    } else music.togglePlay()
   }
 
   async function seek (ms: number) {
-    if (sdkPlayer) await sdkPlayer.seek(ms)
-    else if (previewAudio) previewAudio.currentTime = ms / 1000
-    music.progressMs = ms
+    const current = music.currentTrack
+    if (!current) return
+    const target = Math.min(current.durationMs, Math.max(0, ms))
+    if (audio) { audio.currentTime = target / 1000; music.progressMs = target }
+    else if (current.source === 'spotify' && sdkPlayer && auth.deviceId) await controls(async () => {
+      await sdkPlayer!.seek(target)
+      if (music.currentTrack?.id !== current.id) return
+      clock = { position: target, at: performance.now() }
+      music.progressMs = target
+    })
   }
 
   async function skipToNext () {
-    if (sdkPlayer) {
-      // Spotify Web API – skip to next (premium only)
-      const token = await auth.ensureFreshToken()
-      if (token) {
-        await fetch('https://api.spotify.com/v1/me/player/next', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` }
-        }).catch(() => { /* silent: device may not be active */ })
-      }
-      return
-    }
-    // Preview fallback: stop current preview (no next in preview mode)
-    stopPreview()
-    music.pause()
+    if (music.currentTrack?.source === 'spotify' && auth.deviceId) {
+      const device = auth.deviceId
+      await controls(() => spotify('/next?device_id=' + encodeURIComponent(device), 'POST'))
+    } else if (audio) { audio.pause(); audio.currentTime = 0; music.progressMs = 0 }
+  }
+
+  function syncVolume () {
+    const volume = player.muted ? 0 : player.volume
+    if (audio) audio.volume = volume
+    if (sdkPlayer && auth.deviceId) void sdkPlayer.setVolume(volume).catch(() => {})
   }
 
   function destroy () {
-    stopPreview()
-    if (progressInterval) { clearInterval(progressInterval); progressInterval = null }
-    sdkPlayer?.disconnect()
+    generation++
+    command++
+    pendingSpotifyTrack = null
+    sdkInit = null
+    stopAudio()
+    if (poll) clearInterval(poll)
+    poll = null
+    if (raf) cancelAnimationFrame(raf)
+    raf = 0
+    const previous = sdkPlayer
     sdkPlayer = null
-    sdkReady = false
-    lastTrackId = null
+    previous?.disconnect()
+    auth.setDeviceId(null)
+    player.playbackError = null
+    music.clearTrack()
   }
 
-  return { initPlayer, playTrack, playPreviewUrl, togglePlay, seek, skipToNext, destroy }
+  return { initPlayer, playTrack, playLocal, playPreviewUrl, togglePlay, seek, skipToNext, syncVolume, destroy }
 }

@@ -63,7 +63,7 @@ const sceneVars = computed(() => {
     <div
       class="layer-album"
       aria-hidden="true"
-      :style="music.currentTrack?.coverUrl
+      :style="music.currentTrack?.coverUrl && !music.currentTrack.spotifyUrl
         ? { backgroundImage: `url(${music.currentTrack.coverUrl})`, opacity: '0.3' }
         : {}"
     />

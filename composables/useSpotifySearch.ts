@@ -6,46 +6,62 @@ export function useSpotifySearch () {
   const results = ref<SpotifyTrack[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let request: AbortController | undefined
 
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null
+  function cancel () {
+    clearTimeout(timer)
+    request?.abort()
+    loading.value = false
+  }
 
-  async function search (query: string, limit = 12): Promise<SpotifyTrack[]> {
+  async function search (query: string, limit = 10): Promise<SpotifyTrack[]> {
+    cancel()
     const q = query.trim()
-    if (!q) { results.value = []; return [] }
-
-    const token = await auth.ensureFreshToken()
-    if (!token) { error.value = 'not_authenticated'; return [] }
-
-    loading.value = true
+    results.value = []
     error.value = null
-
+    if (!q) return []
+    const controller = new AbortController()
+    request = controller
+    loading.value = true
     try {
-      const res = await fetch(
-        `/api/spotify/search?q=${encodeURIComponent(q)}&type=track&limit=${limit}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      if (!res.ok) throw new Error(`${res.status}`)
+      let token = await auth.ensureFreshToken()
+      if (controller.signal.aborted) return []
+      if (!token) { error.value = 'not_authenticated'; return [] }
+      const send = (token: string) => fetch('/api/spotify/search?' + new URLSearchParams({ q, limit: String(limit) }), {
+        headers: { Authorization: 'Bearer ' + token }, signal: controller.signal
+      })
+      let res = await send(token)
+      if (res.status === 401) {
+        if (await auth.refreshAccessToken()) {
+          token = auth.accessToken
+          if (token && !controller.signal.aborted) res = await send(token)
+        }
+      }
+      if (!res.ok) throw new Error(String(res.status))
       const data: SpotifySearchResult = await res.json()
+      if (controller.signal.aborted) return []
       results.value = data.tracks?.items ?? []
       return results.value
-    } catch (e: any) {
-      error.value = e?.message ?? 'search_failed'
+    } catch (e) {
+      if (!controller.signal.aborted) error.value = e instanceof Error ? e.message : 'search_failed'
       return []
     } finally {
-      loading.value = false
+      if (request === controller) loading.value = false
     }
   }
 
   function searchDebounced (query: string, delay = 320) {
-    if (debounceTimer) clearTimeout(debounceTimer)
-    debounceTimer = setTimeout(() => search(query), delay)
+    clear()
+    if (query.trim()) timer = setTimeout(() => { void search(query) }, delay)
   }
 
   function clear () {
+    cancel()
     results.value = []
     error.value = null
-    if (debounceTimer) clearTimeout(debounceTimer)
   }
+  onScopeDispose(cancel)
 
   return { results, loading, error, search, searchDebounced, clear }
 }

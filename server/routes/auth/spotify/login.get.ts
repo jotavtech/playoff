@@ -3,6 +3,8 @@ import { randomBytes } from 'node:crypto'
 /** GET /auth/spotify/login — redireciona para o OAuth do Spotify. */
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
+  if (!config.spotifyClientId || !config.spotifyClientSecret) return sendRedirect(event, '/?login_error=configuration')
+  setHeader(event, 'Cache-Control', 'no-store')
   const state = randomBytes(16).toString('hex')
 
   // Anti-CSRF: grava o state num cookie de curta duração
@@ -10,6 +12,7 @@ export default defineEventHandler(async (event) => {
     httpOnly: true,
     sameSite: 'lax',
     maxAge: 300,
+    secure: config.spotifyRedirectUri.startsWith('https:'),
     path: '/'
   })
 

@@ -1,25 +1,23 @@
-/** GET /api/spotify/search?q=...&type=track&limit=12 — proxy de busca via Spotify API. */
+/** Search tracks within the limit supported by Spotify Development Mode. */
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
-  const q = (query.q as string || '').trim()
-  const type = (query.type as string) || 'track'
-  const limit = Math.min(Number(query.limit) || 12, 30)
-
+  const q = typeof query.q === 'string' ? query.q.trim().slice(0, 250) : ''
+  const limit = Math.max(1, Math.min(10, Math.trunc(Number(query.limit)) || 10))
   if (!q) throw createError({ statusCode: 400, message: 'q required' })
 
-  // O token vem no header Authorization: Bearer <token> enviado pelo cliente
   const authorization = getHeader(event, 'authorization')
-  if (!authorization) throw createError({ statusCode: 401, message: 'Authorization required' })
+  if (!authorization?.startsWith('Bearer ')) throw createError({ statusCode: 401, message: 'Authorization required' })
 
-  const res = await fetch(
-    `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=${type}&limit=${limit}&market=BR`,
-    { headers: { Authorization: authorization } }
-  )
+  const params = new URLSearchParams({ q, type: 'track', limit: String(limit) })
+  const res = await fetch('https://api.spotify.com/v1/search?' + params, {
+    headers: { Authorization: authorization }, signal: AbortSignal.timeout(8000)
+  }).catch(() => { throw createError({ statusCode: 502, message: 'Spotify unavailable' }) })
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw createError({ statusCode: res.status, message: (err as any)?.error?.message ?? 'search failed' })
+    const retryAfter = Number(res.headers.get('Retry-After'))
+    if (Number.isFinite(retryAfter) && retryAfter > 0) setHeader(event, 'Retry-After', retryAfter)
+    throw createError({ statusCode: res.status, message: 'Spotify search failed' })
   }
-
+  setHeader(event, 'Cache-Control', 'private, no-store')
   return res.json()
 })

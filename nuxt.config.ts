@@ -1,3 +1,6 @@
+// Nitro 2 accepts WebSockets; Nuxt's generated experimental type omits the flag.
+const nitroExperimental = { websocket: true, envExpansion: false }
+
 export default defineNuxtConfig({
   compatibilityDate: '2026-06-01',
   devtools: { enabled: false },
@@ -52,8 +55,6 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    experimental: {
-      websocket: true
-    }
+    experimental: nitroExperimental
   }
 })

@@ -6,8 +6,15 @@ import { useRoom } from '~/composables/useRoom'
 import { loadGoWithTheFlow } from '~/composables/useDemoSignal'
 import KaraokeMode from '~/components/karaoke/KaraokeMode.vue'
 import EqualizerPanel from '~/components/EqualizerPanel.vue'
+import { usePlayerStore } from '~/stores/player'
+import { useSpotifyPlayer } from '~/composables/useSpotifyPlayer'
 import BottomNav from '~/components/shell/BottomNav.vue'
 import MiniPlayer from '~/components/shell/MiniPlayer.vue'
+
+const player = usePlayerStore()
+const { syncVolume, destroy } = useSpotifyPlayer()
+watch([() => player.muted, () => player.volume], syncVolume)
+onBeforeUnmount(destroy)
 
 const cinematic = useCinematicStore()
 const { boot } = useAuth()

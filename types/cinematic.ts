@@ -150,6 +150,10 @@ export interface MoodPoint {
 }
 
 export interface CurrentTrack {
+  source?: 'spotify' | 'preview' | 'local'
+  lyricsArtist?: string
+  catalogDurationMs?: number
+  spotifyUrl?: string
   id: string
   title: string
   artist: string

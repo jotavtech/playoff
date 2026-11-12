@@ -206,7 +206,7 @@ export function useRoom () {
       coverUrl: spotifyTrack.album.images[0]?.url ?? null,
       uri: spotifyTrack.uri,
       durationMs: spotifyTrack.duration_ms,
-      previewUrl: spotifyTrack.preview_url
+      previewUrl: spotifyTrack.preview_url ?? null
     }
     _send({ type: 'add_track', payload: { track, participantId: pid } })
   }
