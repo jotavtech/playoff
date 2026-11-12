@@ -37,8 +37,8 @@ export function inferMood (track: SpotifyTrack, luminance: number): MusicMood {
   if (luminance < 0.38) return 'cold'
 
   // Popularidade
-  if (track.popularity >= 75) return 'luxury'
-  if (track.popularity <= 25) return 'minimal'
+  if ((track.popularity ?? 50) >= 75) return 'luxury'
+  if ((track.popularity ?? 50) <= 25) return 'minimal'
 
   return 'soft'
 }

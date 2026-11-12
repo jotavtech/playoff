@@ -13,7 +13,7 @@ import { useLyrics } from '~/composables/useLyrics'
 const cinematic = useCinematicStore()
 const music = useMusicVisualStore()
 const { togglePlay } = useSpotifyPlayer()
-const { lines, available, activeIndex, status, message } = useLyrics()
+const { lines, available, synced, activeIndex, status, message } = useLyrics()
 
 // ─── Tamanho de fonte (persistido) ──────────────────────────────────────────
 const FONT_KEY = 'playoff:karaoke-font'
@@ -90,7 +90,7 @@ onMounted(() => {
 
       <div class="kara__stage">
         <!-- Letra sincronizada (há provedor + linhas) -->
-        <div v-if="available && lyricWindow.length" class="kara__lyrics">
+        <div v-if="available && synced && lyricWindow.length" class="kara__lyrics">
           <Transition name="kara-line" mode="out-in">
             <div :key="activeIndex" class="kara__lines">
               <p
@@ -101,6 +101,10 @@ onMounted(() => {
               >{{ l.text }}</p>
             </div>
           </Transition>
+        </div>
+
+        <div v-else-if="available" class="kara__plain">
+          <p v-for="(line, index) in lines" :key="index">{{ line.text }}</p>
         </div>
 
         <!-- Fallback honesto: sem letra → Visual Mode (canta de ouvido) -->
@@ -169,6 +173,8 @@ onMounted(() => {
   overflow: hidden;
   text-align: center;
 }
+
+.kara__plain { max-height: 100%; overflow: auto; display: grid; gap: 14px; font-size: clamp(18px, 3vw, 32px); }
 
 .kara__lines {
   display: flex;

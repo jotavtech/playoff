@@ -91,6 +91,9 @@ function attachElement (el: HTMLMediaElement) {
 }
 
 function detachElement () {
+  energyHistory.length = 0
+  beatIntervals.length = 0
+  lastBeatAt = 0
   try { sourceNode?.disconnect() } catch { /* noop */ }
   try { eqFilters.forEach(f => f.disconnect()) } catch { /* noop */ }
   try { analyser?.disconnect() } catch { /* noop */ }
@@ -138,7 +141,7 @@ function readReal (): void {
 
 /** Sintetiza um quadro convincente quando não há FFT real (PRD Radiola §5.2). */
 function synth (music: ReturnType<typeof useMusicVisualStore>): void {
-  const now = performance.now() / 1000
+  const now = music.progressMs / 1000
   const bpm = music.bpm || 120
   const beatHz = bpm / 60
   const beatPhase = (now * beatHz) % 1
@@ -215,8 +218,10 @@ function tick () {
       readReal()
       const est = estimateBpm()
       if (est && !music.bpm) music.setBpm(est)
-    } else {
+    } else if (!music.currentTrack?.source) {
       synth(music)
+    } else {
+      decay()
     }
   } else {
     decay()

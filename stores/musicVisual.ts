@@ -43,6 +43,8 @@ export const useMusicVisualStore = defineStore('musicVisual', {
     palette: { luminance: 0.5, accent: '#9a9a9a', contrast: 0.5 } as MonochromeMusicPalette,
     /** Chromatic Engine (PRD Radiola §4): a cor da música que assombra a cena. */
     chromatic: { ...DEFAULT_CHROMATIC } as ChromaticPalette,
+    localLyrics: [] as import('~/types/lyrics').LyricLine[],
+    trackRevision: 0,
     progressMs: 0,
     isPlaying: false,
     scene: 'landing' as VisualScene,
@@ -140,20 +142,25 @@ export const useMusicVisualStore = defineStore('musicVisual', {
     },
 
     /** Track Transition Mode (PRD §5.2.6): corte de cena de 900–1600ms. */
-    async setTrack (track: CurrentTrack) {
+    async setTrack (track: CurrentTrack, options: { autoplay?: boolean; immediate?: boolean } = {}) {
       const cinematic = useCinematicStore()
+      const revision = ++this.trackRevision
+      this.stopSimulation()
       this.transitioning = true
       // BPM reseta — será reavaliado pelo beat detector da nova faixa
       this.bpm = 0
       cinematic.setMode('track-transition')
       cinematic.setBarsState('transitioning')
-      await new Promise(resolve => setTimeout(resolve, cinematic.reducedMotion ? 150 : 1200))
+      if (!options.immediate) await new Promise(resolve => setTimeout(resolve, cinematic.reducedMotion ? 150 : 1200))
+      if (revision !== this.trackRevision) return
+      if (track.source !== 'local') this.localLyrics = []
       this.currentTrack = track
       this.progressMs = 0
       this.transitioning = false
       this.recordMood(track)
       cinematic.setMode(cinematic.immersive ? 'oled-wallpaper' : 'hero')
-      this.play()
+      if (options.autoplay === false) this.pause()
+      else this.play()
     },
 
     /** Chromatic Engine (PRD Radiola §4) — recebe a paleta extraída da capa. */
@@ -200,6 +207,9 @@ export const useMusicVisualStore = defineStore('musicVisual', {
     },
 
     clearTrack () {
+      this.trackRevision++
+      this.transitioning = false
+      this.localLyrics = []
       this.stopSimulation()
       this.currentTrack = null
       this.isPlaying = false

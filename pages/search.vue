@@ -7,7 +7,8 @@ import { useAuthStore } from '~/stores/auth'
 import { useAuth } from '~/composables/useAuth'
 import type { SpotifyTrack } from '~/types/spotify'
 
-const { results, loading, searchDebounced, clear } = useSpotifySearch()
+const { results, loading, error, searchDebounced, clear } = useSpotifySearch()
+const router = useRouter()
 const { playTrack } = useSpotifyPlayer()
 const { addTrack } = useRoom()
 const roomStore = useRoomStore()
@@ -32,7 +33,7 @@ function coverOf (track: SpotifyTrack) {
 
 function selectTrack (track: SpotifyTrack) {
   if (roomStore.inRoom) addTrack(track)
-  else playTrack(track)
+  else { void playTrack(track); void router.push('/') }
 }
 
 function formatDuration (ms: number) {
@@ -88,6 +89,11 @@ function formatDuration (ms: number) {
       <p class="search-page__state-sub">Buscando…</p>
     </div>
 
+    <div v-else-if="error" class="search-page__state" role="alert">
+      <p class="search-page__state-title">{{ error === '403' ? 'Sua conta não tem acesso a este app Spotify.' : error === '429' ? 'O Spotify limitou as buscas. Tente novamente em instantes.' : 'Não foi possível buscar no Spotify.' }}</p>
+      <button class="search-page__login-btn" @click="searchDebounced(query, 0)">Tentar novamente</button>
+    </div>
+
     <!-- Resultados -->
     <ul v-else-if="results.length" class="search-page__results" role="list">
       <li
@@ -95,8 +101,8 @@ function formatDuration (ms: number) {
         :key="track.id"
         class="search-page__track"
         role="listitem"
-        @click="selectTrack(track)"
       >
+        <button class="search-page__track-button" type="button" @click="selectTrack(track)">
         <img
           v-if="coverOf(track)"
           :src="coverOf(track)!"
@@ -112,6 +118,7 @@ function formatDuration (ms: number) {
           <p class="search-page__track-meta">{{ track.artists.map(a => a.name).join(', ') }}</p>
         </div>
         <span class="search-page__duration" aria-label="Duração">{{ formatDuration(track.duration_ms) }}</span>
+        </button>
       </li>
     </ul>
 
@@ -211,7 +218,9 @@ function formatDuration (ms: number) {
   flex: 1;
 }
 
-.search-page__track {
+.search-page__track-button {
+  width: 100%;
+  text-align: left;
   display: flex;
   align-items: center;
   gap: 14px;

@@ -23,8 +23,8 @@ export interface SpotifyTrack {
   artists: SpotifyArtist[]
   album: SpotifyAlbum
   duration_ms: number
-  preview_url: string | null
-  popularity: number
+  preview_url?: string | null
+  popularity?: number
   uri: string
   is_playable?: boolean
 }
@@ -39,10 +39,10 @@ export interface SpotifySearchResult {
 export interface SpotifyUser {
   id: string
   display_name: string | null
-  email: string
+  email?: string
   images: { url: string }[]
-  product: 'premium' | 'free' | 'open'
-  country: string
+  product?: 'premium' | 'free' | 'open'
+  country?: string
 }
 
 export interface SpotifyPlayerState {

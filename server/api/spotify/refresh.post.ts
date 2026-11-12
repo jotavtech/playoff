@@ -1,6 +1,7 @@
 /** POST /api/spotify/refresh — renova o access_token usando o refresh_token. */
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
+  setHeader(event, 'Cache-Control', 'no-store')
   const body = await readBody(event)
   const refreshToken = body?.refresh_token as string | undefined
 
@@ -12,6 +13,7 @@ export default defineEventHandler(async (event) => {
 
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
+    signal: AbortSignal.timeout(8000),
     headers: {
       Authorization: `Basic ${basicAuth}`,
       'Content-Type': 'application/x-www-form-urlencoded'
